@@ -91,27 +91,39 @@ namespace VehicleTweaks.Driving
                     _said = false;
                 }
 
-                if (!_fwd) return;
+                if (!_fwd)
+                {
+                    Release();
+                    return;
+                }
 
-                // From here on, any road that leads to "not pulling this frame" has to lead to
-                // "not spinning" as well. A forced burnout is an override like every other one
-                // in this mod: left on, it is a car whose wheels never stop turning.
-                Release();
-
-                // Both, held. The handbrake on its own should still stop the car dead -- that is
-                // what it is for. This is only about what happens when you ask for drive at the
-                // same time, which in a front-driver is a thing the car can actually do.
-                if (!Held(Control.VehicleHandbrake) || !Held(Control.VehicleAccelerate)) return;
-
-                if (!Running(car)) return;
-
-                // THE FRONTS HAVE TO BE ON THE GROUND TO PULL ANYTHING. A wheel in the air has no
-                // grip to put the engine's torque through, and a car being shoved forward while
-                // its nose is up in the air is a mod moving something that should not move.
-                if (!Gripping(car)) return;
-
+                // WORKED OUT FIRST, ACTED ON ONCE, and that is not tidiness -- it is the whole
+                // bug this replaces. Release used to sit above these tests, on the reasoning
+                // that every path which stops pulling must also stop spinning. It does, but put
+                // THERE it also ran on the frames that were about to start spinning: the burnout
+                // was switched off and back on every single frame, so it never lasted long
+                // enough to be a burnout and the wheels never turned at all.
+                //
+                // Both keys held. The handbrake on its own still stops the car dead, which is
+                // what it is for; this is only about asking for drive at the same time, which in
+                // a front-driver is a thing the car can actually do.
+                //
+                // The fronts also have to be ON THE GROUND. A wheel in the air has no grip to
+                // put the engine's torque through, and a car shoved forward with its nose up is
+                // a mod moving something that should not move.
                 var speed = Speed(car);
-                if (speed >= _cfg.FwdHandbrakeMaxSpeed) return;
+
+                var want = Held(Control.VehicleHandbrake) &&
+                           Held(Control.VehicleAccelerate) &&
+                           Running(car) &&
+                           Gripping(car) &&
+                           speed < _cfg.FwdHandbrakeMaxSpeed;
+
+                if (!want)
+                {
+                    Release();
+                    return;
+                }
 
                 // Eased off as it approaches the limit rather than cut at it. A force that stops
                 // dead at a threshold is a lurch you can feel; the real thing simply runs out of
@@ -187,6 +199,8 @@ namespace VehicleTweaks.Driving
 
                 _spinning = on;
                 _spun = on ? car.Handle : 0;
+
+                if (on) Log.Debug("Front wheels: spinning " + Name(car) + ".");
             }
             catch
             {
@@ -214,7 +228,10 @@ namespace VehicleTweaks.Driving
             try
             {
                 var car = (Vehicle)Entity.FromHandle(handle);
-                if (car != null && car.Exists()) car.IsBurnoutForced = false;
+                if (car == null || !car.Exists()) return;
+
+                car.IsBurnoutForced = false;
+                Log.Debug("Front wheels: stopped spinning " + Name(car) + ".");
             }
             catch
             {
