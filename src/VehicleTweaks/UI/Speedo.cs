@@ -300,10 +300,20 @@ namespace VehicleTweaks.UI
             // Unlit lamps ghost, exactly as unlit segments do.
             var lampH = LampH * scale;
             var lampW = Across(LampW * scale);
-            var lampGap = Across(0.0040f * scale);
 
-            var lamps = (_cfg.SpeedoEngineIcon ? lampW + lampGap : 0f) +
-                        (_cfg.SpeedoOilLight ? lampW + lampGap : 0f);
+            // ROOM ENOUGH TO READ AS TWO THINGS. These were four pixels apart against icons
+            // twenty-five wide -- seventeen per cent of an icon, which is a seam and not a gap,
+            // and it made the pair look like one wide symbol nobody could name. The lead-in is
+            // wider still, because it separates the lamps from the gear as a GROUP, and a group
+            // needs more air around it than the things inside it need from each other.
+            var lampGap = Across(0.0110f * scale);
+            var lampLead = Across(0.0170f * scale);
+
+            var count = (_cfg.SpeedoEngineIcon ? 1 : 0) + (_cfg.SpeedoOilLight ? 1 : 0);
+
+            var lamps = count == 0
+                            ? 0f
+                            : lampLead + count * lampW + (count - 1) * lampGap;
 
             var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f) + lamps;
 
@@ -354,7 +364,7 @@ namespace VehicleTweaks.UI
                       gw, gh, gtx, gty, shape, lit);
             }
 
-            var lampX = x + block - lamps + lampGap;
+            var lampX = x + block - (count * lampW + (count - 1) * lampGap);
             var lampY = y + (dh - lampH) * 0.5f;
 
             if (_cfg.SpeedoEngineIcon)
