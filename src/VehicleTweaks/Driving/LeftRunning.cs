@@ -48,6 +48,9 @@ namespace VehicleTweaks.Driving
             public bool Lights;
             public bool Handbrake;
             public bool Door;
+
+            /// <summary>Whether its engine stopping has already been dealt with. See Update.</summary>
+            public bool Quiet;
         }
 
         private readonly List<Held> _cars = new List<Held>();
@@ -190,6 +193,15 @@ namespace VehicleTweaks.Driving
                     // them there.
                     if (!Running(car))
                     {
+                        // ONCE, NOT TWICE A SECOND FOREVER. An entry that survives its engine
+                        // stopping -- because the handbrake or the door still has to be given
+                        // back -- came round here on every pass, quietening a radio that was
+                        // already quiet and writing a line about it. Two hundred lines about one
+                        // Glendale, and a megabyte of log that pushed everything else out.
+                        if (held.Quiet) continue;
+
+                        held.Quiet = true;
+
                         Quieten(car, held);
 
                         held.Radio = false;
@@ -201,6 +213,10 @@ namespace VehicleTweaks.Driving
                                   (held.Handbrake || held.Door ? ", still braked or open." : "."));
                         continue;
                     }
+
+                    // Running again -- restarted, or it was only ever a moment of the game
+                    // deciding otherwise. Whatever it was, the next stop is a fresh one.
+                    held.Quiet = false;
 
                     if (held.Radio)
                     {

@@ -90,6 +90,9 @@ namespace VehicleTweaks.Driving
         /// <summary>The vehicle he is sitting in, whatever it is and whoever is driving.</summary>
         private int _inCar;
 
+        /// <summary>The vehicle he has started climbing into, which is not the same question.</summary>
+        private int _approaching;
+
         /// <summary>The starter is turning and the engine has not caught yet.</summary>
         private bool _cranking;
         private int _crankedAt;
@@ -114,6 +117,7 @@ namespace VehicleTweaks.Driving
                 var car = me == null ? null : me.CurrentVehicle;
 
                 Reclaim(me, car);
+                Approaching(me);
 
                 // BACK IN THE SAME CAR ENDS THE ENFORCEMENT -- BUT ONLY ONCE HE HAS ACTUALLY
                 // BEEN OUT OF IT.
@@ -213,6 +217,52 @@ namespace VehicleTweaks.Driving
 
             _inCar = now;
 
+            Free(car, "got into");
+        }
+
+        /// <summary>
+        /// The car he is climbing into, freed before he is in it.
+        ///
+        /// THE RECOVERY USED TO NEED THE THING IT WAS RECOVERING FROM TO NOT BE IN THE WAY.
+        /// Everything this mod leaves on a parked car was undone on the frame he sat down --
+        /// which is fine until one of those things is what stops him sitting down. A car left
+        /// with its handbrake forced on and its door propped open is a car you cannot get into
+        /// and then cannot drive, and the only code that would have fixed it was waiting for
+        /// you to be inside.
+        ///
+        /// VehicleTryingToEnter is the game saying he has started reaching for a door handle,
+        /// which is early enough to be useful and specific enough not to fire on cars he is
+        /// merely walking past.
+        /// </summary>
+        private void Approaching(Ped me)
+        {
+            int now;
+            Vehicle target = null;
+
+            try
+            {
+                target = me == null ? null : me.VehicleTryingToEnter;
+                now = target != null && target.Exists() ? target.Handle : 0;
+            }
+            catch
+            {
+                now = 0;
+            }
+
+            if (now == 0 || now == _approaching)
+            {
+                _approaching = now;
+                return;
+            }
+
+            _approaching = now;
+
+            Free(target, "reaching for");
+        }
+
+        /// <summary>Hands a car back everything we left on it.</summary>
+        private void Free(Vehicle car, string what)
+        {
             try { car.IsHandbrakeForcedOn = false; }
             catch { /* nothing else to try */ }
 
@@ -223,7 +273,7 @@ namespace VehicleTweaks.Driving
 
             _kept.Forget(car, true);
 
-            Log.Debug("Ignition: got into " + Name(car) + "; handbrake off, door shut.");
+            Log.Debug("Ignition: " + what + " " + Name(car) + "; handbrake off, door shut.");
         }
 
         /// <summary>
@@ -597,9 +647,14 @@ namespace VehicleTweaks.Driving
 
             try
             {
-                // loose: false, so it hangs where it is put rather than swinging with the car.
-                // instantly: false, so it swings open instead of appearing open.
-                _leaving.Doors[VehicleDoorIndex.FrontLeftDoor].Open(false, false);
+                // LOOSE, which it was not. The first argument says whether the door is left free
+                // to move: false pins it open, and a door pinned open is one the game will not
+                // let a ped work around to climb in. True is what an open door actually is --
+                // it swings, it can be pushed shut by a passing car, and it does not stand
+                // between the player and their own seat.
+                //
+                // instantly: false, so it swings open rather than appearing open.
+                _leaving.Doors[VehicleDoorIndex.FrontLeftDoor].Open(true, false);
                 Log.Debug("Ignition: left the door of " + Name(_leaving) + " open.");
             }
             catch (Exception ex)
