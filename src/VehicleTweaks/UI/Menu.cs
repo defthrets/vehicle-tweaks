@@ -9,6 +9,7 @@ using GTA.Native;
 // Both namespaces have a Control and only one of them is a game control.
 using Control = GTA.Control;
 using VehicleTweaks.Core;
+using VehicleTweaks.Input;
 
 namespace VehicleTweaks.UI
 {
@@ -89,54 +90,17 @@ namespace VehicleTweaks.UI
         private static readonly Color Panel = Color.FromArgb(234, 15, 15, 18);
         private static readonly Color Head = Color.FromArgb(242, 26, 26, 31);
 
-        /// <summary>The chord that opens this on a pad, resolved once. Null means "not bound".</summary>
-        private readonly Control? _padOpen;
-        private readonly Control? _padModifier;
+        /// <summary>The chord that opens this on a pad.</summary>
+        private readonly Chord _openChord;
 
         public Menu(Settings cfg)
         {
             _cfg = cfg;
+            _openChord = new Chord(cfg.PadModifier, cfg.PadOpen, "panel");
 
-            _padOpen = ParseControl(cfg.PadOpen);
-            _padModifier = ParseControl(cfg.PadModifier);
-
-            Log.Info("Panel on " + cfg.BindingText() + ", or on a pad " +
-                     (_padOpen == null
-                          ? "not at all (PadOpen is off)"
-                          : (_padModifier == null ? "" : "hold " + _padModifier + " and ") +
-                            "press " + _padOpen) + ".");
+            Log.Info("Panel on " + cfg.BindingText() + ", or on a pad " + _openChord.Describe() + ".");
 
             Build();
-        }
-
-        /// <summary>
-        /// A GTA control by name, or null.
-        ///
-        /// SAID OUT LOUD WHEN IT FAILS. These two settings are names of things in somebody
-        /// else's enumeration, typed into a text file, and a typo in one is a chord that never
-        /// fires -- which is indistinguishable from a pad that is not being read at all. The
-        /// log is the only place that difference can be seen.
-        /// </summary>
-        private static Control? ParseControl(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-
-            name = name.Trim();
-
-            if (name.Equals("Off", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("None", StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            if (Enum.TryParse(name, true, out Control parsed) && Enum.IsDefined(typeof(Control), parsed))
-            {
-                return parsed;
-            }
-
-            Log.Warn("'" + name + "' is not the name of a GTA control - the pad chord is off. " +
-                     "Names come from SHVDN's GTA.Control, for example PhoneUp or MultiplayerInfo.");
-            return null;
         }
 
         // ==================================================================
@@ -268,28 +232,43 @@ namespace VehicleTweaks.UI
         /// modifier and a lot of things no keyboard has -- so finding K means holding right for
         /// a minute past OemBackslash and LaunchApplication2.
         /// </summary>
-        private Item Bind(string label, string section, string key, string hint)
+        private Item Bind(string label, Func<Keys> get, Action<Keys> set,
+                          string section, string key, string hint)
         {
-            var item = new Item
+            Item item = null;
+
+            item = new Item
             {
                 Label = label,
                 Hint = hint,
                 Section = section,
                 Key = key,
-                Show = () => _capturing ? "PRESS A KEY" : _cfg.MenuKey.ToString().ToUpperInvariant(),
-                Written = () => _cfg.MenuKey.ToString(),
+
+                // WHICH row is being rebound, not just whether one is. Two bindable rows now
+                // exist, and a Show that only asked "_capturing" would put PRESS A KEY on both
+                // of them at once.
+                Show = () => _capturing && _captureItem == item
+                                 ? "PRESS A KEY"
+                                 : get().ToString().ToUpperInvariant(),
+                Written = () => get().ToString(),
             };
 
             item.Press = () =>
             {
                 _capturing = true;
                 _captureAt = Game.GameTime;
+                _captureSet = set;
+                _captureItem = item;
             };
 
             // Deliberately no Nudge. Left and right on this row would step through the whole
-            // Keys enumeration, and there is nothing useful in either direction from V.
+            // Keys enumeration, two hundred values of it, most of which no keyboard has.
             return item;
         }
+
+        /// <summary>Where a captured key goes, and the row to mark changed when it lands.</summary>
+        private Action<Keys> _captureSet;
+        private Item _captureItem;
 
         /// <summary>
         /// A key pressed while the panel is waiting for one. Called from the script's KeyDown.
@@ -319,18 +298,17 @@ namespace VehicleTweaks.UI
                     return;
             }
 
-            _cfg.MenuKey = key;
-            _capturing = false;
-
-            _changed.Add(new Item
+            if (_captureSet == null || _captureItem == null)
             {
-                Label = "MenuKey",
-                Section = "General",
-                Key = "MenuKey",
-                Written = () => _cfg.MenuKey.ToString(),
-            });
+                _capturing = false;
+                return;
+            }
 
-            Log.Info("Settings panel rebound to " + Binding() + ".");
+            _captureSet(key);
+            _capturing = false;
+            _changed.Add(_captureItem);
+
+            Log.Info(_captureItem.Label + " rebound to " + key + ".");
         }
 
         private void Build()
@@ -356,9 +334,21 @@ namespace VehicleTweaks.UI
                                  "Ignition", "ManualIgnitionAircraft",
                                  "Off. The gesture that parks a car kills you in a helicopter."));
 
+            ign.Items.Add(Toggle("Starter cranks", () => _cfg.StarterCranks,
+                                 v => _cfg.StarterCranks = v, "Ignition", "StarterCranks",
+                                 "The engine turns over before it catches, instead of just being on."));
+
             ign.Items.Add(Toggle("Radio keeps playing", () => _cfg.RadioKeepsPlaying,
                                  v => _cfg.RadioKeepsPlaying = v, "Ignition", "RadioKeepsPlaying",
                                  "A car left running keeps its station, audible from outside."));
+
+            ign.Items.Add(Toggle("Lights stay as left", () => _cfg.LightsStayAsLeft,
+                                 v => _cfg.LightsStayAsLeft = v, "Ignition", "LightsStayAsLeft",
+                                 "Headlights carry through the same way the engine and radio do."));
+
+            ign.Items.Add(Toggle("Leave the door open", () => _cfg.LeaveDoorOpen,
+                                 v => _cfg.LeaveDoorOpen = v, "Ignition", "LeaveDoorOpen",
+                                 "Getting back in shuts it. Traffic may shut it for you."));
 
             var bli = Add("BLINKERS");
 
@@ -391,6 +381,10 @@ namespace VehicleTweaks.UI
                                  "Blinkers", "BlinkerMinSpeed",
                                  "Below this a centred wheel means nothing. Zero breaks signalling at lights."));
 
+            bli.Items.Add(Bind("Hazards key", () => _cfg.HazardKey, v => _cfg.HazardKey = v,
+                               "Blinkers", "HazardKey",
+                               "Both sides at once. On a pad it is the panel's modifier and D-pad down."));
+
             bli.Items.Add(Toggle("Invert the fallback axis", () => _cfg.BlinkerInvert,
                                  v => _cfg.BlinkerInvert = v, "Blinkers", "BlinkerInvert",
                                  "Only for setups where the one-sided steering controls read nothing."));
@@ -419,7 +413,8 @@ namespace VehicleTweaks.UI
                                  v => _cfg.MenuModifier = v, "General", "MenuModifier",
                                  "NONE is the bare key. Pick one you do not drive with."));
 
-            gen.Items.Add(Bind("Panel key", "General", "MenuKey",
+            gen.Items.Add(Bind("Panel key", () => _cfg.MenuKey, v => _cfg.MenuKey = v,
+                               "General", "MenuKey",
                                "ENTER, then press the key you want. ESC cancels."));
         }
 
@@ -474,7 +469,7 @@ namespace VehicleTweaks.UI
 
             public void Poll()
             {
-                var down = Held(_key) || (_hasPad && PadHeld(_pad));
+                var down = Held(_key) || (_hasPad && Pad.Held(_pad));
 
                 if (!down)
                 {
@@ -549,7 +544,7 @@ namespace VehicleTweaks.UI
             // key state -- short-circuiting past it leaves the key recorded as up while it is
             // held, and it registers a fresh press the next time anything looks.
             var keyEdge = Edge(_cfg.MenuKey, ref _openKey);
-            var padEdge = PadOpener();
+            var padEdge = _openChord.Fired();
 
             var toggled = ((keyEdge && Modifier()) || padEdge) && !_capturing;
 
@@ -646,76 +641,6 @@ namespace VehicleTweaks.UI
             return false;
         }
 
-        private bool _padOpenDown;
-
-        /// <summary>
-        /// The pad's way in: a held button and a pressed one.
-        ///
-        /// A CHORD, because a single spare pad button does not exist. Every face button, every
-        /// shoulder and both sticks are spoken for in gameplay, and the D-pad changes the radio
-        /// station. Holding one and pressing another is not something a thumb does by accident,
-        /// which is the same argument the keyboard side makes for a modifier -- except that on
-        /// the keyboard F8 was free and here nothing is.
-        ///
-        /// ONLY WHILE THE PLAYER IS ACTUALLY ON A PAD. The chord's two controls have keyboard
-        /// bindings as well, and without this check the panel would quietly gain a second
-        /// keyboard shortcut that nothing documents and nobody asked for.
-        ///
-        /// Both controls are named in the ini rather than fixed here. This is the one part of
-        /// the mod written without the hardware to try it on: if the default chord turns out to
-        /// be wrong or unreachable on a real pad, it should be a line in a text file rather than
-        /// a rebuild.
-        /// </summary>
-        private bool PadOpener()
-        {
-            var fired = false;
-
-            try
-            {
-                if (!UsingPad() || _padOpen == null)
-                {
-                    _padOpenDown = false;
-                    return false;
-                }
-
-                var held = _padModifier == null || Game.IsControlPressed(_padModifier.Value);
-                var down = held && Game.IsControlPressed(_padOpen.Value);
-
-                fired = down && !_padOpenDown;
-                _padOpenDown = down;
-            }
-            catch
-            {
-                _padOpenDown = false;
-                return false;
-            }
-
-            if (fired) Log.Debug("Panel: opened from the pad.");
-            return fired;
-        }
-
-        /// <summary>
-        /// Whether the player is driving this with a pad rather than a keyboard.
-        ///
-        /// Group 2 is the frontend control group, which is the one that answers this question
-        /// the way a menu means it. Anything that goes wrong is treated as a keyboard, because
-        /// the keyboard is the half that is known to work.
-        /// </summary>
-        private static bool UsingPad()
-        {
-            try { return !Function.Call<bool>(Hash.IS_USING_KEYBOARD_AND_MOUSE, 2); }
-            catch { return false; }
-        }
-
-        private static bool PadHeld(Control control)
-        {
-            // IsControlPressed, not IsEnabledControlPressed, for the same reason the ignition
-            // reads the exit control that way: everything below is disabled every frame so the
-            // game cannot act on it, and read anyway so we can.
-            try { return Game.IsControlPressed(control); }
-            catch { return false; }
-        }
-
         /// <summary>
         /// Holds off every control that would otherwise hear the panel's own keys.
         ///
@@ -768,8 +693,7 @@ namespace VehicleTweaks.UI
 
                 // And whatever the chord is made of, so opening the panel does not also do
                 // whatever those two buttons do in the world.
-                if (_padOpen != null) Game.DisableControlThisFrame(_padOpen.Value);
-                if (_padModifier != null) Game.DisableControlThisFrame(_padModifier.Value);
+                _openChord.Deafen();
             }
             catch
             {
@@ -979,7 +903,7 @@ namespace VehicleTweaks.UI
 
             // The hint for the selected row, cut to the panel rather than run out across the
             // game. Falls back to the keys when a row has nothing to say for itself.
-            var pad = UsingPad();
+            var pad = Pad.InUse();
 
             var hint = _capturing
                 ? (pad

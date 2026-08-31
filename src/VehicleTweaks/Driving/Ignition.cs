@@ -72,8 +72,18 @@ namespace VehicleTweaks.Driving
         /// <summary>When the exit task was given, so the log can say how long climbing out took.</summary>
         private int _leftAt;
 
-        /// <summary>Cars left running, kept audible for longer than the hand-out window lasts.</summary>
-        private readonly Radios _radios = new Radios();
+        /// <summary>Cars left running, kept as they were left for longer than the window lasts.</summary>
+        private readonly LeftRunning _kept = new LeftRunning();
+
+        /// <summary>The headlights as they were when he stepped out.</summary>
+        private bool _leavingLights;
+
+        /// <summary>Whether the door has been pushed open since he got clear of it.</summary>
+        private bool _doorOpened;
+
+        /// <summary>The starter is turning and the engine has not caught yet.</summary>
+        private bool _cranking;
+        private int _crankedAt;
 
         /// <summary>The station that was playing as he got out, and whether it has been put back on.</summary>
         private string _station;
@@ -90,7 +100,7 @@ namespace VehicleTweaks.Driving
 
             try
             {
-                _radios.Update(me);
+                _kept.Update(me);
 
                 var car = me == null ? null : me.CurrentVehicle;
 
@@ -114,7 +124,7 @@ namespace VehicleTweaks.Driving
                 if (_leaving != null && _leftSeat && Same(car, _leaving))
                 {
                     Log.Debug("Ignition: back in " + Name(_leaving) + "; enforcement ends.");
-                    _radios.Forget(_leaving, false);
+                    _kept.Forget(_leaving, false);
                     _leaving = null;
                 }
 
@@ -144,6 +154,7 @@ namespace VehicleTweaks.Driving
                 }
 
                 Choke(car);
+                Watch(car);
                 ExitKey(me, car);
             }
             catch (Exception ex)
@@ -191,13 +202,53 @@ namespace VehicleTweaks.Driving
             if (Game.IsControlPressed(Control.VehicleAccelerate))
             {
                 _waitingForThrottle = false;
-                Engine(car, true);
+
+                // THE GAME'S OWN CRANK. The third argument is "instantly", and false hands the
+                // whole start over to it: its starter sound, its own length, correct for the
+                // engine in this particular car. A delay we invented would be the same delay in
+                // a moped and a tanker.
+                Engine(car, true, !_cfg.StarterCranks);
+
+                _cranking = _cfg.StarterCranks;
+                _crankedAt = Game.GameTime;
+
+                if (_cranking) Log.Debug("Ignition: cranking " + Name(car) + ".");
                 return;
             }
 
             // Every frame, and with auto-start disabled: the game restarts an engine under a
             // seated driver on its own, and it does it more than once.
             Engine(car, false);
+        }
+
+        /// <summary>
+        /// Watches a start that was handed to the game, and takes it back if it does not happen.
+        ///
+        /// A BELT FOR AN ARGUMENT I CANNOT TEST. Everything else here fails towards the game's
+        /// own behaviour; this one would fail towards a car that never starts, which is the
+        /// worst thing a mod about ignitions can do. If three seconds go by with the starter
+        /// supposedly turning and the engine still not running, it is started outright and the
+        /// log says the crank is not working on this build.
+        /// </summary>
+        private void Watch(Vehicle car)
+        {
+            if (!_cranking) return;
+
+            if (Running(car))
+            {
+                _cranking = false;
+                Log.Debug("Ignition: caught after " + (Game.GameTime - _crankedAt) + "ms.");
+                return;
+            }
+
+            if (Game.GameTime - _crankedAt < 3000) return;
+
+            _cranking = false;
+            Engine(car, true, true);
+
+            Log.Once("crank", "The engine did not catch three seconds after the starter was " +
+                              "handed to the game; started it outright. Turn StarterCranks off " +
+                              "if this keeps happening.");
         }
 
         private void ExitKey(Ped me, Vehicle car)
@@ -291,6 +342,7 @@ namespace VehicleTweaks.Driving
             {
                 _leaving = car;
                 _leavingRunning = Running(car);
+                _leavingLights = Lit(car);
 
                 // SIX SECONDS, NOT FOUR, and the radio extends it again when it lands.
                 //
@@ -303,6 +355,7 @@ namespace VehicleTweaks.Driving
                 _leftAt = Game.GameTime;
                 _leftSeat = false;
                 _radioSet = false;
+                _doorOpened = false;
 
                 // THE STATION HAS TO BE READ NOW, from inside. This native answers "what is the
                 // PLAYER listening to", and the player stops listening to a car radio the moment
@@ -334,7 +387,8 @@ namespace VehicleTweaks.Driving
                 // be worth the lines: the bug that stopped any of it working was invisible from
                 // inside the game and showed up as a radio that simply went quiet.
                 Log.Debug("Ignition: tapped out of " + Name(car) + "; engine " +
-                          (_leavingRunning ? "running" : "off") + ", station " +
+                          (_leavingRunning ? "running" : "off") + ", lights " +
+                          (_leavingLights ? "on" : "off") + ", station " +
                           (string.IsNullOrEmpty(_station) ? "none" : _station) + ".");
             }
             catch (Exception ex)
@@ -367,8 +421,68 @@ namespace VehicleTweaks.Driving
             }
 
             Engine(_leaving, _leavingRunning);
+            Lights();
             Radio();
             HoldRadio();
+            Door();
+        }
+
+        /// <summary>
+        /// The headlights, left as they were.
+        ///
+        /// Every frame of the window, like the engine and unlike the station, because this is a
+        /// STATE: setting it to what it already is costs nothing. The game switches them off as
+        /// the driver climbs out and it does not do it on a single frame, so one call at the
+        /// moment of leaving would simply be undone with nothing to say so -- the same argument
+        /// the engine has, answered the same way.
+        ///
+        /// Only ever asserted ON. A car left with its lights off is a car the game is already
+        /// treating correctly, and forcing them off every frame would fight anybody else's mod
+        /// that had a view about it.
+        /// </summary>
+        private void Lights()
+        {
+            if (!_cfg.LightsStayAsLeft || !_leavingLights) return;
+
+            // SetScriptedLightSetting, not the AreLightsOn setter, which SHVDN marks obsolete
+            // and points here instead. It is the better instrument for the same reason
+            // KEEP_ENGINE_ON_WHEN_ABANDONED beat forcing the engine on: an OVERRIDE outlasts the
+            // frame it was set on, where a one-shot has to win a race against the game's own
+            // tidying up. The getter is not obsolete, so reading them is still AreLightsOn.
+            try { _leaving.SetScriptedLightSetting(ScriptedVehicleLightSetting.ForceVehicleLightsOn); }
+            catch { /* the next frame will try again */ }
+        }
+
+        /// <summary>
+        /// The driver's door, left hanging open.
+        ///
+        /// BY NAME, NOT BY INDEX. SET_VEHICLE_DOOR_OPEN takes a door number whose meaning has to
+        /// be looked up and remembered; Doors[FrontLeftDoor] says which door it is. Exactly the
+        /// lesson the indicators taught, and the failure would be the same shape: a mod that
+        /// opens the boot every time you get out of a car.
+        ///
+        /// ONCE, once he is clear. It is an ACTION, not a state -- called every frame it would
+        /// re-open a door the player is trying to shut, and re-start the swing animation while
+        /// it is still swinging. Getting back in closes it, which is the game's own behaviour
+        /// and wants nothing from us.
+        /// </summary>
+        private void Door()
+        {
+            if (_doorOpened || !_cfg.LeaveDoorOpen || !_leftSeat) return;
+
+            _doorOpened = true;
+
+            try
+            {
+                // loose: false, so it hangs where it is put rather than swinging with the car.
+                // instantly: false, so it swings open instead of appearing open.
+                _leaving.Doors[VehicleDoorIndex.FrontLeftDoor].Open(false, false);
+                Log.Debug("Ignition: left the door of " + Name(_leaving) + " open.");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("door", "Could not leave the door open: " + ex.Message);
+            }
         }
 
         /// <summary>True once he is no longer in the car he is leaving.</summary>
@@ -431,6 +545,12 @@ namespace VehicleTweaks.Driving
                 Log.Debug("Ignition: " + Name(_leaving) + " left " +
                           (_leavingRunning ? "running but with nothing playing" : "switched off") +
                           "; radio off with it.");
+
+                // THE LIGHTS STILL GET HANDED ON. They are not the radio's passengers: a car
+                // left running with the stereo off is still a car left running with its lights
+                // on, and hanging this off the radio's success would have made "nothing was
+                // playing" quietly mean "and the lights go out too".
+                if (_leavingRunning) _kept.Keep(_leaving, false, _cfg.LightsStayAsLeft && _leavingLights);
                 return;
             }
 
@@ -444,7 +564,7 @@ namespace VehicleTweaks.Driving
                 // the argument the game picks in the second or two after a driver leaves; none
                 // of it says anything about the minute after that, which is when you are
                 // actually stood outside the car listening to it.
-                _radios.Keep(_leaving);
+                _kept.Keep(_leaving, true, _cfg.LightsStayAsLeft && _leavingLights);
 
                 // Says what actually happened, because the alternative is me telling you it
                 // works and neither of us being able to check. If this line names a station and
@@ -527,6 +647,12 @@ namespace VehicleTweaks.Driving
             catch { return false; }
         }
 
+        private static bool Lit(Vehicle v)
+        {
+            try { return v.AreLightsOn; }
+            catch { return false; }
+        }
+
         /// <summary>
         /// SET_VEHICLE_ENGINE_ON(vehicle, on, instantly, disableAutoStart).
         ///
@@ -534,9 +660,9 @@ namespace VehicleTweaks.Driving
         /// without it the game is free to start the engine again by itself the moment a driver
         /// is seated, which is exactly the behaviour being replaced.
         /// </summary>
-        private static void Engine(Vehicle v, bool on)
+        private static void Engine(Vehicle v, bool on, bool instantly = true)
         {
-            try { Function.Call(Hash.SET_VEHICLE_ENGINE_ON, v.Handle, on, true, true); }
+            try { Function.Call(Hash.SET_VEHICLE_ENGINE_ON, v.Handle, on, instantly, true); }
             catch { /* the next frame will try again */ }
         }
     }

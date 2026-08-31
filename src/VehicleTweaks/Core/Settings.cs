@@ -135,11 +135,43 @@ namespace VehicleTweaks.Core
         public bool ManualIgnitionAircraft = false;
 
         /// <summary>
+        /// The starter turns over before the engine catches.
+        ///
+        /// NOT A TIMER AND NOT A SOUND WE PLAY. SET_VEHICLE_ENGINE_ON's third argument is
+        /// "instantly", and passing false hands the whole thing to the game: its own cranking,
+        /// its own starter sound, its own length, correct for the engine in that particular car.
+        /// A half-second we invented would be the same half-second in a moped and a tanker.
+        ///
+        /// This is what makes the ignition feel like a key rather than a switch, and it is the
+        /// one part of the feature that was still instant.
+        /// </summary>
+        public bool StarterCranks = true;
+
+        /// <summary>
         /// A car left running keeps its radio on, loud enough to hear from outside.
         ///
         /// Off leaves the radio to the game, which stops it the moment you are not in the seat.
         /// </summary>
         public bool RadioKeepsPlaying = true;
+
+        /// <summary>
+        /// Headlights are left the way you left them, like the engine and the radio.
+        ///
+        /// The third thing you leave on. The game switches them off as the driver gets out,
+        /// which is the same argument it has about the engine and the radio and is answered the
+        /// same way. A car left running with its lights on is a different thing to walk away
+        /// from at night.
+        /// </summary>
+        public bool LightsStayAsLeft = true;
+
+        /// <summary>
+        /// The driver's door is left open when you step out.
+        ///
+        /// Getting back in shuts it, which is the game's own behaviour and needs nothing from
+        /// us. Off if you would rather not have it torn off by passing traffic, which is a
+        /// realistic outcome and not everybody's idea of a good time.
+        /// </summary>
+        public bool LeaveDoorOpen = true;
 
         // ---- indicators -------------------------------------------------------
 
@@ -175,6 +207,28 @@ namespace VehicleTweaks.Core
         public float BlinkerMinSpeed = 1.5f;
 
         /// <summary>
+        /// Hazard lights: both indicators at once.
+        ///
+        /// A KEY, because there is no gesture left. The indicators are worked by the steering
+        /// wheel and there is no steering input that means "both" -- you cannot hold the wheel
+        /// left and right at once, which is precisely why a real car puts hazards on a separate
+        /// switch rather than on the stalk.
+        ///
+        /// J because it is free. H is the vanilla headlight key and E is the horn; most of the
+        /// rest of the row is spoken for by the game or by other mods.
+        /// </summary>
+        public Keys HazardKey = Keys.J;
+
+        /// <summary>
+        /// The pad's hazards: the panel's own modifier, and this button.
+        ///
+        /// SHARING PadModifier ON PURPOSE. One button held, and then D-pad up for the panel or
+        /// D-pad down for the hazards, is a thing you can learn once. Two unrelated chords is
+        /// two things to remember and twice the chance of colliding with something.
+        /// </summary>
+        public string PadHazard = "PhoneDown";
+
+        /// <summary>
         /// Swap which way the SIGNED steering axis reads.
         ///
         /// Only used on setups where the one-sided steering controls report nothing; the normal
@@ -202,7 +256,10 @@ namespace VehicleTweaks.Core
                 s.ExitHoldSeconds = ini.GetFloat("Ignition", "ExitHoldSeconds", s.ExitHoldSeconds, 0.1f, 3f);
                 s.ManualIgnitionMaxSpeed = ini.GetFloat("Ignition", "ManualIgnitionMaxSpeed", s.ManualIgnitionMaxSpeed, 0f, 60f);
                 s.ManualIgnitionAircraft = ini.GetBool("Ignition", "ManualIgnitionAircraft", s.ManualIgnitionAircraft);
+                s.StarterCranks = ini.GetBool("Ignition", "StarterCranks", s.StarterCranks);
                 s.RadioKeepsPlaying = ini.GetBool("Ignition", "RadioKeepsPlaying", s.RadioKeepsPlaying);
+                s.LightsStayAsLeft = ini.GetBool("Ignition", "LightsStayAsLeft", s.LightsStayAsLeft);
+                s.LeaveDoorOpen = ini.GetBool("Ignition", "LeaveDoorOpen", s.LeaveDoorOpen);
 
                 s.Blinkers = ini.GetBool("Blinkers", "Blinkers", s.Blinkers);
                 s.BlinkerArmSeconds = ini.GetFloat("Blinkers", "BlinkerArmSeconds", s.BlinkerArmSeconds, 0.1f, 5f);
@@ -211,6 +268,8 @@ namespace VehicleTweaks.Core
                 s.BlinkerDeadzone = ini.GetFloat("Blinkers", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
                 s.BlinkerMinSpeed = ini.GetFloat("Blinkers", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
                 s.BlinkerInvert = ini.GetBool("Blinkers", "BlinkerInvert", s.BlinkerInvert);
+                s.HazardKey = ini.GetKey("Blinkers", "HazardKey", s.HazardKey);
+                s.PadHazard = ini.GetString("Blinkers", "PadHazard", s.PadHazard);
             }
             catch (Exception ex)
             {

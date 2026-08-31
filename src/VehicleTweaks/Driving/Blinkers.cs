@@ -1,6 +1,8 @@
 using System;
+using System.Windows.Forms;
 using GTA;
 using VehicleTweaks.Core;
+using VehicleTweaks.Input;
 
 // Both namespaces have a Control and only one of them is a game control.
 using Control = GTA.Control;
@@ -41,9 +43,18 @@ namespace VehicleTweaks.Driving
         /// <summary>The car this is about, by handle, so a change of car clears it.</summary>
         private int _car;
 
+        /// <summary>Both sides at once, which is not a side and so is kept apart from _side.</summary>
+        private bool _hazard;
+
+        private bool _hazardKeyDown;
+        private readonly Chord _hazardChord;
+
         public Blinkers(Settings cfg)
         {
             _cfg = cfg;
+            _hazardChord = new Chord(cfg.PadModifier, cfg.PadHazard, "hazards");
+
+            Log.Info("Hazards on " + cfg.HazardKey + ", or on a pad " + _hazardChord.Describe() + ".");
         }
 
         public void Update(Ped me, Vehicle car, bool driving)
@@ -56,7 +67,8 @@ namespace VehicleTweaks.Driving
                 {
                     // Left exactly as they are. A car you walked away from indicating is still
                     // indicating, which is both what a real one does and what the ignition next
-                    // door does with an engine.
+                    // door does with an engine -- and a car left on its hazards is the whole
+                    // reason anybody puts hazards on.
                     _car = 0;
                     _steering = 0;
                     return;
@@ -65,10 +77,29 @@ namespace VehicleTweaks.Driving
                 if (car.Handle != _car)
                 {
                     _car = car.Handle;
-                    _side = Reading(car);
+
+                    // READ OFF THE CAR, not carried over from the last one. Hazards belong to
+                    // the vehicle, not to the driver: getting out of a car with them on and into
+                    // another should not bring them with you, and getting back into the first
+                    // one should find them still going.
+                    _hazard = Both(car);
+                    _side = _hazard ? 0 : Reading(car);
                     _steering = 0;
                     _steeringSince = Game.GameTime;
                     _straightSince = Game.GameTime;
+                }
+
+                if (Hazard()) Toggle(car);
+
+                // HAZARDS WIN, and the steering is not even read while they are on. Both sides
+                // lit is not a side, so every rule below it -- arm this side, cancel on the
+                // opposite lock, cancel when straight -- is about a question that currently has
+                // no answer. Letting them run would have the first corner after switching the
+                // hazards on quietly turning them into an ordinary indicator.
+                if (_hazard)
+                {
+                    Hold(car);
+                    return;
                 }
 
                 var now = Game.GameTime;
@@ -170,6 +201,67 @@ namespace VehicleTweaks.Driving
             {
                 return 0;
             }
+        }
+
+        /// <summary>The hazard key, or the pad's chord. Both read every frame, neither skipped.</summary>
+        private bool Hazard()
+        {
+            var key = false;
+
+            try
+            {
+                var down = Game.IsKeyPressed(_cfg.HazardKey);
+                key = down && !_hazardKeyDown;
+                _hazardKeyDown = down;
+            }
+            catch
+            {
+                _hazardKeyDown = false;
+            }
+
+            // NOT SHORT-CIRCUITED. Fired() is what advances the chord's own memory of whether it
+            // was down; skipping it on the frames the key fires leaves it stale.
+            var chord = _hazardChord.Fired();
+
+            return key || chord;
+        }
+
+        private void Toggle(Vehicle car)
+        {
+            _hazard = !_hazard;
+
+            if (_hazard)
+            {
+                Hold(car);
+                Log.Debug("Hazards on.");
+                return;
+            }
+
+            // Off means off, not "back to whatever was indicating before". You put the hazards
+            // on deliberately and you take them off deliberately; restoring a turn signal you
+            // had cancelled two junctions ago would be the mod remembering something you do not.
+            Set(car, 0);
+            Log.Debug("Hazards off.");
+        }
+
+        /// <summary>Both sides, every frame, because the game blinks them and we only own the state.</summary>
+        private void Hold(Vehicle car)
+        {
+            try
+            {
+                car.IsLeftIndicatorLightOn = true;
+                car.IsRightIndicatorLightOn = true;
+            }
+            catch (Exception ex)
+            {
+                Log.Once("hazard-set", "Could not work the hazards: " + ex.Message);
+            }
+        }
+
+        private static bool Both(Vehicle car)
+        {
+            try { return car.IsLeftIndicatorLightOn && car.IsRightIndicatorLightOn; }
+            catch { return false; }
         }
 
         private static int Reading(Vehicle car)

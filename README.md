@@ -14,11 +14,17 @@ The engine is something you operate rather than a side effect of sitting in the 
 |---|---|
 | **Hold** the exit key | The engine stops. You stay in the seat. |
 | **Tap** it | You get out, and the car is left exactly as it stands -- running if it was running, dead if you turned it off first. |
-| **Get in** | Nothing starts until you touch the throttle, and only if the engine was already off. |
+| **Get in** | Nothing starts until you touch the throttle — and then the starter turns over before the engine catches. |
 
-A car left running keeps its radio on, loud enough to hear from outside it, on whatever
-station was playing as you got out. A car left switched off gets its radio switched off too --
-a dead car with a stereo on is a flat battery.
+A car is left exactly as it stands: **running, playing, lit, and with the door open**. The radio
+keeps its station, loud enough to hear from outside. The headlights stay on. The driver's door
+hangs open until you get back in and shut it, or until a passing car shuts it for you.
+
+Turn the engine off first and it all goes with it — a dead car with a stereo on and its lights
+blazing is a flat battery, not a feature.
+
+The starter is the game's own: its cranking, its sound, its length for the engine in that
+particular car. A half-second we invented would be the same half-second in a moped and a tanker.
 
 **Above a brisk walk (2.5 m/s) the exit key is handed straight back to the game**, whole and
 untouched, so vanilla's hold-to-bail still works exactly as it always did. A tap that ejects
@@ -42,6 +48,12 @@ put the indicator out a second after you set it.
 Turning the same way again does not put it out either, and that needs saying because
 straightening between two turns the same way is itself a turn the other way. Only a *held*
 turn the other way cancels; a flick to line the car up does not.
+
+**Hazards are on `J`** (or the pad's modifier + D-pad down) — both sides at once. They get a key
+of their own because there is no gesture left: you cannot hold the wheel left and right at the
+same time, which is exactly why a real car puts hazards on a separate switch rather than the
+stalk. They belong to the car, not to you — leave one on its hazards and it is still on them
+when you come back.
 
 ## Settings panel — F8
 
@@ -67,14 +79,15 @@ A change applies the instant you make it, so you can try it on the next corner r
 alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually
 touched are written back — **in place, keeping every comment in the ini**.
 
-Seventeen of the nineteen settings are on the panel, including its own keyboard binding: GENERAL
-has a modifier row and a rebind row that waits for you to press the key you want (`ESC`, or **B**
-on a pad, cancels). "Both features on" is here too, and the panel deliberately keeps working when
-it is off — a switch you can only flip one way is a trap.
+Twenty-one of the twenty-four settings are on the panel, including both keyboard bindings — the
+panel's own key and the hazards key. Each is a rebind row that waits for you to press the key you
+want (`ESC`, or **B** on a pad, cancels). "Both features on" is here too, and the panel
+deliberately keeps working when it is off — a switch you can only flip one way is a trap.
 
-The two that are not on it are `PadOpen` and `PadModifier`, the controller chord. Those are names
-out of GTA's own control list, and a row that cycled through three hundred and sixty of them
-would not be a menu. They live in the ini, and the log says what they resolved to at start-up.
+The three that are not on it are `PadOpen`, `PadModifier` and `PadHazard`, the controller chords.
+Those are names out of GTA's own control list, and a row that cycled through three hundred and
+sixty of them would not be a menu. They live in the ini, and the log says what each resolved to
+at start-up — including, loudly, when it could not.
 
 ## Install
 
