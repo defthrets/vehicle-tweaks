@@ -103,8 +103,10 @@ internal static class Program
               Math.Abs(reread.GetFloat("Blinkers", "BlinkerCancelSeconds", -1f) - 2.0f) < 0.0001f);
         Check("an untouched other section is unchanged",
               reread.GetString("Ignition", "ManualIgnitionMaxSpeed", null) == "2.5");
+        // A FUNCTION KEY, which is the case the single-character path in GetKey does NOT
+        // cover -- "F8" is two characters and has to survive Enum.TryParse on its own.
         Check("the key parser still reads MenuKey", reread.GetKey("General", "MenuKey",
-              System.Windows.Forms.Keys.None) == System.Windows.Forms.Keys.V);
+              System.Windows.Forms.Keys.None) == System.Windows.Forms.Keys.F8);
 
         // A clamp, which is what stops a bad ini becoming a bad frame.
         Check("out-of-range value is clamped, not taken",

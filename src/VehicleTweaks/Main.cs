@@ -71,7 +71,7 @@ namespace VehicleTweaks
             Log.Info(Build.Name + " " + Build.Version + " loaded. Ignition " +
                      (_cfg.ManualIgnition ? "on" : "off") + ", indicators " +
                      (_cfg.Blinkers ? "on" : "off") + ", settings on " +
-                     _cfg.MenuModifier + "+" + _cfg.MenuKey + ".");
+                     _cfg.BindingText() + ".");
 
             if (!_cfg.Enabled)
             {

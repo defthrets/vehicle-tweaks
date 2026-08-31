@@ -47,18 +47,39 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// The key that opens the settings panel, and what has to be held with it.
         ///
-        /// A MODIFIER BY DEFAULT, and that is not caution for its own sake. A bare letter is one
-        /// keystroke away from whatever else the player has bound it to, and this game has mods
-        /// on most of the alphabet -- the hotkey map for this machine alone runs to a hundred
-        /// and twenty-one bindings. V on its own is the vanilla camera key, so a bare V would
-        /// have opened the panel every time somebody changed view.
+        /// NO MODIFIER, BECAUSE F8 DOES NOT NEED ONE. A modifier is what a LETTER needs: a bare
+        /// letter is one keystroke from whatever else the player has bound it to, this game has
+        /// mods on most of the alphabet, and the vanilla letters are all spoken for -- V, the
+        /// obvious first choice for a vehicle mod, is the camera key. A function key is none of
+        /// those things. Vanilla binds nothing to F8, so there is no conflict for a modifier to
+        /// resolve, and adding one would only make the panel harder to open than it needs to be.
         ///
-        /// Shift+V is free on both installs here. The camera control is held off for the frame
-        /// the combination is pressed, so opening and closing the panel does not also cycle the
-        /// view behind it.
+        /// Both halves stay configurable, and both are rows in the panel, so a player whose
+        /// other mods have claimed F8 can move it without touching this file.
         /// </summary>
-        public Keys MenuKey = Keys.V;
-        public MenuModifier MenuModifier = MenuModifier.Shift;
+        public Keys MenuKey = Keys.F8;
+        public MenuModifier MenuModifier = MenuModifier.None;
+
+        /// <summary>
+        /// The combination, written the way a person would say it.
+        ///
+        /// HERE RATHER THAN IN THE PANEL, because two places need it and they must not be able
+        /// to disagree: the panel prints it in its own footer, and the log prints it at start-up.
+        /// Concatenating the two fields is what the log used to do, and with no modifier set
+        /// that produced "None+F8".
+        /// </summary>
+        public string BindingText()
+        {
+            var key = MenuKey.ToString().ToUpperInvariant();
+
+            switch (MenuModifier)
+            {
+                case MenuModifier.Shift: return "SHIFT+" + key;
+                case MenuModifier.Control: return "CTRL+" + key;
+                case MenuModifier.Alt: return "ALT+" + key;
+                default: return key;
+            }
+        }
 
         // ---- ignition ---------------------------------------------------------
 

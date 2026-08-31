@@ -43,18 +43,18 @@ Turning the same way again does not put it out either, and that needs saying bec
 straightening between two turns the same way is itself a turn the other way. Only a *held*
 turn the other way cancels; a flick to line the car up does not.
 
-## Settings panel — SHIFT+V
+## Settings panel — F8
 
 Everything is on one panel, in the game, drawn out of rectangles with no UI library behind it.
 
 | | |
 |---|---|
-| `SHIFT+V` | opens and closes it |
+| `F8` | opens and closes it |
 | `TAB` | IGNITION / BLINKERS / GENERAL |
 | `UP` `DOWN` | move |
 | `LEFT` `RIGHT` | change the selected setting |
 | `ENTER` | works a row — toggles it, or starts a key rebind |
-| `BACKSPACE` | saves and closes, same as `SHIFT+V` |
+| `BACKSPACE` | saves and closes, same as `F8` |
 
 A change applies the instant you make it, so you can try it on the next corner rather than
 alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually

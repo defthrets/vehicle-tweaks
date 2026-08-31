@@ -12,7 +12,7 @@ using VehicleTweaks.Core;
 namespace VehicleTweaks.UI
 {
     /// <summary>
-    /// The settings panel. Shift+V.
+    /// The settings panel. F8.
     ///
     /// BUILT OUT OF RECTANGLES, because the alternative is a dependency. NativeUI and LemonUI
     /// both do this better and both are another dll a player has to find, put in the right
@@ -54,6 +54,8 @@ namespace VehicleTweaks.UI
         /// held key auto-repeating its way in.
         /// </summary>
         private int _captureAt;
+
+        /// <summary>True whenever the panel is taking input, so the rest of the mod can stand off.</summary>
         public bool IsOpen => _open;
 
         // Where it sits and how big, as fractions of the screen.
@@ -400,11 +402,12 @@ namespace VehicleTweaks.UI
             {
                 // DEAFENED ON THE WAY OUT AS WELL AS THE WAY IN.
                 //
-                // The frame the panel closes is still a frame in which V was pressed, and V is
-                // the vanilla camera key. Returning here before Deafen -- which is what the
-                // obvious version of this method does -- means every close also cycles the
-                // camera behind the panel that is disappearing, which reads as the mod having
-                // done something strange rather than as a missed frame.
+                // The frame the panel closes is still a frame in which the opening key was
+                // pressed, and returning here before Deafen -- which is what the obvious
+                // version of this method does -- lets the game act on it. F8 is bound to
+                // nothing in vanilla so today that costs nothing; the row on the GENERAL page
+                // that rebinds this is exactly what stops that staying true, and the failure it
+                // would produce is a close that also does whatever the new key does.
                 if (toggled) Deafen();
                 return;
             }
@@ -470,8 +473,10 @@ namespace VehicleTweaks.UI
                 Game.DisableControlThisFrame(Control.SelectWeapon);
                 Game.DisableControlThisFrame(Control.CharacterWheel);
 
-                // V, which is the camera. Without this the open and the close each cycle the
-                // view as well.
+                // The camera. Kept in the list after the panel moved off V, because the reason
+                // it belongs here was never only that V opened this: changing view from under a
+                // menu you are reading is its own small nuisance, and V is one of the keys
+                // somebody might rebind the panel to.
                 Game.DisableControlThisFrame(Control.NextCamera);
 
                 Game.DisableControlThisFrame(Control.VehicleExit);
@@ -679,22 +684,14 @@ namespace VehicleTweaks.UI
         /// <summary>
         /// The combination that opens this, written out.
         ///
-        /// READ BACK FROM THE SETTINGS rather than typed into the footer as "SHIFT+V". They are
-        /// both configurable, and a panel that tells you the wrong way to close itself is worse
-        /// than one that says nothing -- the player's own ini would be the thing contradicting
-        /// the screen.
+        /// READ BACK FROM THE SETTINGS rather than typed into the footer as "F8". Both halves
+        /// are configurable and both are rows on the GENERAL page, so the footer would start
+        /// lying the moment somebody used them -- and a panel that tells you the wrong way to
+        /// close itself is worse than one that says nothing.
         /// </summary>
         private string Binding()
         {
-            var key = _cfg.MenuKey.ToString().ToUpperInvariant();
-
-            switch (_cfg.MenuModifier)
-            {
-                case MenuModifier.Shift: return "SHIFT+" + key;
-                case MenuModifier.Control: return "CTRL+" + key;
-                case MenuModifier.Alt: return "ALT+" + key;
-                default: return key;
-            }
+            return _cfg.BindingText();
         }
 
         /// <summary>
