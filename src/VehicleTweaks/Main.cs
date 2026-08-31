@@ -271,6 +271,7 @@ namespace VehicleTweaks
             try { _crashes.Restore(); } catch (Exception ex) { Log.Error("Time scale", ex); }
             try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
             try { _drift.ReleaseAll(); } catch (Exception ex) { Log.Error("Drift tyres", ex); }
+            try { _frontWheels.Release(); } catch (Exception ex) { Log.Error("Front wheels", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
             Log.Info(Build.Name + " stopped cleanly.");

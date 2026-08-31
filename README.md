@@ -120,8 +120,14 @@ spins on it. In a front-wheel-drive car the driven wheels are the ones it does n
 engine can still drag the car forward against a locked rear axle. GTA brakes the car as a unit
 and the fronts give up with everything else.
 
-Hold the handbrake *and* the throttle in a front-driver and the fronts keep pulling. The
-handbrake alone still stops the car dead, which is what it is for.
+Hold the handbrake *and* the throttle in a front-driver and the fronts keep pulling — **and
+spin**. The handbrake alone still stops the car dead, which is what it is for.
+
+Those are two different things and only the second one is visible. Pushing the car moves the
+*car*; the wheels under it roll at whatever speed the road is going past, which against a
+handbrake is barely at all. Wheelspin is not a fast roll — it is the tyre losing to the engine,
+and no force produces it. `SET_VEHICLE_BURNOUT` does, and it spins the *driven* wheels, which
+on a front-driver are the front ones.
 
 **By pushing the car, not by editing its handling.** `HandlingData` has a `HandBrakeForce` on it
 and turning that down looks like the obvious fix — it is not. Handling is loaded per *model*, so

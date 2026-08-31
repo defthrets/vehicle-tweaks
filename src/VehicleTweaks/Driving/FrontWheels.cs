@@ -17,6 +17,12 @@ namespace VehicleTweaks.Driving
     /// up and the engine still dragging the car forward -- and that is the thing this restores.
     /// The game brakes the car as a unit and the fronts give up with everything else.
     ///
+    /// TWO HALVES, AND THE SECOND ONE IS THE ONE THAT SHOWS. Pushing the car moves the CAR, and
+    /// the wheels under it just roll at road speed -- which against a handbrake is barely at
+    /// all, so the fronts sat there motionless while the car strained. Wheelspin is not a fast
+    /// roll; it is the tyre losing to the engine, and no force can produce it. SET_VEHICLE_BURNOUT
+    /// can, and it spins the DRIVEN wheels, which here are the front ones.
+    ///
     /// BY PUSHING, NOT BY EDITING THE HANDLING, and that distinction is the reason this is safe
     /// enough to ship. HandlingData is right there and it has a HandBrakeForce on it, and turning
     /// that down would look like the obvious fix. It is not: handling is loaded PER MODEL, not
@@ -56,6 +62,10 @@ namespace VehicleTweaks.Driving
 
         private bool _said;
 
+        /// <summary>Whether a burnout is being forced, and on which car by handle.</summary>
+        private bool _spinning;
+        private int _spun;
+
         public FrontWheels(Settings cfg)
         {
             _cfg = cfg;
@@ -69,6 +79,7 @@ namespace VehicleTweaks.Driving
             {
                 if (!driving || car == null || !car.Exists())
                 {
+                    Release();
                     _car = 0;
                     return;
                 }
@@ -81,6 +92,11 @@ namespace VehicleTweaks.Driving
                 }
 
                 if (!_fwd) return;
+
+                // From here on, any road that leads to "not pulling this frame" has to lead to
+                // "not spinning" as well. A forced burnout is an override like every other one
+                // in this mod: left on, it is a car whose wheels never stop turning.
+                Release();
 
                 // Both, held. The handbrake on its own should still stop the car dead -- that is
                 // what it is for. This is only about what happens when you ask for drive at the
@@ -104,6 +120,7 @@ namespace VehicleTweaks.Driving
                 if (taper < 0f) taper = 0f;
 
                 Pull(car, _cfg.FwdHandbrakePull * taper);
+                Spin(car, true);
 
                 if (_said) return;
 
@@ -144,6 +161,67 @@ namespace VehicleTweaks.Driving
         /// still means the same thing in a hatchback and a van -- that part was never the
         /// problem, the mass factor in front of it was.
         /// </summary>
+        /// <summary>
+        /// The driven wheels, actually turning.
+        ///
+        /// SET_VEHICLE_BURNOUT IS THE GAME'S OWN, and it is the answer to the thing the pull
+        /// could never do. Pushing the car forward moves the CAR; the wheels under it roll at
+        /// whatever speed the road is going past, which against a handbrake is barely at all.
+        /// Wheelspin is not a fast roll, it is the tyre losing to the engine, and that is a
+        /// state the physics has to be told about rather than something a force can produce.
+        ///
+        /// A burnout spins the DRIVEN wheels -- which on a front-driver are the front ones, so
+        /// the native needs no help working out which. The same shape of answer as the drift
+        /// tyres: asked for something the game already models, use the thing the game models it
+        /// with.
+        ///
+        /// Held only while the conditions hold, and taken off the moment they do not.
+        /// </summary>
+        private void Spin(Vehicle car, bool on)
+        {
+            if (on == _spinning && (!on || _spun == car.Handle)) return;
+
+            try
+            {
+                car.IsBurnoutForced = on;
+
+                _spinning = on;
+                _spun = on ? car.Handle : 0;
+            }
+            catch
+            {
+                _spinning = false;
+                _spun = 0;
+            }
+        }
+
+        /// <summary>
+        /// Stops the wheels spinning, wherever we left them.
+        ///
+        /// BY HANDLE, because the car that is being released is not always the car in front of
+        /// us: stepping straight from one vehicle into another has to switch off the burnout on
+        /// the one left behind, which is no longer anybody's CurrentVehicle.
+        /// </summary>
+        public void Release()
+        {
+            if (!_spinning) return;
+
+            var handle = _spun;
+
+            _spinning = false;
+            _spun = 0;
+
+            try
+            {
+                var car = (Vehicle)Entity.FromHandle(handle);
+                if (car != null && car.Exists()) car.IsBurnoutForced = false;
+            }
+            catch
+            {
+                // The car is gone, and the burnout went with it.
+            }
+        }
+
         private static void Pull(Vehicle car, float accel)
         {
             try
