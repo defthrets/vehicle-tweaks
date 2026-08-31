@@ -161,6 +161,20 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## Drift tyres
+
+GTA Online's own, not an imitation. `SET_DRIFT_TYRES` is the flag the Los Santos Tuners update
+added for the drift tuning you buy at a garage, so what this switches on is the handling
+Rockstar wrote, engaging on their terms and on the vehicles they allowed it on. Nothing here
+models grip or fakes a slide.
+
+**Off by default** — it is the only setting in this mod that changes how a car goes round a
+corner. Everything else adds something the game was missing; this replaces something it already
+had.
+
+Cars it was fitted to lose it again when you switch it off or reload. A car that *already* had
+drift tuning is left alone — somebody paid for that, and it is not ours to remove.
+
 ## Crashes, and the dash
 
 Hit something above 100 km/h and the world drops into slow motion for a moment. **This is the

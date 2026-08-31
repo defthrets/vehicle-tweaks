@@ -63,20 +63,21 @@ namespace VehicleTweaks.UI
         // Where it sits and how big, as fractions of the screen.
         private const float PanelX = 0.030f;
         private const float PanelW = 0.262f;
-        private const float PanelTop = 0.180f;
+        private const float PanelTop = 0.155f;
         private const float TitleH = 0.052f;
-        private const float RowH = 0.0295f;
+        private const float RowH = 0.0280f;
         private const float FootH = 0.044f;
 
         /// <summary>
         /// How many rows fit before it scrolls.
         ///
-        /// Larger than the longest page, deliberately, so nothing scrolls today. The scrolling
-        /// below is not dead weight for that: it is what stops a page silently losing its last
-        /// row the day somebody adds an eighth setting to it. A menu that quietly truncates is
-        /// worse than one that scrolls.
+        /// Larger than the longest page, deliberately, so nothing scrolls today -- and the rows
+        /// were tightened and the panel raised to keep it that way rather than letting it grow
+        /// down into the minimap. There is a limit to how many times that can be done, and the
+        /// scrolling below is what happens when it runs out: it is not dead weight, it is what
+        /// stops a page silently losing its last row the day somebody adds one more setting.
         /// </summary>
-        private const int Rows = 16;
+        private const int Rows = 18;
 
         private const int Plain = 4;   // Chalet Comprime Cologne
 
@@ -406,6 +407,12 @@ namespace VehicleTweaks.UI
                                    "Driving", "FwdHandbrakeMaxSpeed",
                                    "A locked rear axle should win eventually. Eight is a fast jog.",
                                    () => _cfg.FwdHandbrake));
+
+            drive.Items.Add(Header("THE TYRES"));
+
+            drive.Items.Add(Toggle("Drift tyres", () => _cfg.DriftTyres,
+                                   v => _cfg.DriftTyres = v, "Driving", "DriftTyres",
+                                   "GTA Online's own drift tuning, not an imitation of it."));
 
             drive.Items.Add(Header("THE DASH"));
 

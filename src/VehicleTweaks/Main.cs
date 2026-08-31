@@ -49,6 +49,7 @@ namespace VehicleTweaks
         private readonly Speedo _speedo;
         private readonly DashLight _dash;
         private readonly Crashes _crashes;
+        private readonly DriftTyres _drift;
 
         private int _failures;
         private bool _parked;
@@ -66,6 +67,7 @@ namespace VehicleTweaks
             _speedo = new Speedo(_cfg);
             _dash = new DashLight(_cfg);
             _crashes = new Crashes(_cfg);
+            _drift = new DriftTyres(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -137,6 +139,7 @@ namespace VehicleTweaks
                     _locks.Update(me);
                     _dash.Update(me);
                     _crashes.Update(me);
+                    _drift.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
@@ -267,6 +270,7 @@ namespace VehicleTweaks
             // at four tenths speed with nothing to explain it.
             try { _crashes.Restore(); } catch (Exception ex) { Log.Error("Time scale", ex); }
             try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
+            try { _drift.ReleaseAll(); } catch (Exception ex) { Log.Error("Drift tyres", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
             Log.Info(Build.Name + " stopped cleanly.");

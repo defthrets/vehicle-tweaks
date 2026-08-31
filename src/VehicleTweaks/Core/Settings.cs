@@ -270,6 +270,22 @@ namespace VehicleTweaks.Core
         public bool SpeedoOilLight = true;
 
         /// <summary>
+        /// Drift tyres, the ones GTA Online actually has.
+        ///
+        /// SET_DRIFT_TYRES is the flag the Los Santos Tuners update added for the drift tuning
+        /// you buy at a garage, so this switches on the handling Rockstar wrote rather than an
+        /// impression of it. Nothing here models grip or fakes a slide.
+        ///
+        /// OFF BY DEFAULT, because it is the only setting in this mod that changes how a car
+        /// goes round a corner. Everything else adds something the game was missing; this one
+        /// replaces something it already had, and that should be asked for rather than arrive.
+        ///
+        /// A car that already had drift tuning when we found it keeps it and is left alone --
+        /// somebody paid for that, and it is not ours to take off when this is switched back off.
+        /// </summary>
+        public bool DriftTyres = false;
+
+        /// <summary>
         /// The cabin lights up when the headlights are on.
         ///
         /// Tied to the headlights rather than to the clock, which is both simpler and more
@@ -511,6 +527,7 @@ namespace VehicleTweaks.Core
                 s.SpeedoEngineIcon = ini.GetBool("Speedo", "SpeedoEngineIcon", s.SpeedoEngineIcon);
                 s.SpeedoOilLight = ini.GetBool("Speedo", "SpeedoOilLight", s.SpeedoOilLight);
 
+                s.DriftTyres = ini.GetBool("Driving", "DriftTyres", s.DriftTyres);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
