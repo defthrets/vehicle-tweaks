@@ -27,11 +27,16 @@ param(
     [ValidateSet('Legacy', 'Enhanced', 'Both')]
     [string]$Target = 'Both',
 
-    # Overwrite the installed ini with the one in the repo. OFF BY DEFAULT, and it has to stay
-    # that way: that file is the one players hand-edit, and it is also where the settings panel
-    # writes, so replacing it silently on every deploy would throw away both. The normal deploy
-    # reports what is stale and leaves it alone. This is the switch for when the answer to that
-    # report is "yes, I know, it is mine and I want the new comments".
+    # REPLACE the installed ini with the one in the repo, values and all.
+    #
+    # A BLUNT INSTRUMENT AND RARELY THE RIGHT ONE. That file is where the settings panel writes,
+    # so it holds everything the player has set: where their speedo sits, how big it is, which
+    # keys they rebound. Replacing it throws all of that away.
+    #
+    # The ordinary deploy no longer needs this: it MERGES settings the installed file has never
+    # heard of and leaves every existing line alone, which is what a new build actually requires.
+    # This switch is for when the installed file is genuinely stock and the newer comments are
+    # wanted, and it says plainly what it is about to destroy.
     [switch]$FreshIni,
 
     [string]$GtaDir = 'C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V',
@@ -202,6 +207,113 @@ function Read-IniKeys {
     return $keys
 }
 
+function Get-IniEntries {
+    <#
+        Every setting in an ini, each carrying the comment block written above it.
+
+        The comments are the point. This file explains what all fifty-nine settings are FOR,
+        and a merge that added bare key=value lines to somebody's installed copy would grow it
+        into a file that is half documented and half not.
+    #>
+    param([string]$Path)
+
+    $section = ''
+    $buffer = New-Object System.Collections.Generic.List[string]
+    $entries = New-Object System.Collections.Generic.List[object]
+
+    foreach ($line in [IO.File]::ReadAllLines($Path)) {
+        $t = $line.Trim()
+
+        if ($t -match '^\[(.+)\]$') {
+            $section = $Matches[1]
+            $buffer.Clear()
+            continue
+        }
+
+        $buffer.Add($line)
+
+        if ($t -match '^([A-Za-z]\w*)\s*=') {
+            $entries.Add([pscustomobject]@{
+                Section = $section
+                Key     = $Matches[1]
+                Lines   = $buffer.ToArray()
+            })
+            $buffer.Clear()
+        }
+    }
+
+    return $entries
+}
+
+function Merge-Ini {
+    <#
+        Adds settings the installed ini has never heard of, and CHANGES NOTHING ELSE.
+
+        THIS IS WHY -FreshIni IS NOT THE ANSWER TO A STALE ini. That switch replaces the file,
+        which is correct when the file is stock and catastrophic when it is not: everything the
+        player set from the panel -- where their speedo sits, how big it is, which keys they
+        rebound -- is written into that same file, and replacing it throws all of it away.
+
+        A new build almost never needs to change an existing value. It needs the settings that
+        did not exist yet. So that is all this does: each missing key is inserted at the end of
+        its section with the comment block that explains it, and every line already in the file
+        is left exactly where it was.
+    #>
+    param([string]$ShippedPath, [string]$InstalledPath)
+
+    $shipped = Get-IniEntries $ShippedPath
+    $have = Read-IniKeys $InstalledPath
+
+    $missing = $shipped | Where-Object { $have -notcontains "$($_.Section).$($_.Key)" }
+    if (-not $missing) { return @() }
+
+    $text = [IO.File]::ReadAllText($InstalledPath)
+    $terminator = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.AddRange([string[]]($text -split "`r`n|`n"))
+
+    $added = @()
+
+    foreach ($entry in $missing) {
+        # The end of its section: the line before the next heading, or the end of the file.
+        $start = -1
+        $end = $lines.Count
+
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            $t = $lines[$i].Trim()
+            if ($t -notmatch '^\[(.+)\]$') { continue }
+
+            if ($Matches[1] -eq $entry.Section) { $start = $i; continue }
+            if ($start -ge 0) { $end = $i; break }
+        }
+
+        if ($start -lt 0) {
+            # A section this ini has never had at all.
+            $lines.Add('')
+            $lines.Add("[$($entry.Section)]")
+            $end = $lines.Count
+        }
+
+        # Back up over the blank lines that separate sections, so the new setting lands inside
+        # its own section rather than adrift between two of them.
+        while ($end -gt 0 -and $lines[$end - 1].Trim().Length -eq 0) { $end-- }
+
+        $block = New-Object System.Collections.Generic.List[string]
+        $block.Add('')
+        foreach ($l in $entry.Lines) { if ($l.Trim().Length -gt 0 -or $block.Count -gt 1) { $block.Add($l) } }
+
+        $lines.InsertRange($end, $block)
+        $added += "$($entry.Section).$($entry.Key)"
+    }
+
+    [IO.File]::WriteAllText($InstalledPath,
+                            ($lines -join $terminator),
+                            (New-Object Text.UTF8Encoding($false)))
+
+    return $added
+}
+
 function Get-ReloadKey([string]$gameDir) {
     <#
         Whatever SHVDN is actually set to reload on, per install. Not assumed: the two
@@ -297,9 +409,14 @@ function Deploy-To([string]$gameDir, [string]$label) {
     $extra  = $dstKeys | Where-Object { $srcKeys -notcontains $_ }
 
     if ($absent) {
-        Write-Host "  STALE  VehicleTweaks.ini is missing $($absent.Count) setting(s):" -ForegroundColor Yellow
-        Write-Host "         $($absent -join ', ')" -ForegroundColor DarkGray
-        Write-Host "         Defaults apply until they are added, or re-run with -FreshIni." -ForegroundColor DarkGray
+        # MERGED, NOT REPORTED AND LEFT. This used to print the list and walk away, which made
+        # -FreshIni the only way to pick up a new setting -- and -FreshIni replaces the whole
+        # file, taking every value the player set from the settings panel with it.
+        $added = Merge-Ini $iniSrc $iniDst
+
+        Write-Host "  MERGED $($added.Count) new setting(s) into VehicleTweaks.ini:" -ForegroundColor Green
+        Write-Host "         $($added -join ', ')" -ForegroundColor DarkGray
+        Write-Host "         Everything already in the file was left alone." -ForegroundColor DarkGray
     }
     if ($extra) {
         Write-Host "  STALE  VehicleTweaks.ini has $($extra.Count) setting(s) nothing reads:" -ForegroundColor Yellow
