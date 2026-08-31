@@ -7,34 +7,34 @@ using VehicleTweaks.Core;
 namespace VehicleTweaks.Driving
 {
     /// <summary>
-    /// Cars you walked away from, kept the way you left them for as long as they are there.
+    /// Cars you walked away from, kept the way you left them for as long as they are there --
+    /// and handed back properly when you return.
     ///
     /// WHY THIS IS NOT JUST PART OF THE HAND-OUT. Ignition sets a car up once, the moment the
-    /// player is clear of the seat, and then holds it that way for a few seconds while the game
+    /// player is clear of the seat, and holds it that way for a few seconds while the game
     /// finishes tidying up after a driver who has left. That window exists to win an argument
     /// with the game, and it is measured in seconds because that is how long the argument lasts.
+    /// It is not how long the player is away from the car.
     ///
-    /// It is not how long the player is away from the car. Walk into a shop for half a minute
-    /// and the window closed twenty seconds ago -- so anything that switches the radio off or
-    /// the lights out after it goes unanswered, and the thing the feature promised is quietly
-    /// not true any more. The promise is "the car you left running is still running, still
-    /// playing, still lit", and the honest way to keep it is to keep saying so.
+    /// THE HANDING BACK IS THE HALF THAT CAN HURT. Everything applied here is an override that
+    /// outlives us: a forced handbrake, a forced light setting, a door propped open. Any one of
+    /// them left on a car after we have stopped caring about it is a car that behaves wrongly
+    /// forever with nothing to say why -- and the handbrake one is a car that simply will not
+    /// pull away. So every path out of this list releases, including the one where the list is
+    /// full and the oldest entry is dropped.
     ///
-    /// STATES ONLY, never a change. Radio enabled, radio loud and lights on are all things that
-    /// can be set to what they already are for nothing. The radio STATION is a change, and
-    /// re-asserting a change restarts the track -- which is how you get a car that stutters the
-    /// first half-second of a song forever. Ignition sets the station once and this never
-    /// touches it.
+    /// STATES ONLY while it is held, never a change. Radio enabled, radio loud and lights on can
+    /// all be set to what they already are for nothing. The radio STATION is a change, and
+    /// re-asserting a change restarts the track; Ignition sets it once and this never touches it.
     /// </summary>
     internal sealed class LeftRunning
     {
         /// <summary>
         /// How many cars are kept at once.
         ///
-        /// More than one because you can leave more than one running, and a list that held a
-        /// single car would silently stop keeping the first one the moment you left a second.
-        /// Bounded because this is a list that only ever grows otherwise, and a player who
-        /// leaves cars idling all session should not be able to make it unbounded.
+        /// More than one because you can leave more than one running, and a list holding a single
+        /// car would silently stop keeping the first one the moment you left a second. Bounded
+        /// because this list otherwise only grows.
         /// </summary>
         private const int Most = 12;
 
@@ -47,6 +47,7 @@ namespace VehicleTweaks.Driving
             public bool Radio;
             public bool Lights;
             public bool Handbrake;
+            public bool Door;
         }
 
         private readonly List<Held> _cars = new List<Held>();
@@ -55,13 +56,16 @@ namespace VehicleTweaks.Driving
         /// <summary>
         /// Takes on a car the player has walked away from.
         ///
-        /// The radio's station has already been set by the time this is called; all that is
-        /// wanted here is for it to stay set.
+        /// CALLED FOR EVERY EXIT, whatever is or is not being kept. It used to be called from
+        /// inside the radio handling, which returned early when RadioKeepsPlaying was off -- so
+        /// with the radio feature disabled the handbrake was applied by the exit and then never
+        /// registered here, which meant it was never released either. The car was locked in
+        /// place permanently, and turning off an unrelated setting about music is what did it.
         /// </summary>
-        public void Keep(Vehicle car, bool radio, bool lights, bool handbrake)
+        public void Keep(Vehicle car, bool radio, bool lights, bool handbrake, bool door)
         {
             if (car == null) return;
-            if (!radio && !lights && !handbrake) return;
+            if (!radio && !lights && !handbrake && !door) return;
 
             try
             {
@@ -75,18 +79,32 @@ namespace VehicleTweaks.Driving
                     held.Radio |= radio;
                     held.Lights |= lights;
                     held.Handbrake |= handbrake;
+                    held.Door |= door;
                     return;
                 }
 
-                // The oldest goes, not the newest. The car you just walked away from is the one
-                // you are standing next to.
-                if (_cars.Count >= Most) _cars.RemoveAt(0);
+                // The oldest goes, not the newest: the car you just walked away from is the one
+                // you are standing next to. It is RELEASED on the way out rather than simply
+                // dropped -- a forgotten entry is a car still wearing a forced handbrake that
+                // nothing is ever going to take off again.
+                if (_cars.Count >= Most)
+                {
+                    var oldest = _cars[0];
+                    _cars.RemoveAt(0);
 
-                _cars.Add(new Held { Car = car, Radio = radio, Lights = lights, Handbrake = handbrake });
+                    if (oldest.Car != null && oldest.Car.Exists()) Release(oldest.Car, oldest, true);
+
+                    Log.Debug("Left running: full, so " + Name(oldest.Car) + " was let go.");
+                }
+
+                _cars.Add(new Held
+                {
+                    Car = car, Radio = radio, Lights = lights, Handbrake = handbrake, Door = door,
+                });
 
                 Log.Debug("Left running: keeping " + Name(car) +
                           (radio ? " playing" : "") + (lights ? " lit" : "") +
-                          (handbrake ? " braked" : "") +
+                          (handbrake ? " braked" : "") + (door ? " open" : "") +
                           " (" + _cars.Count + " car(s) held).");
             }
             catch (Exception ex)
@@ -96,15 +114,14 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Stops keeping a car, and optionally takes the radio and lights off it.
+        /// Stops keeping a car and hands everything back.
         ///
-        /// THE LIGHT OVERRIDE IS ALWAYS LIFTED, silence or not, and that is not tidiness. Forcing
-        /// the lights on is an override that outlives us: left in place after we have stopped
-        /// caring about the car, it would sit there overruling the player's own headlight key
-        /// for the rest of the session. They would get back into their car, press the key, and
-        /// nothing would happen -- and nothing anywhere would say why.
+        /// <paramref name="returning"/> is the difference between "he is getting back in" and
+        /// "this car has stopped being interesting". Coming back releases the handbrake and
+        /// shuts the door, because he is about to drive it; anything else leaves both where they
+        /// are, because a parked car with its engine stopped still wants its handbrake on.
         /// </summary>
-        public void Forget(Vehicle car, bool silence)
+        public void Forget(Vehicle car, bool returning)
         {
             if (car == null) return;
 
@@ -117,7 +134,7 @@ namespace VehicleTweaks.Driving
                     var held = _cars[i];
                     _cars.RemoveAt(i);
 
-                    Release(car, held, silence);
+                    Release(car, held, returning);
 
                     Log.Debug("Left running: released " + Name(car) + ".");
                 }
@@ -144,45 +161,44 @@ namespace VehicleTweaks.Driving
                     var held = _cars[i];
                     var car = held.Car;
 
-                    // Gone, or streamed out from under us. Nothing to assert and nothing to
-                    // tidy: the radio and the lights went with it.
+                    // Gone, or streamed out from under us. Nothing to assert and nothing to tidy:
+                    // whatever was set on it went with it.
                     if (car == null || !car.Exists() || car.IsDead)
                     {
                         _cars.RemoveAt(i);
                         continue;
                     }
 
-                    // The player is back in it. It is theirs again, and the game will do the
-                    // right thing with it -- including letting them change station and work
-                    // their own lights, which we would otherwise be fighting every half second.
+                    // He is back in it. It is his again -- including the station, and his own
+                    // headlight key, which we would otherwise be overruling every half second.
                     if (mine != 0 && car.Handle == mine)
                     {
                         _cars.RemoveAt(i);
-                        Release(car, held, false);
+                        Release(car, held, true);
                         Log.Debug("Left running: " + Name(car) + " has its driver back.");
                         continue;
                     }
 
                     // The engine stopped -- run dry, shot, or switched off by somebody. A dead
-                    // car with its stereo on and its lights blazing is a flat battery, so both
-                    // go with the engine.
+                    // car with its stereo on and its lights blazing is a flat battery, so those
+                    // two go with the engine.
                     //
-                    // THE HANDBRAKE DOES NOT GO WITH IT, and the entry survives for it alone. A
-                    // parked car still wants its handbrake on when its engine stops -- and
-                    // dropping the entry here would throw away the only record that WE put it
-                    // on, leaving nothing to take it off with when the driver came back. The car
-                    // would simply refuse to pull away.
+                    // THE HANDBRAKE AND THE DOOR DO NOT, and the entry survives for them alone.
+                    // A parked car still wants its handbrake on when its engine stops, and both
+                    // of them are things only a returning driver should undo -- so dropping the
+                    // entry here would throw away the only record that we are the ones who put
+                    // them there.
                     if (!Running(car))
                     {
-                        Release(car, held, true);
+                        Quieten(car, held);
 
                         held.Radio = false;
                         held.Lights = false;
 
-                        if (!held.Handbrake) _cars.RemoveAt(i);
+                        if (!held.Handbrake && !held.Door) _cars.RemoveAt(i);
 
                         Log.Debug("Left running: " + Name(car) + " stopped; radio and lights off" +
-                                  (held.Handbrake ? ", handbrake still on." : "."));
+                                  (held.Handbrake || held.Door ? ", still braked or open." : "."));
                         continue;
                     }
 
@@ -201,7 +217,14 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>The handle of the vehicle the player is sitting in, or 0.</summary>
+        /// <summary>
+        /// The handle of the vehicle the player is actually SITTING IN, or 0.
+        ///
+        /// Sitting, not merely associated with. CurrentVehicle answers with the car through the
+        /// whole climb-in, exactly as it does through the whole climb-out -- which is the bug
+        /// that stopped the radio ever being set, met from the other side. Releasing on it would
+        /// shut the door while he is still half way through it.
+        /// </summary>
         private static int Seated(Ped me)
         {
             try
@@ -209,7 +232,9 @@ namespace VehicleTweaks.Driving
                 if (me == null) return 0;
 
                 var v = me.CurrentVehicle;
-                return v == null ? 0 : v.Handle;
+                if (v == null || !v.Exists()) return 0;
+
+                return me.IsSittingInVehicle(v) ? v.Handle : 0;
             }
             catch
             {
@@ -217,38 +242,63 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>
-        /// Hands a car back to the game.
-        ///
-        /// Silenced or not, the light OVERRIDE goes -- see Forget. What differs is where it is
-        /// handed back to: "off" actually puts the lights out, because an engine that has
-        /// stopped should not leave them burning, while a release just returns the decision to
-        /// the game and to whoever is now sitting in the driver's seat.
-        /// </summary>
-        private static void Release(Vehicle car, Held held, bool silence)
+        /// <summary>Radio and lights out, for a car whose engine has stopped.</summary>
+        private static void Quieten(Vehicle car, Held held)
         {
             try
             {
-                if (held.Radio && silence)
+                if (held.Radio)
                 {
                     Function.Call(Hash.SET_VEHICLE_RADIO_ENABLED, car.Handle, false);
                     Function.Call(Hash.SET_VEHICLE_RADIO_LOUD, car.Handle, false);
                 }
 
-                if (held.Lights)
-                {
-                    Override(car, silence
-                                      ? ScriptedVehicleLightSetting.SetVehicleLightsOff
-                                      : ScriptedVehicleLightSetting.NoVehicleLightOverride);
-                }
-
-                // ALWAYS OFF, whichever way this is being released, and never behind a
-                // condition. A handbrake we forced on and did not take off again is a car that
-                // will not pull away, with nothing on screen to say why and no key that undoes
-                // it -- the worst failure available to a mod that touches parked cars.
-                if (held.Handbrake) car.IsHandbrakeForcedOn = false;
+                if (held.Lights) Override(car, ScriptedVehicleLightSetting.SetVehicleLightsOff);
             }
             catch { /* it is going quiet either way */ }
+        }
+
+        /// <summary>
+        /// Hands a car back to the game, and to whoever is now in the driver's seat.
+        ///
+        /// THE LIGHT OVERRIDE ALWAYS GOES, whichever way this is being released. Forcing the
+        /// lights on outlives us: left in place after we have stopped caring about the car, it
+        /// sits there overruling the player's own headlight key for the rest of the session --
+        /// they press it, nothing happens, and nothing anywhere says why.
+        /// </summary>
+        private static void Release(Vehicle car, Held held, bool returning)
+        {
+            try
+            {
+                if (held.Lights)
+                {
+                    Override(car, returning
+                                      ? ScriptedVehicleLightSetting.NoVehicleLightOverride
+                                      : ScriptedVehicleLightSetting.SetVehicleLightsOff);
+                }
+
+                if (!returning) return;
+
+                // Only for the driver coming back: he is about to drive it away, and neither of
+                // these should still be true when he does.
+                if (held.Handbrake) car.IsHandbrakeForcedOn = false;
+                if (held.Door) Shut(car);
+            }
+            catch { /* the next entry will not be this one */ }
+        }
+
+        /// <summary>
+        /// The driver's door, shut.
+        ///
+        /// BY NAME, NOT BY INDEX, the same way it was opened -- and by us, rather than by the
+        /// game. Leaving it to the entry animation was an assumption written into three
+        /// different comments and never checked; it does not close it, so the door stayed
+        /// hanging open with the player sat behind it.
+        /// </summary>
+        public static void Shut(Vehicle car)
+        {
+            try { car.Doors[VehicleDoorIndex.FrontLeftDoor].Close(false); }
+            catch { /* it is a door */ }
         }
 
         private static void Override(Vehicle car, ScriptedVehicleLightSetting setting)
@@ -265,7 +315,7 @@ namespace VehicleTweaks.Driving
 
         private static string Name(Vehicle v)
         {
-            try { return v.LocalizedName; }
+            try { return v == null ? "the car" : v.LocalizedName; }
             catch { return "the car"; }
         }
     }

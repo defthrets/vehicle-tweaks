@@ -418,7 +418,7 @@ namespace VehicleTweaks.UI
 
             leave.Items.Add(Toggle("Door left open", () => _cfg.LeaveDoorOpen,
                                    v => _cfg.LeaveDoorOpen = v, "Leaving", "LeaveDoorOpen",
-                                   "Getting back in shuts it. Traffic may shut it for you."));
+                                   "Shut again when you get back in. Traffic may shut it for you."));
 
             leave.Items.Add(Toggle("Handbrake on exit", () => _cfg.HandbrakeOnExit,
                                    v => _cfg.HandbrakeOnExit = v, "Leaving", "HandbrakeOnExit",

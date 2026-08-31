@@ -84,6 +84,12 @@ namespace VehicleTweaks.Driving
         /// <summary>Whether the handbrake has been put on since he got clear of it.</summary>
         private bool _braked;
 
+        /// <summary>Whether this exit has been handed to LeftRunning yet.</summary>
+        private bool _handed;
+
+        /// <summary>The vehicle he is sitting in, whatever it is and whoever is driving.</summary>
+        private int _inCar;
+
         /// <summary>The starter is turning and the engine has not caught yet.</summary>
         private bool _cranking;
         private int _crankedAt;
@@ -107,6 +113,8 @@ namespace VehicleTweaks.Driving
 
                 var car = me == null ? null : me.CurrentVehicle;
 
+                Reclaim(me, car);
+
                 // BACK IN THE SAME CAR ENDS THE ENFORCEMENT -- BUT ONLY ONCE HE HAS ACTUALLY
                 // BEEN OUT OF IT.
                 //
@@ -127,7 +135,7 @@ namespace VehicleTweaks.Driving
                 if (_leaving != null && _leftSeat && Same(car, _leaving))
                 {
                     Log.Debug("Ignition: back in " + Name(_leaving) + "; enforcement ends.");
-                    _kept.Forget(_leaving, false);
+                    _kept.Forget(_leaving, true);
                     _leaving = null;
                 }
 
@@ -165,6 +173,57 @@ namespace VehicleTweaks.Driving
                 Log.Once("ignition", "The ignition handling fell over: " + ex.Message +
                                      " - the game's own behaviour is back.");
             }
+        }
+
+        /// <summary>
+        /// Getting in undoes what leaving did: the handbrake off, the door shut.
+        ///
+        /// THE SAFETY NET, and it does not consult the list. LeftRunning releases the cars it
+        /// remembers, and that is the ordinary path -- but every failure in this area has the
+        /// same shape, which is a car left wearing an override after the bookkeeping that would
+        /// have removed it went astray. The bookkeeping has already been wrong once and it cost
+        /// a car that could not be driven.
+        ///
+        /// So the moment he is sitting in ANY vehicle, whatever we do or do not remember about
+        /// it, the forced handbrake comes off. Releasing a force that was never applied does
+        /// nothing at all, and it is not the same thing as the handbrake the player pulls with
+        /// their own hand -- so the cost of doing this unconditionally is nil, and the thing it
+        /// rules out is a car nobody can move.
+        /// </summary>
+        private void Reclaim(Ped me, Vehicle car)
+        {
+            int now;
+
+            // SITTING IN IT, not merely getting into it. CurrentVehicle answers with the car for
+            // the whole climb-in, the same way it does for the whole climb-out, and shutting the
+            // door on that would shut it on him half way through.
+            try
+            {
+                now = car != null && car.Exists() && me != null && me.IsSittingInVehicle(car)
+                          ? car.Handle
+                          : 0;
+            }
+            catch { now = 0; }
+
+            if (now == 0 || now == _inCar)
+            {
+                _inCar = now;
+                return;
+            }
+
+            _inCar = now;
+
+            try { car.IsHandbrakeForcedOn = false; }
+            catch { /* nothing else to try */ }
+
+            // The door, because the game does not shut it. That was an assumption, written into
+            // three comments as though it were a fact, and it was wrong: the door stayed hanging
+            // open with the player sat behind it.
+            if (_cfg.LeaveDoorOpen) LeftRunning.Shut(car);
+
+            _kept.Forget(car, true);
+
+            Log.Debug("Ignition: got into " + Name(car) + "; handbrake off, door shut.");
         }
 
         /// <summary>
@@ -360,6 +419,7 @@ namespace VehicleTweaks.Driving
                 _radioSet = false;
                 _doorOpened = false;
                 _braked = false;
+                _handed = false;
 
                 // THE STATION HAS TO BE READ NOW, from inside. This native answers "what is the
                 // PLAYER listening to", and the player stops listening to a car radio the moment
@@ -430,6 +490,32 @@ namespace VehicleTweaks.Driving
             HoldRadio();
             Door();
             Handbrake();
+            Hand();
+        }
+
+        /// <summary>
+        /// Hands the car to LeftRunning, which outlives this window and undoes all of it.
+        ///
+        /// ONCE, ON EVERY EXIT, AND NOT FROM INSIDE ANOTHER FEATURE. This used to be called from
+        /// Radio(), which returns immediately when RadioKeepsPlaying is off -- so with that one
+        /// setting turned off, the handbrake was put on by Handbrake() and then never registered
+        /// here, which meant nothing ever took it off again. The car was locked in place for
+        /// good, and the thing that did it was a switch about music.
+        ///
+        /// Everything applied to a car on the way out is an override that has to be handed back.
+        /// The handing back lives in one place, and so does the handing over.
+        /// </summary>
+        private void Hand()
+        {
+            if (_handed || !_leftSeat) return;
+
+            _handed = true;
+
+            _kept.Keep(_leaving,
+                       _radioSet && _leavingRunning && !string.IsNullOrEmpty(_station) && _station != "OFF",
+                       _cfg.LightsStayAsLeft && _leavingLights,
+                       _cfg.HandbrakeOnExit,
+                       _cfg.LeaveDoorOpen);
         }
 
         /// <summary>
@@ -497,8 +583,11 @@ namespace VehicleTweaks.Driving
         ///
         /// ONCE, once he is clear. It is an ACTION, not a state -- called every frame it would
         /// re-open a door the player is trying to shut, and re-start the swing animation while
-        /// it is still swinging. Getting back in closes it, which is the game's own behaviour
-        /// and wants nothing from us.
+        /// it is still swinging.
+        ///
+        /// Shutting it again is OURS, in Reclaim. This comment used to say the game did it on
+        /// the way back in; that was assumed and it is not true, so the door hung open with the
+        /// player sat behind it.
         /// </summary>
         private void Door()
         {
@@ -580,13 +669,6 @@ namespace VehicleTweaks.Driving
                           (_leavingRunning ? "running but with nothing playing" : "switched off") +
                           "; radio off with it.");
 
-                // THE LIGHTS STILL GET HANDED ON. They are not the radio's passengers: a car
-                // left running with the stereo off is still a car left running with its lights
-                // on, and hanging this off the radio's success would have made "nothing was
-                // playing" quietly mean "and the lights go out too".
-                _kept.Keep(_leaving, false,
-                           _leavingRunning && _cfg.LightsStayAsLeft && _leavingLights,
-                           _cfg.HandbrakeOnExit);
                 return;
             }
 
@@ -595,12 +677,6 @@ namespace VehicleTweaks.Driving
                 Function.Call(Hash.SET_VEHICLE_RADIO_ENABLED, _leaving.Handle, true);
                 Function.Call(Hash.SET_VEH_RADIO_STATION, _leaving.Handle, _station);
                 Function.Call(Hash.SET_VEHICLE_RADIO_LOUD, _leaving.Handle, true);
-
-                // AND HANDED ON, so it outlives this window. Everything above is about winning
-                // the argument the game picks in the second or two after a driver leaves; none
-                // of it says anything about the minute after that, which is when you are
-                // actually stood outside the car listening to it.
-                _kept.Keep(_leaving, true, _cfg.LightsStayAsLeft && _leavingLights, _cfg.HandbrakeOnExit);
 
                 // Says what actually happened, because the alternative is me telling you it
                 // works and neither of us being able to check. If this line names a station and

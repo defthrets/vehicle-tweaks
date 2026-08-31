@@ -18,7 +18,8 @@ The engine is something you operate rather than a side effect of sitting in the 
 
 A car is left exactly as it stands: **running, playing, lit, and with the door open**. The radio
 keeps its station, loud enough to hear from outside. The headlights stay on. The driver's door
-hangs open until you get back in and shut it, or until a passing car shuts it for you.
+hangs open until you get back in — it is pulled shut once you are actually sitting down — or
+until a passing car shuts it for you.
 
 Turn the engine off first and it all goes with it — a dead car with a stereo on and its lights
 blazing is a flat battery, not a feature.
