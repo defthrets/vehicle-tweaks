@@ -79,15 +79,46 @@ A change applies the instant you make it, so you can try it on the next corner r
 alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually
 touched are written back — **in place, keeping every comment in the ini**.
 
-Twenty-one of the twenty-four settings are on the panel, including both keyboard bindings — the
-panel's own key and the hazards key. Each is a rebind row that waits for you to press the key you
-want (`ESC`, or **B** on a pad, cancels). "Both features on" is here too, and the panel
-deliberately keeps working when it is off — a switch you can only flip one way is a trap.
+Twenty-eight of the thirty-three settings are on the panel across four pages, including every
+keyboard binding — the panel, the hazards, the seatbelt, the locks. Each is a rebind row that
+waits for you to press the key you want (`ESC`, or **B** on a pad, cancels). "Both features on"
+is here too, and the panel deliberately keeps working when it is off — a switch you can only
+flip one way is a trap.
 
-The three that are not on it are `PadOpen`, `PadModifier` and `PadHazard`, the controller chords.
-Those are names out of GTA's own control list, and a row that cycled through three hundred and
-sixty of them would not be a menu. They live in the ini, and the log says what each resolved to
-at start-up — including, loudly, when it could not.
+The five that are not on it are the controller chords. Those are names out of GTA's own control
+list, and a row that cycled through three hundred and sixty of them would not be a menu. They
+live in the ini, and the log says what each resolved to at start-up — including, loudly, when it
+could not.
+
+## Tests
+
+```bash
+.uild.ps1 -Test
+```
+
+Fifty assertions, none of which need the game. `Core` references no SHVDN type, so it compiles
+into a console exe and runs — which is why the ini writer and the indicator *rules* live there
+rather than beside the code that uses them.
+
+That line is where the value is. Every bug this mod has had was in code that could not be run
+outside GTA, and both were found by reading, late, after being shipped as working. So the
+indicator rules are tested in the words of the design: *a 300 ms flick of opposite lock does not
+cancel it*, *ten seconds stopped with the wheel released and it is still on*. The ini suite runs
+twice, over an LF and a CRLF copy of the real file, because preserving what the file already uses
+is the thing it is checking.
+
+## Parking a car
+
+The small print of leaving one behind, all of it silent.
+
+- **The handbrake goes on** behind you, and comes off when you get back in — otherwise a car
+  parked on any of this city's hills is at the bottom of it when you return.
+- **`L` locks it**, and the horn answers the way a real one does. Your car only: the one you are
+  in, or the last one you drove if you are stood within twelve metres of it. A key in your pocket
+  does not lock a stranger's car because they parked closer.
+- **`K` takes your seatbelt off.** You are wearing it otherwise — a second after you get in, and
+  until you get out. That is the wrong way round on purpose: a belt you have to fasten needs a
+  permanent HUD to answer "am I belted?", and turned round the question never comes up.
 
 ## Install
 

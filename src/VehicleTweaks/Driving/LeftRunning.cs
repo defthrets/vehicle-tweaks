@@ -46,6 +46,7 @@ namespace VehicleTweaks.Driving
             public Vehicle Car;
             public bool Radio;
             public bool Lights;
+            public bool Handbrake;
         }
 
         private readonly List<Held> _cars = new List<Held>();
@@ -57,10 +58,10 @@ namespace VehicleTweaks.Driving
         /// The radio's station has already been set by the time this is called; all that is
         /// wanted here is for it to stay set.
         /// </summary>
-        public void Keep(Vehicle car, bool radio, bool lights)
+        public void Keep(Vehicle car, bool radio, bool lights, bool handbrake)
         {
             if (car == null) return;
-            if (!radio && !lights) return;
+            if (!radio && !lights && !handbrake) return;
 
             try
             {
@@ -73,6 +74,7 @@ namespace VehicleTweaks.Driving
                     // Already held. Widen what is being kept rather than adding it twice.
                     held.Radio |= radio;
                     held.Lights |= lights;
+                    held.Handbrake |= handbrake;
                     return;
                 }
 
@@ -80,10 +82,11 @@ namespace VehicleTweaks.Driving
                 // you are standing next to.
                 if (_cars.Count >= Most) _cars.RemoveAt(0);
 
-                _cars.Add(new Held { Car = car, Radio = radio, Lights = lights });
+                _cars.Add(new Held { Car = car, Radio = radio, Lights = lights, Handbrake = handbrake });
 
                 Log.Debug("Left running: keeping " + Name(car) +
                           (radio ? " playing" : "") + (lights ? " lit" : "") +
+                          (handbrake ? " braked" : "") +
                           " (" + _cars.Count + " car(s) held).");
             }
             catch (Exception ex)
@@ -163,11 +166,23 @@ namespace VehicleTweaks.Driving
                     // The engine stopped -- run dry, shot, or switched off by somebody. A dead
                     // car with its stereo on and its lights blazing is a flat battery, so both
                     // go with the engine.
+                    //
+                    // THE HANDBRAKE DOES NOT GO WITH IT, and the entry survives for it alone. A
+                    // parked car still wants its handbrake on when its engine stops -- and
+                    // dropping the entry here would throw away the only record that WE put it
+                    // on, leaving nothing to take it off with when the driver came back. The car
+                    // would simply refuse to pull away.
                     if (!Running(car))
                     {
-                        _cars.RemoveAt(i);
                         Release(car, held, true);
-                        Log.Debug("Left running: " + Name(car) + " stopped; radio and lights off.");
+
+                        held.Radio = false;
+                        held.Lights = false;
+
+                        if (!held.Handbrake) _cars.RemoveAt(i);
+
+                        Log.Debug("Left running: " + Name(car) + " stopped; radio and lights off" +
+                                  (held.Handbrake ? ", handbrake still on." : "."));
                         continue;
                     }
 
@@ -226,6 +241,12 @@ namespace VehicleTweaks.Driving
                                       ? ScriptedVehicleLightSetting.SetVehicleLightsOff
                                       : ScriptedVehicleLightSetting.NoVehicleLightOverride);
                 }
+
+                // ALWAYS OFF, whichever way this is being released, and never behind a
+                // condition. A handbrake we forced on and did not take off again is a car that
+                // will not pull away, with nothing on screen to say why and no key that undoes
+                // it -- the worst failure available to a mod that touches parked cars.
+                if (held.Handbrake) car.IsHandbrakeForcedOn = false;
             }
             catch { /* it is going quiet either way */ }
         }

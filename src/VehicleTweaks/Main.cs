@@ -42,6 +42,8 @@ namespace VehicleTweaks
 
         private readonly Ignition _ignition;
         private readonly Blinkers _blinkers;
+        private readonly Seatbelt _seatbelt;
+        private readonly Locks _locks;
         private readonly Menu _menu;
 
         private int _failures;
@@ -53,6 +55,8 @@ namespace VehicleTweaks
 
             _ignition = new Ignition(_cfg);
             _blinkers = new Blinkers(_cfg);
+            _seatbelt = new Seatbelt(_cfg);
+            _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
@@ -121,6 +125,8 @@ namespace VehicleTweaks
                 {
                     _ignition.Update(me);
                     Indicate(me);
+                    _seatbelt.Update(me);
+                    _locks.Update(me);
                 }
 
                 _failures = 0;

@@ -138,8 +138,13 @@ if ($Test) {
     )
 
     $testRsp = Join-Path $testDir 'tests.rsp'
-    ($testOpts + $refs[0..3] + @("`"$(Join-Path $root 'tests\IniTests.cs')`"") +
-     ($coreSrc | ForEach-Object { "`"$_`"" })) | Set-Content -Path $testRsp -Encoding UTF8
+    # Every file in tests\, not a named one. A suite that has to be listed here is a suite
+    # somebody adds a file to and then wonders why their new tests never ran.
+    $testSrc = Get-ChildItem (Join-Path $root 'tests') -Filter *.cs | ForEach-Object { $_.FullName }
+    if (-not $testSrc) { throw "No tests found in tests\" }
+
+    ($testOpts + $refs[0..3] +
+     (($testSrc + $coreSrc) | ForEach-Object { "`"$_`"" })) | Set-Content -Path $testRsp -Encoding UTF8
 
     & $csc "@$testRsp"
     if ($LASTEXITCODE -ne 0) { throw "Test harness failed to compile." }
@@ -155,19 +160,17 @@ if ($Test) {
     [IO.File]::WriteAllText($pristineLf, ($raw -replace "`r`n", "`n"), $utf8)
     [IO.File]::WriteAllText($pristineCrlf, (($raw -replace "`r`n", "`n") -replace "`n", "`r`n"), $utf8)
 
-    $failed = 0
-    foreach ($pair in @(@('LF', $pristineLf), @('CRLF', $pristineCrlf))) {
-        Write-Host ""
-        Write-Host "-- ini written as $($pair[0]) --" -ForegroundColor Cyan
+    $workLf = Join-Path $testDir 'work-LF.ini'
+    $workCrlf = Join-Path $testDir 'work-CRLF.ini'
+    Copy-Item $pristineLf $workLf -Force
+    Copy-Item $pristineCrlf $workCrlf -Force
 
-        $work = Join-Path $testDir "work-$($pair[0]).ini"
-        Copy-Item $pair[1] $work -Force
-
-        Push-Location $testDir
-        & $testExe $work $pair[1]
-        if ($LASTEXITCODE -ne 0) { $failed += $LASTEXITCODE }
-        Pop-Location
-    }
+    # ONE INVOCATION, both copies. The exe runs the ini suite once per pair and everything else
+    # once; running it per pair meant the indicator tests were reported twice for no reason.
+    Push-Location $testDir
+    & $testExe $workLf $pristineLf $workCrlf $pristineCrlf
+    $failed = $LASTEXITCODE
+    Pop-Location
 
     Write-Host ""
     if ($failed -gt 0) { throw "$failed test(s) failed." }

@@ -3,43 +3,27 @@ using System.IO;
 using VehicleTweaks.Core;
 
 /// <summary>
-/// What can be tested without the game running: the ini reader and, mostly, the ini WRITER.
+/// The ini reader and, mostly, the ini WRITER.
 ///
-/// THE WRITER IS WHY THIS EXISTS. Everything else in this mod needs a car, a road and a pair
-/// of eyes to check, so it is checked that way. The writer needs none of those and is the one
-/// piece that can quietly destroy something the player owns -- their settings file, with its
-/// comments, which the panel rewrites every time it closes. It is also the only code here that
-/// has already been caught doing something wrong: it used File.WriteAllLines, which writes
-/// Environment.NewLine whatever the file used, so saving a single setting into an ini with
-/// bare newlines rewrote all hundred and forty-six lines of it.
-///
-/// Run with:  .uild.ps1 -Test
+/// THE WRITER IS WHY THIS EXISTS. It is the one piece of this mod that can quietly destroy
+/// something the player owns -- their settings file, with all its comments, which the panel
+/// rewrites every time it closes. It is also the piece that has already been caught doing it:
+/// it used File.WriteAllLines, which writes Environment.NewLine whatever the file used, so
+/// saving a single setting into an ini with bare newlines rewrote every line in it.
 /// </summary>
-internal static class Program
+internal static class IniTests
 {
-    private static int _fail;
-
-    private static void Check(string what, bool ok)
-    {
-        Console.WriteLine((ok ? "  PASS  " : "  FAIL  ") + what);
-        if (!ok) _fail++;
-    }
+    private static void Check(string what, bool ok) => Harness.Check(what, ok);
 
     private static string Term(string text)
     {
         return text.Contains("\r\n") ? "CRLF" : text.Contains("\n") ? "LF" : "none";
     }
 
-    private static int Main(string[] args)
+    public static void Run(string ini, string iniPristine)
     {
-        if (args.Length < 2)
-        {
-            Console.WriteLine("usage: initests <working-copy.ini> <pristine-copy.ini>");
-            return 2;
-        }
+        Harness.Section("ini reader and writer");
 
-        var ini = args[0];
-        var iniPristine = args[1];
         var before = File.ReadAllLines(ini);
 
         // 1. An existing key, changed in place.
@@ -112,8 +96,5 @@ internal static class Program
         Check("out-of-range value is clamped, not taken",
               Math.Abs(reread.GetFloat("Blinkers", "BlinkerArmSeconds", 1f, 0.1f, 1.0f) - 1.0f) < 0.0001f);
 
-        Console.WriteLine();
-        Console.WriteLine(_fail == 0 ? "ALL PASSED" : _fail + " FAILED");
-        return _fail;
     }
 }

@@ -173,6 +173,66 @@ namespace VehicleTweaks.Core
         /// </summary>
         public bool LeaveDoorOpen = true;
 
+        // ---- safety -----------------------------------------------------------
+
+        /// <summary>
+        /// The seatbelt, which you are wearing unless you took it off.
+        ///
+        /// THE WRONG WAY ROUND ON PURPOSE. A belt you have to buckle needs somewhere to tell you
+        /// whether you did -- the benefit is invisible until the one crash where you do not go
+        /// through the windscreen, so "am I belted?" is a question that wants a HUD, and this mod
+        /// does not have one while you are driving.
+        ///
+        /// Belted by default and a key to UNDO it means the common case has no question in it.
+        /// You are always wearing it, exactly as the ignition is always yours, and taking it off
+        /// is the deliberate act that a deliberate act's feedback can be attached to.
+        /// </summary>
+        public bool Seatbelt = true;
+
+        public Keys SeatbeltKey = Keys.K;
+        public string PadSeatbelt = "PhoneLeft";
+
+        /// <summary>
+        /// How long after getting in before it goes on.
+        ///
+        /// Not instant, because instant is a thing that happens TO you. A second is about how
+        /// long reaching over your shoulder takes, and it is long enough that hopping in and
+        /// straight out again never involves a belt at all.
+        /// </summary>
+        public float SeatbeltSeconds = 1.0f;
+
+        /// <summary>
+        /// The handbrake goes on when you step out.
+        ///
+        /// The one omission from "left as you left it" that actively costs you the car: park on
+        /// any of the hills in this city and an unbraked car is at the bottom of it when you get
+        /// back. It is released the moment you are in the driver's seat again -- which has to be
+        /// certain, because a handbrake left on is a car that will not pull away.
+        /// </summary>
+        public bool HandbrakeOnExit = true;
+
+        /// <summary>
+        /// Locking your car.
+        ///
+        /// Worth more since the door started being left open, which is exactly the invitation it
+        /// looks like. The choice it creates is the point: lock it and walk away, or leave it
+        /// running with the door open because you will only be a second.
+        /// </summary>
+        public bool Locking = true;
+
+        public Keys LockKey = Keys.L;
+        public string PadLock = "PhoneRight";
+
+        /// <summary>
+        /// The horn blips when it locks.
+        ///
+        /// FEEDBACK THAT IS ALSO THE FEATURE. Locking is otherwise invisible -- nothing on the
+        /// car looks different -- so it needs to say something, and every real car in the last
+        /// forty years says it the same way. A notification would have been this mod talking; a
+        /// chirp is the car talking, which is the only voice it is supposed to have.
+        /// </summary>
+        public bool LockChirp = true;
+
         // ---- indicators -------------------------------------------------------
 
         /// <summary>
@@ -268,6 +328,16 @@ namespace VehicleTweaks.Core
                 s.BlinkerDeadzone = ini.GetFloat("Blinkers", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
                 s.BlinkerMinSpeed = ini.GetFloat("Blinkers", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
                 s.BlinkerInvert = ini.GetBool("Blinkers", "BlinkerInvert", s.BlinkerInvert);
+                s.Seatbelt = ini.GetBool("Safety", "Seatbelt", s.Seatbelt);
+                s.SeatbeltKey = ini.GetKey("Safety", "SeatbeltKey", s.SeatbeltKey);
+                s.PadSeatbelt = ini.GetString("Safety", "PadSeatbelt", s.PadSeatbelt);
+                s.SeatbeltSeconds = ini.GetFloat("Safety", "SeatbeltSeconds", s.SeatbeltSeconds, 0f, 10f);
+                s.HandbrakeOnExit = ini.GetBool("Safety", "HandbrakeOnExit", s.HandbrakeOnExit);
+                s.Locking = ini.GetBool("Safety", "Locking", s.Locking);
+                s.LockKey = ini.GetKey("Safety", "LockKey", s.LockKey);
+                s.PadLock = ini.GetString("Safety", "PadLock", s.PadLock);
+                s.LockChirp = ini.GetBool("Safety", "LockChirp", s.LockChirp);
+
                 s.HazardKey = ini.GetKey("Blinkers", "HazardKey", s.HazardKey);
                 s.PadHazard = ini.GetString("Blinkers", "PadHazard", s.PadHazard);
             }

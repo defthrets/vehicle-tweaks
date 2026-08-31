@@ -81,6 +81,9 @@ namespace VehicleTweaks.Driving
         /// <summary>Whether the door has been pushed open since he got clear of it.</summary>
         private bool _doorOpened;
 
+        /// <summary>Whether the handbrake has been put on since he got clear of it.</summary>
+        private bool _braked;
+
         /// <summary>The starter is turning and the engine has not caught yet.</summary>
         private bool _cranking;
         private int _crankedAt;
@@ -356,6 +359,7 @@ namespace VehicleTweaks.Driving
                 _leftSeat = false;
                 _radioSet = false;
                 _doorOpened = false;
+                _braked = false;
 
                 // THE STATION HAS TO BE READ NOW, from inside. This native answers "what is the
                 // PLAYER listening to", and the player stops listening to a car radio the moment
@@ -425,6 +429,36 @@ namespace VehicleTweaks.Driving
             Radio();
             HoldRadio();
             Door();
+            Handbrake();
+        }
+
+        /// <summary>
+        /// The handbrake, on, once he is out.
+        ///
+        /// The one omission from "left as you left it" that actively costs you the car: park on
+        /// any of the hills in this city and an unbraked one is at the bottom of it when you get
+        /// back.
+        ///
+        /// ONCE, and taken off again by LeftRunning when he gets back in -- which is the half
+        /// that matters, and the half that is written to be unconditional. A forced handbrake
+        /// nobody releases is a car that will not pull away, with nothing on screen to explain
+        /// it and no key that undoes it.
+        /// </summary>
+        private void Handbrake()
+        {
+            if (_braked || !_cfg.HandbrakeOnExit || !_leftSeat) return;
+
+            _braked = true;
+
+            try
+            {
+                _leaving.IsHandbrakeForcedOn = true;
+                Log.Debug("Ignition: handbrake on for " + Name(_leaving) + ".");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("handbrake", "Could not put the handbrake on: " + ex.Message);
+            }
         }
 
         /// <summary>
@@ -550,7 +584,9 @@ namespace VehicleTweaks.Driving
                 // left running with the stereo off is still a car left running with its lights
                 // on, and hanging this off the radio's success would have made "nothing was
                 // playing" quietly mean "and the lights go out too".
-                if (_leavingRunning) _kept.Keep(_leaving, false, _cfg.LightsStayAsLeft && _leavingLights);
+                _kept.Keep(_leaving, false,
+                           _leavingRunning && _cfg.LightsStayAsLeft && _leavingLights,
+                           _cfg.HandbrakeOnExit);
                 return;
             }
 
@@ -564,7 +600,7 @@ namespace VehicleTweaks.Driving
                 // the argument the game picks in the second or two after a driver leaves; none
                 // of it says anything about the minute after that, which is when you are
                 // actually stood outside the car listening to it.
-                _kept.Keep(_leaving, true, _cfg.LightsStayAsLeft && _leavingLights);
+                _kept.Keep(_leaving, true, _cfg.LightsStayAsLeft && _leavingLights, _cfg.HandbrakeOnExit);
 
                 // Says what actually happened, because the alternative is me telling you it
                 // works and neither of us being able to check. If this line names a station and

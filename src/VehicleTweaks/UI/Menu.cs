@@ -389,6 +389,37 @@ namespace VehicleTweaks.UI
                                  v => _cfg.BlinkerInvert = v, "Blinkers", "BlinkerInvert",
                                  "Only for setups where the one-sided steering controls read nothing."));
 
+            var safe = Add("SAFETY");
+
+            safe.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,
+                                  "Safety", "Seatbelt",
+                                  "You are wearing it unless you take it off. No prompt, no icon."));
+
+            safe.Items.Add(Bind("Unbuckle key", () => _cfg.SeatbeltKey, v => _cfg.SeatbeltKey = v,
+                                "Safety", "SeatbeltKey",
+                                "Takes it off, and it stays off until you get out of this car."));
+
+            safe.Items.Add(Number("Belts up after", () => _cfg.SeatbeltSeconds,
+                                  v => _cfg.SeatbeltSeconds = v, 0.1f, 0f, 10f, "0.0", "s",
+                                  "Safety", "SeatbeltSeconds",
+                                  "About as long as reaching over your shoulder takes."));
+
+            safe.Items.Add(Toggle("Handbrake on exit", () => _cfg.HandbrakeOnExit,
+                                  v => _cfg.HandbrakeOnExit = v, "Safety", "HandbrakeOnExit",
+                                  "Off is a car at the bottom of the hill you parked on."));
+
+            safe.Items.Add(Toggle("Locking", () => _cfg.Locking, v => _cfg.Locking = v,
+                                  "Safety", "Locking",
+                                  "Your car only: the one you are in, or the last one you drove."));
+
+            safe.Items.Add(Bind("Lock key", () => _cfg.LockKey, v => _cfg.LockKey = v,
+                                "Safety", "LockKey",
+                                "Locks and unlocks. Works from outside if you are near it."));
+
+            safe.Items.Add(Toggle("Chirp when locking", () => _cfg.LockChirp,
+                                  v => _cfg.LockChirp = v, "Safety", "LockChirp",
+                                  "The horn answers, the way a real one does. It is the only feedback."));
+
             var gen = Add("GENERAL");
 
             gen.Items.Add(Toggle("Both features on", () => _cfg.Enabled, v => _cfg.Enabled = v,
@@ -949,14 +980,31 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Tabs()
         {
-            const float scale = 0.26f;
+            const float wanted = 0.26f;
+            const float minGap = 0.006f;
 
             var left = PanelX + 0.012f;
             var right = PanelX + PanelW - 0.012f;
             var y = PanelTop + 0.030f;
 
+            var room = right - left;
+            var gaps = _pages.Count > 1 ? minGap * (_pages.Count - 1) : 0f;
+
+            // SHRUNK TO FIT, not trusted to fit. Three names very nearly filled this strip, and
+            // a fourth added later cannot be assumed to go in beside them -- the failure is not
+            // a tidy clip, it is the last name running out of the panel and across the game.
+            // Measuring costs a couple of native calls on a menu only drawn while it is open.
+            var scale = wanted;
+            var total = Measure(scale);
+
+            if (total > 0f && total > room - gaps)
+            {
+                scale = wanted * ((room - gaps) / total);
+                if (scale < 0.16f) scale = 0.16f;
+            }
+
             var widths = new float[_pages.Count];
-            var total = 0f;
+            total = 0f;
 
             for (var i = 0; i < _pages.Count; i++)
             {
@@ -964,8 +1012,8 @@ namespace VehicleTweaks.UI
                 total += widths[i];
             }
 
-            var gap = _pages.Count > 1 ? (right - left - total) / (_pages.Count - 1) : 0f;
-            if (gap < 0.004f) gap = 0.004f;
+            var gap = _pages.Count > 1 ? (room - total) / (_pages.Count - 1) : 0f;
+            if (gap < minGap) gap = minGap;
 
             var x = left;
 
@@ -979,6 +1027,16 @@ namespace VehicleTweaks.UI
 
                 x += widths[i] + gap;
             }
+        }
+
+        /// <summary>The width of every tab name laid end to end, at a given scale.</summary>
+        private float Measure(float scale)
+        {
+            var total = 0f;
+
+            foreach (var page in _pages) total += Draw.Width(page.Title, scale, Plain);
+
+            return total;
         }
 
         // ==================================================================
