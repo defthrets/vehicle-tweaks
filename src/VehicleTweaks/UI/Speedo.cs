@@ -116,7 +116,7 @@ namespace VehicleTweaks.UI
         /// </param>
         public void Update(Ped me, bool preview)
         {
-            if (!_cfg.Speedo) return;
+            if (!_cfg.Speedo && !_cfg.SpeedoEngineIcon && !_cfg.SpeedoOilLight) return;
 
             try
             {
@@ -125,11 +125,14 @@ namespace VehicleTweaks.UI
 
                 if (!inCar && _cfg.SpeedoOnlyInVehicle && !preview) return;
 
-                Render(inCar ? Reading(car) : 0,
-                       inCar ? Revs(car) : 0f,
-                       inCar ? Gear(car) : 1,
-                       inCar ? Engine(car) : 1f,
-                       inCar ? Oil(car) : 1f);
+                if (_cfg.Speedo)
+                {
+                    Render(inCar ? Reading(car) : 0,
+                           inCar ? Revs(car) : 0f,
+                           inCar ? Gear(car) : 1);
+                }
+
+                Lamps(inCar ? Engine(car) : 1f, inCar ? Oil(car) : 1f);
             }
             catch (Exception ex)
             {
@@ -260,7 +263,7 @@ namespace VehicleTweaks.UI
             }
         }
 
-        private void Render(int speed, float revs, int gear, float engine, float oil)
+        private void Render(int speed, float revs, int gear)
         {
             var scale = _cfg.SpeedoScale;
 
@@ -294,28 +297,7 @@ namespace VehicleTweaks.UI
             var gty = Thick * gearScale;
             var gtx = Across(Thick * gearScale);
 
-            // The lamps sit at the right-hand end. THE ROOM IS ALWAYS RESERVED, even when nothing
-            // is lit, because a warning light that appears and disappears would take the whole
-            // panel's width with it and the box would jump about every time the oil got low.
-            // Unlit lamps ghost, exactly as unlit segments do.
-            var lampH = LampH * scale;
-            var lampW = Across(LampW * scale);
-
-            // ROOM ENOUGH TO READ AS TWO THINGS. These were four pixels apart against icons
-            // twenty-five wide -- seventeen per cent of an icon, which is a seam and not a gap,
-            // and it made the pair look like one wide symbol nobody could name. The lead-in is
-            // wider still, because it separates the lamps from the gear as a GROUP, and a group
-            // needs more air around it than the things inside it need from each other.
-            var lampGap = Across(0.0110f * scale);
-            var lampLead = Across(0.0170f * scale);
-
-            var count = (_cfg.SpeedoEngineIcon ? 1 : 0) + (_cfg.SpeedoOilLight ? 1 : 0);
-
-            var lamps = count == 0
-                            ? 0f
-                            : lampLead + count * lampW + (count - 1) * lampGap;
-
-            var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f) + lamps;
+            var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f);
 
             var revH = RevHeight * scale;
             var revGap = 0.0040f * scale;
@@ -362,23 +344,6 @@ namespace VehicleTweaks.UI
 
                 Digit(x + digits + gap + unitWidth + gap * 2f, y + (dh - gh) * 0.5f,
                       gw, gh, gtx, gty, shape, lit);
-            }
-
-            var lampX = x + block - (count * lampW + (count - 1) * lampGap);
-            var lampY = y + (dh - lampH) * 0.5f;
-
-            if (_cfg.SpeedoEngineIcon)
-            {
-                Icon(EngineShape, lampX, lampY, lampW, lampH, Condition(engine, lit));
-                lampX += lampW + lampGap;
-            }
-
-            if (_cfg.SpeedoOilLight)
-            {
-                // ONLY WHEN IT IS LOW. An oil lamp that is lit all the time is not a warning, it
-                // is decoration -- the whole meaning of the thing is that seeing it is unusual.
-                var low = oil < 0.25f;
-                Icon(OilShape, lampX, lampY, lampW, lampH, low ? Bad(lit.A) : Ghost(lit));
             }
 
             if (_cfg.SpeedoRevs) Tacho(x, y + dh + revGap, block, revH, revs, lit);
@@ -444,6 +409,64 @@ namespace VehicleTweaks.UI
             Bar(x, y + half + ty, tx, stem, (on & 0x10) != 0, lit, ghost);           // e  bottom left
             Bar(x, y + ty, tx, stem, (on & 0x20) != 0, lit, ghost);                  // f  top left
             Bar(x + tx, y + half, flat, ty, (on & 0x40) != 0, lit, ghost);           // g  middle
+        }
+
+        /// <summary>
+        /// The warning lamps, as their own small cluster.
+        ///
+        /// NOT PART OF THE SPEEDO, and they were, which was the mistake. A speed readout is one
+        /// object -- three digits, a unit, a gear, a strip of revs -- and bolting two crude
+        /// symbols onto the end of it made it a wider object that happened to contain some
+        /// warning lights. They are a different KIND of thing: the readout is information you
+        /// glance at continuously, and a warning lamp is something that should catch your eye
+        /// precisely because it is not part of what you were already looking at.
+        ///
+        /// So they have their own position, their own backing, and their own switches, and the
+        /// speed readout is exactly what it was before they existed.
+        ///
+        /// THE ROOM IS STILL ALWAYS RESERVED for both, lit or not. A lamp that appears and
+        /// disappears would take the cluster's width with it and the box would jump every time
+        /// the oil got low.
+        /// </summary>
+        private void Lamps(float engine, float oil)
+        {
+            var on = (_cfg.SpeedoEngineIcon ? 1 : 0) + (_cfg.SpeedoOilLight ? 1 : 0);
+            if (on == 0) return;
+
+            var scale = _cfg.SpeedoScale;
+
+            var h = LampH * scale;
+            var w = Across(LampW * scale);
+            var gap = Across(0.0110f * scale);
+
+            var wide = on * w + (on - 1) * gap;
+
+            var x = _cfg.SpeedoLampsX;
+            var y = _cfg.SpeedoLampsY;
+
+            var lit = Tint(_cfg.SpeedoOpacity);
+
+            if (_cfg.SpeedoBackground)
+            {
+                var padY = 0.0055f * scale;
+                var padX = Across(0.0055f * scale);
+
+                Draw.Bar(x - padX, y - padY, wide + padX * 2f, h + padY * 2f,
+                         Color.FromArgb((int)(150f * _cfg.SpeedoOpacity), 0, 0, 0));
+            }
+
+            if (_cfg.SpeedoEngineIcon)
+            {
+                Icon(EngineShape, x, y, w, h, Condition(engine, lit));
+                x += w + gap;
+            }
+
+            if (_cfg.SpeedoOilLight)
+            {
+                // ONLY WHEN IT IS LOW. An oil lamp that is lit all the time is not a warning, it
+                // is decoration -- the whole meaning of the thing is that seeing it is unusual.
+                Icon(OilShape, x, y, w, h, oil < 0.25f ? Bad(lit.A) : Ghost(lit));
+            }
         }
 
         /// <summary>A shape from the tables above, drawn into a box.</summary>

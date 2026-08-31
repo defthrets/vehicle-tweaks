@@ -270,6 +270,18 @@ namespace VehicleTweaks.Core
         public bool SpeedoOilLight = true;
 
         /// <summary>
+        /// Where the warning lamps sit, which is NOT wherever the speedo is.
+        ///
+        /// They started life bolted to the end of the speed readout and that was wrong: a
+        /// readout is one object you glance at continuously, and a warning lamp is meant to
+        /// catch your eye precisely by not being part of what you were already looking at.
+        /// Above and to the left of the speedo by default, close enough to find and plainly its
+        /// own thing.
+        /// </summary>
+        public float SpeedoLampsX = 0.268f;
+        public float SpeedoLampsY = 0.886f;
+
+        /// <summary>
         /// Drift tyres, the ones GTA Online actually has.
         ///
         /// SET_DRIFT_TYRES is the flag the Los Santos Tuners update added for the drift tuning
@@ -531,6 +543,8 @@ namespace VehicleTweaks.Core
                 s.SpeedoOnlyInVehicle = ini.GetBool("Speedo", "SpeedoOnlyInVehicle", s.SpeedoOnlyInVehicle);
                 s.SpeedoEngineIcon = ini.GetBool("Speedo", "SpeedoEngineIcon", s.SpeedoEngineIcon);
                 s.SpeedoOilLight = ini.GetBool("Speedo", "SpeedoOilLight", s.SpeedoOilLight);
+                s.SpeedoLampsX = ini.GetFloat("Speedo", "SpeedoLampsX", s.SpeedoLampsX, 0f, 1f);
+                s.SpeedoLampsY = ini.GetFloat("Speedo", "SpeedoLampsY", s.SpeedoLampsY, 0f, 1f);
 
                 s.DriftTyres = ini.GetBool("Driving", "DriftTyres", s.DriftTyres);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);

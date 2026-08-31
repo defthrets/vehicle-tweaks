@@ -554,13 +554,11 @@ namespace VehicleTweaks.UI
 
             speed.Items.Add(Toggle("Engine lamp", () => _cfg.SpeedoEngineIcon,
                                    v => _cfg.SpeedoEngineIcon = v, "Speedo", "SpeedoEngineIcon",
-                                   "Green, amber, red. The game has always known, and never said.",
-                                   () => _cfg.Speedo));
+                                   "Green, amber, red. Its own thing, not part of the speedo."));
 
             speed.Items.Add(Toggle("Oil lamp", () => _cfg.SpeedoOilLight,
                                    v => _cfg.SpeedoOilLight = v, "Speedo", "SpeedoOilLight",
-                                   "Lit only when it is low, which is the point of a warning light.",
-                                   () => _cfg.Speedo));
+                                   "Lit only when it is low, which is the point of a warning light."));
 
             speed.Items.Add(Header("WHERE AND HOW BIG"));
 
@@ -596,6 +594,18 @@ namespace VehicleTweaks.UI
                                    v => _cfg.SpeedoGhost = v, "Speedo", "SpeedoGhost",
                                    "Faintly drawn, the way a real display shows them.",
                                    () => _cfg.Speedo));
+
+            speed.Items.Add(Number("Lamps across", () => _cfg.SpeedoLampsX,
+                                   v => _cfg.SpeedoLampsX = v, 0.002f, 0f, 1f, "0.000", null,
+                                   "Speedo", "SpeedoLampsX",
+                                   "The lamps have their own place. They are not part of the speedo.",
+                                   () => _cfg.SpeedoEngineIcon || _cfg.SpeedoOilLight));
+
+            speed.Items.Add(Number("Lamps down", () => _cfg.SpeedoLampsY,
+                                   v => _cfg.SpeedoLampsY = v, 0.002f, 0f, 1f, "0.000", null,
+                                   "Speedo", "SpeedoLampsY",
+                                   "Watch them move. Zero is the top of the screen.",
+                                   () => _cfg.SpeedoEngineIcon || _cfg.SpeedoOilLight));
 
             speed.Items.Add(Toggle("Only in a vehicle", () => _cfg.SpeedoOnlyInVehicle,
                                    v => _cfg.SpeedoOnlyInVehicle = v,

@@ -146,15 +146,6 @@ progress bar; cells that snap on one at a time are a rev counter, and they read 
 vision, which is the only way anybody looks at one. The last fifth is red whatever colour the
 rest is. Reverse shows as a lower-case `r` — the only R seven segments can make.
 
-Two warning lamps sit at the right-hand end. The **engine lamp** is green, amber or red by
-condition; the **oil lamp** lights only when the oil is low, because a warning light that is on
-all the time is decoration. Both colours are fixed rather than following the display's, since a
-warning lamp is a judgement and everyone already knows what a red one means. GTA has tracked
-both values since 2013 and never once shown you either.
-
-The room for the lamps is always reserved, lit or not — a light that appears and disappears
-would take the panel's width with it and make the box jump.
-
 Position, size, opacity, colour, units and every part of it are settings. **The panel keeps
 drawing the speedo while it is open, including on foot**, so holding LEFT or RIGHT on *Across*
 moves the thing while you watch it — the default position is an estimate off a screenshot, and
@@ -174,6 +165,21 @@ had.
 
 Cars it was fitted to lose it again when you switch it off or reload. A car that *already* had
 drift tuning is left alone — somebody paid for that, and it is not ours to remove.
+
+## The warning lamps
+
+**Their own cluster, in their own place — not part of the speedo.** The **engine lamp** is green,
+amber or red by condition; the **oil lamp** lights only when the oil is low, because a warning
+light that is on all the time is decoration. GTA has tracked both values since 2013 and never
+once shown you either.
+
+They keep their own colours rather than following the display's: the readout is *information*
+and can be any colour you like, but a warning lamp is a *judgement*, and everybody already knows
+what a red one means.
+
+They were originally bolted onto the end of the speed readout, which was wrong. A readout is one
+object you glance at continuously; a warning lamp is meant to catch your eye precisely by *not*
+being part of what you were already looking at.
 
 ## Crashes, and the dash
 
