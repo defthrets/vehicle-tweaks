@@ -53,6 +53,35 @@ namespace VehicleTweaks.UI
         private const float Thick = 0.0042f;
         private const float Gap = 0.0060f;
         private const float RevHeight = 0.0060f;
+        private const float LampH = 0.0190f;
+        private const float LampW = 0.0230f;
+
+        /// <summary>
+        /// The engine, and an oil can, as rectangles in a unit box.
+        ///
+        /// FOUR NUMBERS A BAR -- left, top, right, bottom -- as fractions of whatever box the
+        /// lamp is drawn into, so the shape is written once and scales with everything else.
+        ///
+        /// Drawn rather than typed for the same reason the digits are: there is no glyph for an
+        /// engine in any font this game ships, and the shapes on a real dashboard are not
+        /// letters. They are crude at this size and they are meant to be -- a warning lamp is
+        /// recognised by its silhouette and its colour, not read.
+        /// </summary>
+        private static readonly float[] EngineShape =
+        {
+            0.20f, 0.34f, 0.80f, 0.86f,   // the block
+            0.34f, 0.16f, 0.62f, 0.34f,   // rocker cover on top
+            0.06f, 0.48f, 0.20f, 0.70f,   // mounting lug, left
+            0.80f, 0.44f, 0.94f, 0.64f,   // mounting lug, right
+            0.66f, 0.24f, 0.80f, 0.34f,   // the stub that makes it read as an engine
+        };
+
+        private static readonly float[] OilShape =
+        {
+            0.10f, 0.40f, 0.66f, 0.78f,   // the can
+            0.66f, 0.26f, 0.98f, 0.37f,   // the spout
+            0.34f, 0.83f, 0.48f, 1.00f,   // the drip
+        };
 
         /// <summary>
         /// Which segments each numeral lights.
@@ -98,7 +127,9 @@ namespace VehicleTweaks.UI
 
                 Render(inCar ? Reading(car) : 0,
                        inCar ? Revs(car) : 0f,
-                       inCar ? Gear(car) : 1);
+                       inCar ? Gear(car) : 1,
+                       inCar ? Engine(car) : 1f,
+                       inCar ? Oil(car) : 1f);
             }
             catch (Exception ex)
             {
@@ -181,7 +212,55 @@ namespace VehicleTweaks.UI
             }
         }
 
-        private void Render(int speed, float revs, int gear)
+        /// <summary>
+        /// Engine condition, from one down to nothing.
+        ///
+        /// A THOUSAND IS A WELL ONE. The game counts down from there and keeps going past zero
+        /// into the negatives once it is finished, so this clamps rather than trusting the range
+        /// -- a lamp showing minus four hundred per cent would be its own kind of wrong.
+        /// </summary>
+        private static float Engine(Vehicle car)
+        {
+            try
+            {
+                var h = car.EngineHealth / 1000f;
+
+                if (h < 0f) return 0f;
+                return h > 1f ? 1f : h;
+            }
+            catch
+            {
+                return 1f;
+            }
+        }
+
+        /// <summary>
+        /// How much oil is left, as a fraction of what the engine holds.
+        ///
+        /// AGAINST ITS OWN CAPACITY, not against a number picked here. Engines hold different
+        /// amounts and the game knows how much each one takes; a fixed threshold in litres would
+        /// have meant a warning light that came on at a quarter in one car and never in another.
+        /// A car that reports no capacity has nothing to warn about.
+        /// </summary>
+        private static float Oil(Vehicle car)
+        {
+            try
+            {
+                var capacity = car.OilVolume;
+                if (capacity <= 0f) return 1f;
+
+                var level = car.OilLevel / capacity;
+
+                if (level < 0f) return 0f;
+                return level > 1f ? 1f : level;
+            }
+            catch
+            {
+                return 1f;
+            }
+        }
+
+        private void Render(int speed, float revs, int gear, float engine, float oil)
         {
             var scale = _cfg.SpeedoScale;
 
@@ -215,7 +294,18 @@ namespace VehicleTweaks.UI
             var gty = Thick * gearScale;
             var gtx = Across(Thick * gearScale);
 
-            var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f);
+            // The lamps sit at the right-hand end. THE ROOM IS ALWAYS RESERVED, even when nothing
+            // is lit, because a warning light that appears and disappears would take the whole
+            // panel's width with it and the box would jump about every time the oil got low.
+            // Unlit lamps ghost, exactly as unlit segments do.
+            var lampH = LampH * scale;
+            var lampW = Across(LampW * scale);
+            var lampGap = Across(0.0040f * scale);
+
+            var lamps = (_cfg.SpeedoEngineIcon ? lampW + lampGap : 0f) +
+                        (_cfg.SpeedoOilLight ? lampW + lampGap : 0f);
+
+            var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f) + lamps;
 
             var revH = RevHeight * scale;
             var revGap = 0.0040f * scale;
@@ -262,6 +352,23 @@ namespace VehicleTweaks.UI
 
                 Digit(x + digits + gap + unitWidth + gap * 2f, y + (dh - gh) * 0.5f,
                       gw, gh, gtx, gty, shape, lit);
+            }
+
+            var lampX = x + block - lamps + lampGap;
+            var lampY = y + (dh - lampH) * 0.5f;
+
+            if (_cfg.SpeedoEngineIcon)
+            {
+                Icon(EngineShape, lampX, lampY, lampW, lampH, Condition(engine, lit));
+                lampX += lampW + lampGap;
+            }
+
+            if (_cfg.SpeedoOilLight)
+            {
+                // ONLY WHEN IT IS LOW. An oil lamp that is lit all the time is not a warning, it
+                // is decoration -- the whole meaning of the thing is that seeing it is unusual.
+                var low = oil < 0.25f;
+                Icon(OilShape, lampX, lampY, lampW, lampH, low ? Bad(lit.A) : Ghost(lit));
             }
 
             if (_cfg.SpeedoRevs) Tacho(x, y + dh + revGap, block, revH, revs, lit);
@@ -327,6 +434,52 @@ namespace VehicleTweaks.UI
             Bar(x, y + half + ty, tx, stem, (on & 0x10) != 0, lit, ghost);           // e  bottom left
             Bar(x, y + ty, tx, stem, (on & 0x20) != 0, lit, ghost);                  // f  top left
             Bar(x + tx, y + half, flat, ty, (on & 0x40) != 0, lit, ghost);           // g  middle
+        }
+
+        /// <summary>A shape from the tables above, drawn into a box.</summary>
+        private static void Icon(float[] shape, float x, float y, float w, float h, Color colour)
+        {
+            if (colour.A == 0) return;
+
+            for (var i = 0; i + 3 < shape.Length; i += 4)
+            {
+                Draw.Bar(x + shape[i] * w,
+                         y + shape[i + 1] * h,
+                         (shape[i + 2] - shape[i]) * w,
+                         (shape[i + 3] - shape[i + 1]) * h,
+                         colour);
+            }
+        }
+
+        /// <summary>
+        /// Green, amber, red.
+        ///
+        /// NOT THE DISPLAY'S COLOUR, and that is the point of it. The rest of this readout is
+        /// whatever colour was chosen, because it is information; a warning lamp is a judgement,
+        /// and everybody on earth already knows what a red one means. An engine light that came
+        /// out blue because the speed is blue would be a decoration that happened to change.
+        ///
+        /// Healthy is dimmer than the two warnings. A lamp you notice is a lamp that was quiet
+        /// until it had something to say.
+        /// </summary>
+        private static Color Condition(float health, Color lit)
+        {
+            if (health < 0.34f) return Bad(lit.A);
+            if (health < 0.67f) return Color.FromArgb(lit.A, 255, 176, 40);
+
+            return Color.FromArgb(Math.Max(24, (int)(lit.A * 0.55f)), 90, 220, 120);
+        }
+
+        private static Color Bad(int alpha)
+        {
+            return Color.FromArgb(alpha, 255, 64, 48);
+        }
+
+        private Color Ghost(Color lit)
+        {
+            return _cfg.SpeedoGhost
+                       ? Color.FromArgb(Math.Max(6, lit.A / 9), lit.R, lit.G, lit.B)
+                       : Color.FromArgb(0, 0, 0, 0);
         }
 
         private static void Bar(float x, float y, float w, float h, bool on, Color lit, Color ghost)

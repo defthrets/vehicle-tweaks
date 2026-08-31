@@ -76,7 +76,7 @@ namespace VehicleTweaks.UI
         /// row the day somebody adds an eighth setting to it. A menu that quietly truncates is
         /// worse than one that scrolls.
         /// </summary>
-        private const int Rows = 14;
+        private const int Rows = 16;
 
         private const int Plain = 4;   // Chalet Comprime Cologne
 
@@ -407,6 +407,12 @@ namespace VehicleTweaks.UI
                                    "A locked rear axle should win eventually. Eight is a fast jog.",
                                    () => _cfg.FwdHandbrake));
 
+            drive.Items.Add(Header("THE DASH"));
+
+            drive.Items.Add(Toggle("Cabin lights with the headlights", () => _cfg.DashLight,
+                                   v => _cfg.DashLight = v, "Driving", "DashLight",
+                                   "So a tunnel at noon lights it too, the way a real one does."));
+
             drive.Items.Add(Header("THE SEATBELT"));
 
             drive.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,
@@ -539,6 +545,16 @@ namespace VehicleTweaks.UI
                                    "Beside the unit. Reverse reads as r.",
                                    () => _cfg.Speedo));
 
+            speed.Items.Add(Toggle("Engine lamp", () => _cfg.SpeedoEngineIcon,
+                                   v => _cfg.SpeedoEngineIcon = v, "Speedo", "SpeedoEngineIcon",
+                                   "Green, amber, red. The game has always known, and never said.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Oil lamp", () => _cfg.SpeedoOilLight,
+                                   v => _cfg.SpeedoOilLight = v, "Speedo", "SpeedoOilLight",
+                                   "Lit only when it is low, which is the point of a warning light.",
+                                   () => _cfg.Speedo));
+
             speed.Items.Add(Header("WHERE AND HOW BIG"));
 
             // THE PANEL SHOWS THE SPEEDO WHILE IT IS OPEN, which is what makes these four rows
@@ -599,6 +615,40 @@ namespace VehicleTweaks.UI
                                  v => { _cfg.LogLevel = v; Log.Level = v; },
                                  "General", "LogLevel",
                                  "DEBUG is loud, and is what to send with a bug report."));
+
+            gen.Items.Add(Header("CRASHES"));
+
+            gen.Items.Add(Toggle("Slow motion on a big one", () => _cfg.CrashSlowMo,
+                                 v => _cfg.CrashSlowMo = v, "General", "CrashSlowMo",
+                                 "The only thing here that slows the whole world, not just you."));
+
+            gen.Items.Add(Number("Only above", () => _cfg.CrashSlowMoSpeed,
+                                 v => _cfg.CrashSlowMoSpeed = v, 5f, 10f, 400f, "0", "kph",
+                                 "General", "CrashSlowMoSpeed",
+                                 "How fast you were going the instant before it.",
+                                 () => _cfg.CrashSlowMo));
+
+            // ON THE PANEL RATHER THAN BURIED, because it is the number that decides whether this
+            // fires at all. If a crash that plainly deserved it goes by untouched, this is the
+            // one to lower -- and having to find a text file to do it is how a feature gets
+            // written off as broken.
+            gen.Items.Add(Number("Impact needed", () => _cfg.CrashSlowMoDrop,
+                                 v => _cfg.CrashSlowMoDrop = v, 0.5f, 1f, 40f, "0.0", "m/s",
+                                 "General", "CrashSlowMoDrop",
+                                 "Speed lost in one frame. Lower it if big crashes go unnoticed.",
+                                 () => _cfg.CrashSlowMo));
+
+            gen.Items.Add(Number("How slow", () => _cfg.CrashSlowMoScale,
+                                 v => _cfg.CrashSlowMoScale = v, 0.05f, 0.05f, 1f, "0.00", null,
+                                 "General", "CrashSlowMoScale",
+                                 "A fraction of normal speed. 1.00 is no slow motion at all.",
+                                 () => _cfg.CrashSlowMo));
+
+            gen.Items.Add(Number("For how long", () => _cfg.CrashSlowMoSeconds,
+                                 v => _cfg.CrashSlowMoSeconds = v, 0.1f, 0.1f, 4f, "0.0", "s",
+                                 "General", "CrashSlowMoSeconds",
+                                 "Measured in game time, so it lasts longer than it reads.",
+                                 () => _cfg.CrashSlowMo));
 
             gen.Items.Add(Header("THIS PANEL"));
 

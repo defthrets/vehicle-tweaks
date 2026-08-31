@@ -146,11 +146,32 @@ progress bar; cells that snap on one at a time are a rev counter, and they read 
 vision, which is the only way anybody looks at one. The last fifth is red whatever colour the
 rest is. Reverse shows as a lower-case `r` — the only R seven segments can make.
 
+Two warning lamps sit at the right-hand end. The **engine lamp** is green, amber or red by
+condition; the **oil lamp** lights only when the oil is low, because a warning light that is on
+all the time is decoration. Both colours are fixed rather than following the display's, since a
+warning lamp is a judgement and everyone already knows what a red one means. GTA has tracked
+both values since 2013 and never once shown you either.
+
+The room for the lamps is always reserved, lit or not — a light that appears and disappears
+would take the panel's width with it and make the box jump.
+
 Position, size, opacity, colour, units and every part of it are settings. **The panel keeps
 drawing the speedo while it is open, including on foot**, so holding LEFT or RIGHT on *Across*
 moves the thing while you watch it — the default position is an estimate off a screenshot, and
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
+
+## Crashes, and the dash
+
+Hit something above 100 km/h and the world drops into slow motion for a moment. **This is the
+only thing here that reaches outside your own car** — time scale is global and persistent, so
+it is put back when the moment ends, when you leave the car, when you switch it off, when
+anything throws, and when the script shuts down. A crash is detected as *speed that vanishes*
+rather than as a collision: GTA will happily report a kerb, and 8 m/s lost in one frame is about
+50 g, which braking cannot do and a scrape cannot do.
+
+The cabin lights with the headlights, so a tunnel at noon lights your instruments the way a real
+dash does — and it goes out again when you get out.
 
 ## Parking a car
 

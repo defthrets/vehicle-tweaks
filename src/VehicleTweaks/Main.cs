@@ -47,6 +47,8 @@ namespace VehicleTweaks
         private readonly Locks _locks;
         private readonly Menu _menu;
         private readonly Speedo _speedo;
+        private readonly DashLight _dash;
+        private readonly Crashes _crashes;
 
         private int _failures;
         private bool _parked;
@@ -62,6 +64,8 @@ namespace VehicleTweaks
             _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
             _speedo = new Speedo(_cfg);
+            _dash = new DashLight(_cfg);
+            _crashes = new Crashes(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -131,6 +135,8 @@ namespace VehicleTweaks
                     Indicate(me);
                     _seatbelt.Update(me);
                     _locks.Update(me);
+                    _dash.Update(me);
+                    _crashes.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
@@ -243,6 +249,10 @@ namespace VehicleTweaks
         /// would apply changes for one session and then throw them away. Dismiss shuts it
         /// properly, through the same path the player's own Backspace uses.
         ///
+        /// The exception, and it is why this runs the time scale first: crash slow motion is not
+        /// a property of a car, it is the speed of the world, and nothing puts it back on its
+        /// own. Everything else here can be left safely. That cannot.
+        ///
         /// The other deliberate leftover is a car you have already walked away from: the engine
         /// keeps running, on the game's own SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED, and the
         /// radio keeps playing. Both should. That is a decision the player made about that car,
@@ -251,6 +261,12 @@ namespace VehicleTweaks
         /// </summary>
         private void OnAborted(object sender, EventArgs e)
         {
+            // THE TIME SCALE FIRST, before anything that could throw. It is the only thing this
+            // mod can leave behind that affects the whole game rather than one car, and a
+            // reload landing in the middle of a crash would otherwise leave the world running
+            // at four tenths speed with nothing to explain it.
+            try { _crashes.Restore(); } catch (Exception ex) { Log.Error("Time scale", ex); }
+            try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
             Log.Info(Build.Name + " stopped cleanly.");

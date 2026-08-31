@@ -251,6 +251,63 @@ namespace VehicleTweaks.Core
         public bool SpeedoOnlyInVehicle = true;
 
         /// <summary>
+        /// The engine lamp, coloured by how well the engine is.
+        ///
+        /// GTA already tracks this and has never once shown it to you. Green, amber, red -- and
+        /// those colours rather than the display's, because a warning lamp is a judgement and
+        /// everybody already knows what a red one means.
+        /// </summary>
+        public bool SpeedoEngineIcon = true;
+
+        /// <summary>
+        /// The oil lamp, lit only when the oil is low.
+        ///
+        /// Also already tracked and never shown. Only when it is low, because a warning light
+        /// that is on all the time is decoration -- the whole meaning of it is that seeing it is
+        /// unusual. Measured against the engine's own capacity, which the game knows, rather
+        /// than against a number in litres that would be wrong for half the cars in the game.
+        /// </summary>
+        public bool SpeedoOilLight = true;
+
+        /// <summary>
+        /// The cabin lights up when the headlights are on.
+        ///
+        /// Tied to the headlights rather than to the clock, which is both simpler and more
+        /// faithful: a real dashboard lights with the side lights, which is why a tunnel at noon
+        /// lights your instruments. The game already turns a player's headlights on when it gets
+        /// dark, so this follows a decision that has already been made properly.
+        /// </summary>
+        public bool DashLight = true;
+
+        // ---- crashes ----------------------------------------------------------
+
+        /// <summary>
+        /// A moment of slow motion when you hit something hard enough.
+        ///
+        /// THE ONE SETTING HERE THAT REACHES OUTSIDE YOUR CAR. Time scale is global and it is
+        /// persistent -- it is the speed of the whole world and nothing puts it back on its own.
+        /// See Driving.Crashes for how many different ways it is put back, and why there are
+        /// that many.
+        /// </summary>
+        public bool CrashSlowMo = true;
+
+        /// <summary>How fast you have to be going, in kilometres an hour, for it to count.</summary>
+        public float CrashSlowMoSpeed = 100f;
+
+        /// <summary>
+        /// How much speed has to vanish in a single frame.
+        ///
+        /// Eight metres a second inside one frame is about fifty g, which braking cannot do and
+        /// a scrape cannot do. This is what separates a crash from touching something: the game
+        /// will tell you a kerb was hit, and a kerb is not what this is for.
+        /// </summary>
+        public float CrashSlowMoDrop = 8f;
+
+        /// <summary>How slow, and for how long.</summary>
+        public float CrashSlowMoScale = 0.40f;
+        public float CrashSlowMoSeconds = 0.60f;
+
+        /// <summary>
         /// Front-wheel-drive cars keep pulling when the handbrake is on.
         ///
         /// A handbrake is a REAR brake -- a cable to the back wheels, which is why a rear-driver
@@ -451,6 +508,16 @@ namespace VehicleTweaks.Core
                 s.SpeedoRevs = ini.GetBool("Speedo", "SpeedoRevs", s.SpeedoRevs);
                 s.SpeedoGear = ini.GetBool("Speedo", "SpeedoGear", s.SpeedoGear);
                 s.SpeedoOnlyInVehicle = ini.GetBool("Speedo", "SpeedoOnlyInVehicle", s.SpeedoOnlyInVehicle);
+                s.SpeedoEngineIcon = ini.GetBool("Speedo", "SpeedoEngineIcon", s.SpeedoEngineIcon);
+                s.SpeedoOilLight = ini.GetBool("Speedo", "SpeedoOilLight", s.SpeedoOilLight);
+
+                s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
+
+                s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
+                s.CrashSlowMoSpeed = ini.GetFloat("General", "CrashSlowMoSpeed", s.CrashSlowMoSpeed, 10f, 400f);
+                s.CrashSlowMoDrop = ini.GetFloat("General", "CrashSlowMoDrop", s.CrashSlowMoDrop, 1f, 40f);
+                s.CrashSlowMoScale = ini.GetFloat("General", "CrashSlowMoScale", s.CrashSlowMoScale, 0.05f, 1f);
+                s.CrashSlowMoSeconds = ini.GetFloat("General", "CrashSlowMoSeconds", s.CrashSlowMoSeconds, 0.1f, 4f);
 
                 s.FwdHandbrake = ini.GetBool("Driving", "FwdHandbrake", s.FwdHandbrake);
                 s.FwdHandbrakePull = ini.GetFloat("Driving", "FwdHandbrakePull", s.FwdHandbrakePull, 0f, 10f);
