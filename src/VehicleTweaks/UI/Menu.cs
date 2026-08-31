@@ -397,7 +397,7 @@ namespace VehicleTweaks.UI
                                    "On front-drive cars only. A handbrake is a rear brake."));
 
             drive.Items.Add(Number("How hard they pull", () => _cfg.FwdHandbrakePull,
-                                   v => _cfg.FwdHandbrakePull = v, 0.1f, 0f, 10f, "0.0", "m/s2",
+                                   v => _cfg.FwdHandbrakePull = v, 0.5f, 0f, 15f, "0.0", "m/s2",
                                    "Driving", "FwdHandbrakePull",
                                    "A real acceleration: the same pull in a hatchback and a van.",
                                    () => _cfg.FwdHandbrake));

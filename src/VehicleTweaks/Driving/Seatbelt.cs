@@ -82,6 +82,18 @@ namespace VehicleTweaks.Driving
                 if (_on || _refused) return;
                 if (Game.GameTime - _satAt < (int)(_cfg.SeatbeltSeconds * 1000f)) return;
 
+                // SET BEFORE IT IS ACTED ON, because this flag is the only thing that stops the
+                // block above running again next frame. It was missing, and the belt was
+                // therefore refastened sixty times a second for as long as anybody sat in a car
+                // -- fifty-nine thousand log lines, which rotated the log past its own size
+                // limit and took the history of every other feature with it.
+                //
+                // The louder failure was the quieter one: Out() only unfastens a belt it thinks
+                // is on, so it never unfastened anything, and the ped kept the flag after
+                // getting out. And Flip() reads it, so the unbuckle key was toggling false to
+                // true -- fastening a belt that was already fastened rather than taking it off.
+                _on = true;
+
                 Wear(me, true);
                 Log.Debug("Seatbelt on.");
             }

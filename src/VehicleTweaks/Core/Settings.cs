@@ -363,7 +363,13 @@ namespace VehicleTweaks.Core
         /// takes the velocity change and divides by mass itself -- so that asked for fifteen
         /// hundred times the intended pull and the car left like a rocket.
         /// </summary>
-        public float FwdHandbrakePull = 1.5f;
+        /// <remarks>
+        /// FOUR, NOT ONE AND A HALF. The first honest value was set while the previous one was
+        /// still fifteen hundred times too strong, so it was chosen to be timid on purpose --
+        /// and against a handbrake that is actively braking the car, one and a half metres per
+        /// second squared is a pull you cannot feel. The point is a car that visibly strains.
+        /// </remarks>
+        public float FwdHandbrakePull = 4.0f;
 
         /// <summary>
         /// How fast it can drag the car, in metres a second, before the fronts give up.
@@ -556,7 +562,7 @@ namespace VehicleTweaks.Core
                 s.CrashSlowMoSeconds = ini.GetFloat("General", "CrashSlowMoSeconds", s.CrashSlowMoSeconds, 0.1f, 4f);
 
                 s.FwdHandbrake = ini.GetBool("Driving", "FwdHandbrake", s.FwdHandbrake);
-                s.FwdHandbrakePull = ini.GetFloat("Driving", "FwdHandbrakePull", s.FwdHandbrakePull, 0f, 10f);
+                s.FwdHandbrakePull = ini.GetFloat("Driving", "FwdHandbrakePull", s.FwdHandbrakePull, 0f, 15f);
                 s.FwdHandbrakeMaxSpeed = ini.GetFloat("Driving", "FwdHandbrakeMaxSpeed", s.FwdHandbrakeMaxSpeed, 0.5f, 30f);
 
                 s.Seatbelt = ini.GetBool("Driving", "Seatbelt", s.Seatbelt);
