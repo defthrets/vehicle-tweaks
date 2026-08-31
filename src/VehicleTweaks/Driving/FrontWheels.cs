@@ -28,13 +28,23 @@ namespace VehicleTweaks.Driving
     /// exactly the car under the player, and is gone the moment this script stops running. It is
     /// the smaller instrument and it is the one that cannot leave a mess behind.
     ///
-    /// THE STRENGTH IS AN ACCELERATION, in metres per second squared, and that is not a
-    /// presentational choice. SHVDN rejects the obvious force type as "incorrect" and points at
-    /// an IMPULSE instead -- and an impulse is mass times a change in velocity, which means the
-    /// number to apply is the car's own mass times the pull you want times the length of the
-    /// frame. Do that and the setting stops being a magic figure tuned by feel: 1.5 means the
-    /// fronts drag the car at one and a half metres per second squared, and it means the same
-    /// thing in a hatchback and in a van.
+    /// THE STRENGTH IS AN ACCELERATION, in metres per second squared, so the setting means
+    /// something rather than being a figure tuned by feel on one car.
+    ///
+    /// IT DOES NOT GET MULTIPLIED BY THE CAR'S MASS, and the first version of this did. The
+    /// reasoning was that SHVDN calls this force type an IMPULSE, an impulse is mass times a
+    /// change in velocity, so the number to send is mass times the wanted acceleration times the
+    /// frame. Every step of that is correct physics and the conclusion was wrong, because the
+    /// native does not take newton-seconds: it takes the velocity change directly and does the
+    /// dividing itself. Multiplying by fifteen hundred kilograms therefore asked for fifteen
+    /// hundred times the pull -- about two hundred and thirty g -- and the car left like a
+    /// rocket.
+    ///
+    /// The lesson is not about physics. It is that a name in somebody else's API is not a
+    /// specification of its units, and reasoning confidently from one produces an answer that
+    /// looks principled and is out by three orders of magnitude. The clamp below exists because
+    /// this is the second force in this file to be wrong and the failure is always the same
+    /// shape: too much, instantly, in one frame.
     /// </summary>
     internal sealed class FrontWheels
     {
@@ -108,17 +118,26 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Forward, in the car's own axes, as an impulse worked out rather than guessed.
+        /// The most speed one frame of this is ever allowed to add, in metres a second.
         ///
-        /// IMPULSE IS MASS TIMES A CHANGE IN VELOCITY. So to pull at a given acceleration for one
-        /// frame the impulse is the car's mass times that acceleration times the length of the
-        /// frame -- and applying that every frame accumulates to exactly that acceleration, at
-        /// any frame rate and in any car. A number picked by feel would have been right for one
-        /// hatchback on one machine.
+        /// A QUARTER OF A METRE A SECOND is fifteen metres a second squared at sixty frames --
+        /// already brisker than most cars accelerate, and nothing this feature does should ever
+        /// need it. It is not a tuning value, it is a ceiling: the previous version of this
+        /// asked for thirty-seven metres a second in a single frame and the car left like a
+        /// rocket, and no arithmetic mistake in here should be able to do that again.
+        /// </summary>
+        private const float MostPerFrame = 0.25f;
+
+        /// <summary>
+        /// Forward, in the car's own axes, as a change in velocity.
         ///
-        /// The mass is READ from the handling and never written. Reading is per car and harmless;
-        /// writing is per model and lasts the session, which is the whole reason this feature
-        /// pushes the car rather than turning its handbrake down.
+        /// THE NATIVE TAKES THE VELOCITY CHANGE, not a force in newtons and not an impulse in
+        /// newton-seconds -- it does the dividing by mass itself. So one frame of pulling at a
+        /// given acceleration is simply that acceleration times the length of the frame, and
+        /// applying it every frame accumulates to exactly that acceleration at any frame rate.
+        /// Which also means the setting is still honestly in metres per second squared, and
+        /// still means the same thing in a hatchback and a van -- that part was never the
+        /// problem, the mass factor in front of it was.
         /// </summary>
         private static void Pull(Vehicle car, float accel)
         {
@@ -130,7 +149,8 @@ namespace VehicleTweaks.Driving
                 // be a shove rather than a pull.
                 if (dt <= 0f || dt > 0.1f) dt = 1f / 60f;
 
-                var impulse = Mass(car) * accel * dt;
+                var delta = accel * dt;
+                if (delta > MostPerFrame) delta = MostPerFrame;
 
                 // Through the middle, not at the front axle. The turn a front-driver makes on the
                 // handbrake comes from the rear being locked while the front is not, which the
@@ -140,26 +160,12 @@ namespace VehicleTweaks.Driving
                 // InternalImpulse because SHVDN marks the obvious one obsolete and says outright
                 // that it is incorrect. Internal is the right word for it too: this is the car
                 // driving itself, not something happening to it from outside.
-                car.ApplyForceRelative(new Vector3(0f, impulse, 0f), Vector3.Zero,
+                car.ApplyForceRelative(new Vector3(0f, delta, 0f), Vector3.Zero,
                                        ForceType.InternalImpulse);
             }
             catch
             {
                 // The next frame will try again, or it will not.
-            }
-        }
-
-        /// <summary>The car's own mass, or an ordinary one if it will not say.</summary>
-        private static float Mass(Vehicle car)
-        {
-            try
-            {
-                var m = car.HandlingData.Mass;
-                return m > 1f ? m : 1500f;
-            }
-            catch
-            {
-                return 1500f;
             }
         }
 

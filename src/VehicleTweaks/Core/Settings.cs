@@ -341,10 +341,15 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// How hard the fronts pull, in metres per second squared.
         ///
-        /// A REAL UNIT RATHER THAN A MAGIC NUMBER. The push is applied as an impulse, and an
-        /// impulse is mass times a change in velocity -- so the car's own mass goes into the sum
-        /// and this figure comes out meaning the same thing in a hatchback and in a van. 1.5 is a
-        /// car dragging itself forward against a locked rear axle, which is about right.
+        /// A REAL UNIT RATHER THAN A MAGIC NUMBER: the game is handed this acceleration times
+        /// the length of the frame, every frame, which accumulates to exactly this acceleration
+        /// whatever the frame rate and whatever the car. 1.5 is a car dragging itself forward
+        /// against a locked rear axle.
+        ///
+        /// It used to be multiplied by the car's mass as well, on the reasoning that the native
+        /// takes an impulse and an impulse is mass times a velocity change. It does not -- it
+        /// takes the velocity change and divides by mass itself -- so that asked for fifteen
+        /// hundred times the intended pull and the car left like a rocket.
         /// </summary>
         public float FwdHandbrakePull = 1.5f;
 
