@@ -410,9 +410,9 @@ namespace VehicleTweaks.UI
 
             drive.Items.Add(Header("THE TYRES"));
 
-            drive.Items.Add(Toggle("Drift tyres", () => _cfg.DriftTyres,
+            drive.Items.Add(Choice("Drift mode", () => _cfg.DriftTyres,
                                    v => _cfg.DriftTyres = v, "Driving", "DriftTyres",
-                                   "GTA Online's own drift tuning, not an imitation of it."));
+                                   "Online's drift tuning where it fits, low grip everywhere else."));
 
             drive.Items.Add(Header("THE DASH"));
 

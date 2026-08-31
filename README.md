@@ -158,19 +158,25 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
-## Drift tyres
+## Drift mode
 
-GTA Online's own, not an imitation. `SET_DRIFT_TYRES` is the flag the Los Santos Tuners update
-added for the drift tuning you buy at a garage, so what this switches on is the handling
-Rockstar wrote, engaging on their terms and on the vehicles they allowed it on. Nothing here
+**Off / Light / Medium / Heavy, on any car.** Two of Rockstar's own mechanisms and nothing here
 models grip or fakes a slide.
 
-**Off by default** — it is the only setting in this mod that changes how a car goes round a
-corner. Everything else adds something the game was missing; this replaces something it already
-had.
+`SET_DRIFT_TYRES` is the Drift Races tuning and it is the better of the two — the handling
+Rockstar wrote, engaging on their terms. But it is **gated to the cars that update gave it to**,
+and on anything else it does not fail: it is simply ignored, which is the worst way for a
+feature to not work. On its own it was never going to be "drift mode on any car".
 
-Cars it was fitted to lose it again when you switch it off or reload. A car that *already* had
-drift tuning is left alone — somebody paid for that, and it is not ours to remove.
+So the second one: **low grip tyres**, the other thing the same update shipped, which go on
+anything. The real tuning is asked for first, the game is asked back whether it took, and low
+grip is what a car gets when it would not have it. The log says which one each car got.
+
+**Off by default** — it is the only setting in this mod that changes how a car goes round a
+corner. Everything else adds something the game was missing; this replaces something it had.
+
+Cars lose it again when you switch it off or reload. A car that *already* had drift tuning is
+left alone — somebody paid for that, and it is not ours to remove.
 
 ## The warning lamps
 

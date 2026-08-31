@@ -3,6 +3,21 @@ using System.Windows.Forms;
 
 namespace VehicleTweaks.Core
 {
+    /// <summary>
+    /// How loose a car is in drift mode.
+    ///
+    /// A LEVEL RATHER THAN A SWITCH, because the fallback below has one. Where the game will
+    /// take real drift tuning it takes it and this does nothing; where it will not, this is how
+    /// far the grip comes off instead.
+    /// </summary>
+    internal enum DriftMode
+    {
+        Off,
+        Light,
+        Medium,
+        Heavy
+    }
+
     /// <summary>What the speed is read in.</summary>
     internal enum SpeedoUnits
     {
@@ -284,9 +299,14 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// Drift tyres, the ones GTA Online actually has.
         ///
-        /// SET_DRIFT_TYRES is the flag the Los Santos Tuners update added for the drift tuning
-        /// you buy at a garage, so this switches on the handling Rockstar wrote rather than an
-        /// impression of it. Nothing here models grip or fakes a slide.
+        /// TWO OF ROCKSTAR'S OWN, because one of them will not go on everything. SET_DRIFT_TYRES
+        /// is the Drift Races tuning and it is gated to the cars that were given it, which is
+        /// most of why "drift mode on any car" needed a second answer. The second answer is the
+        /// other thing the same update shipped: low grip tyres, which go on anything.
+        ///
+        /// So drift mode asks for the real tuning first and falls back to low grip when the car
+        /// will not take it -- and says in the log which one it got, because "it feels different
+        /// in this car" should be a thing you can look up rather than wonder about.
         ///
         /// OFF BY DEFAULT, because it is the only setting in this mod that changes how a car
         /// goes round a corner. Everything else adds something the game was missing; this one
@@ -295,7 +315,7 @@ namespace VehicleTweaks.Core
         /// A car that already had drift tuning when we found it keeps it and is left alone --
         /// somebody paid for that, and it is not ours to take off when this is switched back off.
         /// </summary>
-        public bool DriftTyres = false;
+        public DriftMode DriftTyres = DriftMode.Off;
 
         /// <summary>
         /// The cabin lights up when the headlights are on.
@@ -553,7 +573,16 @@ namespace VehicleTweaks.Core
                 s.SpeedoLampsX = ini.GetFloat("Speedo", "SpeedoLampsX", s.SpeedoLampsX, 0f, 1f);
                 s.SpeedoLampsY = ini.GetFloat("Speedo", "SpeedoLampsY", s.SpeedoLampsY, 0f, 1f);
 
-                s.DriftTyres = ini.GetBool("Driving", "DriftTyres", s.DriftTyres);
+                // TAKES THE OLD SPELLING TOO. This was a yes/no before it was a level, and an ini
+                // written by the previous build says true or false -- which would otherwise warn
+                // and fall back to Off, quietly switching the feature off for anybody who had
+                // turned it on.
+                var drift = ini.GetString("Driving", "DriftTyres", "Off");
+
+                if (drift.Equals("true", StringComparison.OrdinalIgnoreCase)) drift = "Medium";
+                else if (drift.Equals("false", StringComparison.OrdinalIgnoreCase)) drift = "Off";
+
+                s.DriftTyres = ParseEnum(drift, s.DriftTyres);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
