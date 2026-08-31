@@ -43,6 +43,28 @@ Turning the same way again does not put it out either, and that needs saying bec
 straightening between two turns the same way is itself a turn the other way. Only a *held*
 turn the other way cancels; a flick to line the car up does not.
 
+## Settings panel — SHIFT+V
+
+Everything is on one panel, in the game, drawn out of rectangles with no UI library behind it.
+
+| | |
+|---|---|
+| `SHIFT+V` | opens and closes it |
+| `TAB` | IGNITION / BLINKERS / GENERAL |
+| `UP` `DOWN` | move |
+| `LEFT` `RIGHT` | change the selected setting |
+| `ENTER` | works a row — toggles it, or starts a key rebind |
+| `BACKSPACE` | saves and closes, same as `SHIFT+V` |
+
+A change applies the instant you make it, so you can try it on the next corner rather than
+alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually
+touched are written back — **in place, keeping every comment in the ini**.
+
+All seventeen settings are here, including the panel's own key: GENERAL has a modifier row and
+a rebind row that waits for you to press the key you want (`ESC` cancels). "Both features on" is
+here too, and the panel deliberately keeps working when it is off — a switch you can only flip
+one way is a trap.
+
 ## Install
 
 Needs [ScriptHookV](http://www.dev-c.com/gtav/scripthookv/) and
@@ -57,14 +79,16 @@ assembly-resolution namespace, so a third-party dll in there is everybody's prob
 
 ## Settings
 
-Everything is in `VehicleTweaks.ini`, which explains what each setting is *for* rather than
-just naming it. The names are the ones Fumes used, so numbers you tuned there can be copied
-straight across.
+Everything is in the panel above. The same settings live in `VehicleTweaks.ini`, which explains
+what each one is *for* rather than just naming it, if you would rather edit text — hand edits
+take effect on a script reload. The names are the ones Fumes used, so numbers you tuned there
+can be copied straight across.
 
 The log goes to `scripts\VehicleTweaks\VehicleTweaks.log`, or to
 `Documents\VehicleTweaks\` when the game folder is not writable -- which is what happens on a
-normal Program Files install. Since nothing here talks on screen, that file is the only way
-either feature can tell you what it did.
+normal Program Files install. Neither feature says anything on screen, so that file is the
+only way either of them can tell you what it did. (The panel does talk, but only to confirm a
+save you asked for.)
 
 ## Building
 

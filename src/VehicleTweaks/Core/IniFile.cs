@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Windows.Forms;
 
 namespace VehicleTweaks.Core
 {
@@ -10,11 +11,9 @@ namespace VehicleTweaks.Core
     /// keys outside any section. Reading a missing file yields an empty instance rather than
     /// throwing, so a deleted ini falls back to the code defaults instead of killing the mod.
     ///
-    /// TAKEN FROM FUMES, MINUS TWO METHODS. The original also carried a surgical single-value
-    /// WRITER -- it edits one line of the file and leaves every comment around it alone -- and
-    /// a key-name parser. Both existed for a settings menu, and this mod has no menu and no key
-    /// settings: every control it reads is one the game already owns. They are in the Fumes
-    /// history if a menu is ever wanted here.
+    /// TAKEN FROM FUMES WHOLE. Reader, surgical single-value writer, key-name parser. The
+    /// writer is the half that earns its keep: the menu saves through it, and it edits one
+    /// line of the file and leaves every comment around it exactly where it was.
     /// </summary>
     internal sealed class IniFile
     {
@@ -133,6 +132,177 @@ namespace VehicleTweaks.Core
             }
 
             return n;
+        }
+
+        // The writer below is LIFTED FROM FUMES, which lifted it from Hoodrich -- same author,
+        // same box, and a surgical ini editor is not worth writing three times. If a bug is
+        // found in one, fix it there and copy it back; do not let them drift.
+
+        /// <summary>
+        /// Changes one value in the file on disk, and changes NOTHING else.
+        ///
+        /// A surgical line edit rather than a re-serialise. This ini is a hundred and forty
+        /// lines of hand-written comments explaining what every key is FOR, grouped and spaced
+        /// on purpose -- rewriting it from the parsed dictionary would hand the player back a
+        /// bare list of key=value and throw all of that away the first time they changed a
+        /// setting from the menu. Which is to say: the first time they used the feature.
+        ///
+        /// So: find the section, find the key inside it, replace the text after the equals
+        /// sign, put the file back exactly as it was otherwise. A key that is not there is
+        /// appended at the end of its section; a section that is not there is appended at the
+        /// end of the file. Both keep every comment above them.
+        ///
+        /// Returns false rather than throwing. A menu that cannot write is a setting that does
+        /// not stick, which is worth reporting; it is not worth taking the mod down over.
+        ///
+        /// THE FILE'S OWN LINE ENDINGS ARE KEPT. File.WriteAllLines -- which this used, and
+        /// which Fumes still does -- writes Environment.NewLine regardless, so saving one
+        /// setting into an ini that happened to use bare newlines rewrote every line in it.
+        /// Nothing breaks: the parser trims, and Notepad has coped since Windows 10. But the
+        /// entire promise of this method is that changing one setting changes one line, and a
+        /// player who keeps their config in git would have watched a single toggle produce a
+        /// hundred and forty-six line diff.
+        /// </summary>
+        public static bool SetValue(string path, string section, string key, string value)
+        {
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(key)) return false;
+
+            try
+            {
+                if (!File.Exists(path)) return false;
+
+                var text = File.ReadAllText(path);
+
+                // Whatever this file already uses, taken from the file rather than from the
+                // platform. A file carrying both is written back with the Windows pair, on the
+                // grounds that something in its history already wrote one and this is Windows.
+                var terminator = text.IndexOf("\r\n", StringComparison.Ordinal) >= 0
+                               ? "\r\n"
+                               : text.IndexOf('\n') >= 0 ? "\n" : Environment.NewLine;
+
+                var trailing = text.EndsWith("\n", StringComparison.Ordinal);
+
+                var lines = new List<string>(
+                    text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
+
+                // Split leaves an empty element after a final terminator. Dropped here and put
+                // back on write, so a file that ended in a newline still does.
+                if (trailing && lines.Count > 0 && lines[lines.Count - 1].Length == 0)
+                {
+                    lines.RemoveAt(lines.Count - 1);
+                }
+
+                var inSection = string.IsNullOrEmpty(section);
+                var sectionEnd = -1;
+
+                for (var i = 0; i < lines.Count; i++)
+                {
+                    var line = lines[i];
+                    var trimmed = line.Trim();
+
+                    if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                    {
+                        var name = trimmed.Substring(1, trimmed.Length - 2).Trim();
+
+                        // Leaving the section we wanted without having found the key: this is
+                        // where it gets appended, before whatever comes next.
+                        if (inSection && !string.IsNullOrEmpty(section))
+                        {
+                            sectionEnd = i;
+                            break;
+                        }
+
+                        inSection = string.Equals(name, section, StringComparison.OrdinalIgnoreCase);
+                        continue;
+                    }
+
+                    if (!inSection) continue;
+                    if (trimmed.Length == 0 || trimmed[0] == ';' || trimmed[0] == '#') continue;
+
+                    var eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+
+                    if (!string.Equals(line.Substring(0, eq).Trim(), key,
+                                       StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    // Found it. Keep whatever indentation the line had.
+                    var lead = line.Substring(0, line.Length - line.TrimStart().Length);
+                    lines[i] = lead + key + " = " + value;
+
+                    Save(path, lines, terminator, trailing);
+                    return true;
+                }
+
+                // Not found. Put it where it belongs rather than at the bottom of the file.
+                if (sectionEnd >= 0)
+                {
+                    while (sectionEnd > 0 && lines[sectionEnd - 1].Trim().Length == 0) sectionEnd--;
+                    lines.Insert(sectionEnd, key + " = " + value);
+                }
+                else if (inSection)
+                {
+                    lines.Add(key + " = " + value);
+                }
+                else
+                {
+                    lines.Add("");
+                    lines.Add("[" + section + "]");
+                    lines.Add(key + " = " + value);
+                }
+
+                Save(path, lines, terminator, trailing);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Could not write " + key + " to the ini: " + ex.Message);
+                return false;
+            }
+        }
+
+        private static void Save(string path, List<string> lines, string terminator, bool trailing)
+        {
+            var text = string.Join(terminator, lines.ToArray()) + (trailing ? terminator : "");
+
+            // No BOM. The file is written by us and read by us and by whatever text editor the
+            // player opens it in; a byte order mark on a plain ASCII ini is three bytes that
+            // some editors show as characters.
+            File.WriteAllText(path, text, new System.Text.UTF8Encoding(false));
+        }
+
+        /// <summary>
+        /// A key.
+        ///
+        /// TAKES BOTH SPELLINGS ON PURPOSE. Mods on this machine have historically stored keys
+        /// as hex (MenuKey=0x56), which is invisible to anybody reading their own ini and
+        /// invisible to a hotkey audit as well. A name is what a person types; the hex is
+        /// accepted so that a config copied from one of those mods still works.
+        /// </summary>
+        public Keys GetKey(string section, string key, Keys fallback)
+        {
+            if (!TryGet(section, key, out var v)) return fallback;
+
+            v = v.Trim();
+            if (v.Length == 0) return fallback;
+
+            if (v.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(v.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hex) &&
+                Enum.IsDefined(typeof(Keys), hex))
+            {
+                return (Keys)hex;
+            }
+
+            // A bare letter is the common case and Enum.TryParse handles it, but only in the
+            // right case -- "v" is not a Keys name, "V" is.
+            if (v.Length == 1) v = v.ToUpperInvariant();
+
+            if (Enum.TryParse(v, true, out Keys parsed)) return parsed;
+
+            Log.Warn("[" + section + "] " + key + " = '" + v + "' is not a key name - using " + fallback + ".");
+            return fallback;
         }
     }
 }

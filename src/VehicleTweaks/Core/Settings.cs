@@ -1,7 +1,17 @@
 using System;
+using System.Windows.Forms;
 
 namespace VehicleTweaks.Core
 {
+    /// <summary>What has to be held down with the menu key.</summary>
+    internal enum MenuModifier
+    {
+        None,
+        Shift,
+        Control,
+        Alt
+    }
+
     /// <summary>
     /// Everything tunable, read once at start-up from VehicleTweaks.ini.
     ///
@@ -33,6 +43,22 @@ namespace VehicleTweaks.Core
         /// log records the load for anyone who needs to know it happened.
         /// </summary>
         public bool AnnounceOnLoad = false;
+
+        /// <summary>
+        /// The key that opens the settings panel, and what has to be held with it.
+        ///
+        /// A MODIFIER BY DEFAULT, and that is not caution for its own sake. A bare letter is one
+        /// keystroke away from whatever else the player has bound it to, and this game has mods
+        /// on most of the alphabet -- the hotkey map for this machine alone runs to a hundred
+        /// and twenty-one bindings. V on its own is the vanilla camera key, so a bare V would
+        /// have opened the panel every time somebody changed view.
+        ///
+        /// Shift+V is free on both installs here. The camera control is held off for the frame
+        /// the combination is pressed, so opening and closing the panel does not also cycle the
+        /// view behind it.
+        /// </summary>
+        public Keys MenuKey = Keys.V;
+        public MenuModifier MenuModifier = MenuModifier.Shift;
 
         // ---- ignition ---------------------------------------------------------
 
@@ -125,6 +151,8 @@ namespace VehicleTweaks.Core
                 s.Enabled = ini.GetBool("General", "Enabled", s.Enabled);
                 s.AnnounceOnLoad = ini.GetBool("General", "AnnounceOnLoad", s.AnnounceOnLoad);
                 s.LogLevel = ParseEnum(ini.GetString("General", "LogLevel", "Info"), s.LogLevel);
+                s.MenuKey = ini.GetKey("General", "MenuKey", s.MenuKey);
+                s.MenuModifier = ParseEnum(ini.GetString("General", "MenuModifier", "Shift"), s.MenuModifier);
 
                 s.ManualIgnition = ini.GetBool("Ignition", "ManualIgnition", s.ManualIgnition);
                 s.ExitHoldSeconds = ini.GetFloat("Ignition", "ExitHoldSeconds", s.ExitHoldSeconds, 0.1f, 3f);

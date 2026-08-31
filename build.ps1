@@ -19,12 +19,20 @@ param(
 
     [switch]$Deploy,
     [switch]$Package,
+    [switch]$Test,
 
     # Which install(s) -Deploy writes to. This is a pure SHVDN script with no asset
     # dependencies and both editions ship the identical ScriptHookVDotNet3.dll, so one build
     # runs on both.
     [ValidateSet('Legacy', 'Enhanced', 'Both')]
     [string]$Target = 'Both',
+
+    # Overwrite the installed ini with the one in the repo. OFF BY DEFAULT, and it has to stay
+    # that way: that file is the one players hand-edit, and it is also where the settings panel
+    # writes, so replacing it silently on every deploy would throw away both. The normal deploy
+    # reports what is stale and leaves it alone. This is the switch for when the answer to that
+    # report is "yes, I know, it is mine and I want the new comments".
+    [switch]$FreshIni,
 
     [string]$GtaDir = 'C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V',
     [string]$EnhancedDir = 'C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V Enhanced'
@@ -58,12 +66,14 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 # mod, because scripts\ is ONE shared assembly-resolution namespace and a third-party dll in
 # there is everybody's problem, not just ours.
 #
-# System.Drawing is not here and Fumes needed it; this mod draws nothing. Forms is, for
-# System.Windows.Forms.Keys -- the raw-key fallback in Ignition, and nothing else.
+# System.Drawing is here for Color, which the settings panel is painted in. Forms is here for
+# System.Windows.Forms.Keys -- the panel's own key reading, and the raw-key fallback in
+# Ignition. Neither is a package; both ship with the framework.
 $refNames = @(
     'mscorlib.dll'
     'System.dll'
     'System.Core.dll'
+    'System.Drawing.dll'
     'System.Windows.Forms.dll'
 )
 $refs = @()
@@ -110,6 +120,59 @@ $sw.Stop()
 
 if ($exit -ne 0) { throw "Compilation failed (csc exit $exit)." }
 Write-Host ("OK  {0:N0} bytes in {1:N1}s" -f (Get-Item $outDll).Length, $sw.Elapsed.TotalSeconds) -ForegroundColor Green
+
+# --- tests ------------------------------------------------------------------
+# Only Core is under test, and only because Core is the part that runs WITHOUT the game: it
+# touches no SHVDN type, so it can be compiled into a console exe and actually executed here.
+# Everything else needs a car and a road, and is checked that way.
+if ($Test) {
+    $testDir = Join-Path $outDir 'tests'
+    New-Item -ItemType Directory -Force $testDir | Out-Null
+
+    $testExe = Join-Path $testDir 'initests.exe'
+    $coreSrc = Get-ChildItem (Join-Path $srcDir 'Core') -Filter *.cs | ForEach-Object { $_.FullName }
+
+    $testOpts = @(
+        '/target:exe', '/platform:x64', '/langversion:9.0', '/nologo', '/nostdlib+', '/utf8output'
+        "/out:`"$testExe`""
+    )
+
+    $testRsp = Join-Path $testDir 'tests.rsp'
+    ($testOpts + $refs[0..3] + @("`"$(Join-Path $root 'tests\IniTests.cs')`"") +
+     ($coreSrc | ForEach-Object { "`"$_`"" })) | Set-Content -Path $testRsp -Encoding UTF8
+
+    & $csc "@$testRsp"
+    if ($LASTEXITCODE -ne 0) { throw "Test harness failed to compile." }
+
+    # BOTH LINE ENDINGS, because the writer's job is to keep whichever the file already has,
+    # and a test that only ever sees one of them cannot tell you that it does.
+    $pristineLf = Join-Path $testDir 'lf.ini'
+    $pristineCrlf = Join-Path $testDir 'crlf.ini'
+
+    $raw = [IO.File]::ReadAllText((Join-Path $root 'VehicleTweaks.ini'))
+    $utf8 = New-Object Text.UTF8Encoding($false)
+
+    [IO.File]::WriteAllText($pristineLf, ($raw -replace "`r`n", "`n"), $utf8)
+    [IO.File]::WriteAllText($pristineCrlf, (($raw -replace "`r`n", "`n") -replace "`n", "`r`n"), $utf8)
+
+    $failed = 0
+    foreach ($pair in @(@('LF', $pristineLf), @('CRLF', $pristineCrlf))) {
+        Write-Host ""
+        Write-Host "-- ini written as $($pair[0]) --" -ForegroundColor Cyan
+
+        $work = Join-Path $testDir "work-$($pair[0]).ini"
+        Copy-Item $pair[1] $work -Force
+
+        Push-Location $testDir
+        & $testExe $work $pair[1]
+        if ($LASTEXITCODE -ne 0) { $failed += $LASTEXITCODE }
+        Pop-Location
+    }
+
+    Write-Host ""
+    if ($failed -gt 0) { throw "$failed test(s) failed." }
+    Write-Host "Tests passed." -ForegroundColor Green
+}
 
 # --- deploy -----------------------------------------------------------------
 function Read-IniKeys {
@@ -214,6 +277,16 @@ function Deploy-To([string]$gameDir, [string]$label) {
         return
     }
 
+    if ($FreshIni) {
+        if ((Get-FileHash $iniSrc).Hash -eq (Get-FileHash $iniDst).Hash) {
+            Write-Host "  same   VehicleTweaks.ini" -ForegroundColor DarkGray
+        } else {
+            Copy-Item $iniSrc $iniDst -Force
+            Write-Host "  UPDATE VehicleTweaks.ini overwritten - any settings in it are gone." -ForegroundColor Yellow
+        }
+        return
+    }
+
     $srcKeys = Read-IniKeys $iniSrc
     $dstKeys = Read-IniKeys $iniDst
 
@@ -223,7 +296,7 @@ function Deploy-To([string]$gameDir, [string]$label) {
     if ($absent) {
         Write-Host "  STALE  VehicleTweaks.ini is missing $($absent.Count) setting(s):" -ForegroundColor Yellow
         Write-Host "         $($absent -join ', ')" -ForegroundColor DarkGray
-        Write-Host "         Defaults apply until they are added." -ForegroundColor DarkGray
+        Write-Host "         Defaults apply until they are added, or re-run with -FreshIni." -ForegroundColor DarkGray
     }
     if ($extra) {
         Write-Host "  STALE  VehicleTweaks.ini has $($extra.Count) setting(s) nothing reads:" -ForegroundColor Yellow

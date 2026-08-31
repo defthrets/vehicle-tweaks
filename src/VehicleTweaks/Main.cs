@@ -1,7 +1,14 @@
 using System;
+using System.Windows.Forms;
 using GTA;
 using VehicleTweaks.Core;
 using VehicleTweaks.Driving;
+using VehicleTweaks.UI;
+
+// System.Windows.Forms has a Menu too, and it is not ours. Same trap as GTA.Control versus
+// System.Windows.Forms.Control, one file over: importing Forms for KeyEventArgs quietly makes
+// the word Menu ambiguous, and the error names a type this mod has never heard of.
+using Menu = VehicleTweaks.UI.Menu;
 
 namespace VehicleTweaks
 {
@@ -35,6 +42,7 @@ namespace VehicleTweaks
 
         private readonly Ignition _ignition;
         private readonly Blinkers _blinkers;
+        private readonly Menu _menu;
 
         private int _failures;
         private bool _parked;
@@ -45,6 +53,7 @@ namespace VehicleTweaks
 
             _ignition = new Ignition(_cfg);
             _blinkers = new Blinkers(_cfg);
+            _menu = new Menu(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -52,19 +61,36 @@ namespace VehicleTweaks
             Tick += OnTick;
             Aborted += OnAborted;
 
+            // ONLY the panel's rebind row listens to this. Everything else in the mod reads
+            // game CONTROLS rather than keys, so that a player who has rebound their exit key
+            // or their steering gets the mod they rebound. A raw key event is the one thing a
+            // control cannot give you: which physical key was just pressed, when the whole
+            // point is to find out.
+            KeyDown += OnKeyDown;
+
             Log.Info(Build.Name + " " + Build.Version + " loaded. Ignition " +
                      (_cfg.ManualIgnition ? "on" : "off") + ", indicators " +
-                     (_cfg.Blinkers ? "on" : "off") + ".");
+                     (_cfg.Blinkers ? "on" : "off") + ", settings on " +
+                     _cfg.MenuModifier + "+" + _cfg.MenuKey + ".");
 
             if (!_cfg.Enabled)
             {
-                Log.Warn("[General] Enabled is false - nothing will run until it is turned on.");
+                Log.Warn("[General] Enabled is false - neither feature will run until it is " +
+                         "turned back on, from the settings panel or from the ini.");
             }
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (_parked) return;
+
+            try { _menu.OnKey(e.KeyCode); }
+            catch (Exception ex) { Log.Once("keydown", "Key handling failed: " + ex.Message); }
         }
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (_parked || !_cfg.Enabled) return;
+            if (_parked) return;
 
             try
             {
@@ -73,8 +99,29 @@ namespace VehicleTweaks
 
                 Greet();
 
-                _ignition.Update(me);
-                Indicate(me);
+                // THE PANEL RUNS FIRST, AND OUTSIDE THE Enabled GATE.
+                //
+                // First, so a key pressed to open it is not also read by the features on the
+                // same frame. Outside the gate, because "Both features on" is itself a row in
+                // the panel: gating the panel on Enabled would mean that switching it off shut
+                // the only door back in, and the mod could only be turned on again by finding
+                // the ini and editing it by hand. A setting that can be changed one way is a
+                // trap, not a setting.
+                _menu.Update();
+
+                if (!_cfg.Enabled)
+                {
+                    _failures = 0;
+                    return;
+                }
+
+                // Not while the panel has the keyboard, or the arrow keys would be steering a
+                // car nobody is looking at.
+                if (!_menu.IsOpen)
+                {
+                    _ignition.Update(me);
+                    Indicate(me);
+                }
 
                 _failures = 0;
             }
@@ -135,7 +182,7 @@ namespace VehicleTweaks
         /// <summary>
         /// Ten failed ticks and it stops, loudly.
         ///
-        /// THE ONE THING THIS MOD IS ALLOWED TO SAY ON SCREEN, and the exception proves the
+        /// ONE OF THE TWO THINGS THIS MOD SAYS ON SCREEN UNASKED, and the exception proves the
         /// rule. Everything else is silent because a running engine and a working indicator are
         /// not events. A mod that has switched itself off IS an event: the exit key is about to
         /// start behaving differently and there is no other way to find that out except by
@@ -164,22 +211,27 @@ namespace VehicleTweaks
         }
 
         /// <summary>
-        /// Leaves nothing behind, because nothing was left lying about.
+        /// Leaves nothing behind, and saves the one thing that would otherwise be lost.
         ///
-        /// Worth saying explicitly, since Fumes needed a real teardown here and the absence of
-        /// one can read as an omission. Neither feature holds a resource: no props, no ropes,
-        /// no blips, no file to flush. The only thing either of them does to the world is per
-        /// frame -- DisableControlThisFrame lasts one frame by definition, and the engine calls
-        /// stop mattering the moment nothing is repeating them. Stop ticking and the game has
-        /// its exit key and its ignition back on the next frame, which is exactly what should
-        /// happen when the script is reloaded on a keypress.
+        /// Neither feature holds a resource: no props, no ropes, no blips. The only thing they
+        /// do to the world is per frame -- DisableControlThisFrame lasts one frame by
+        /// definition, and the engine calls stop mattering the moment nothing is repeating
+        /// them. Stop ticking and the game has its exit key and its ignition back on the next
+        /// frame, which is exactly what should happen when the script is reloaded on a keypress.
         ///
-        /// The one deliberate exception is a car you have already walked away from:
+        /// The panel is the exception, and that is why this is not empty. Settings changed in
+        /// it apply live and are written when it closes, so a reload with the panel still open
+        /// would apply changes for one session and then throw them away. Dismiss shuts it
+        /// properly, through the same path the player's own Backspace uses.
+        ///
+        /// The other deliberate leftover is a car you have already walked away from:
         /// SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED stays set on it, and it should. That is a
         /// decision the player made about that car, not state this script is holding.
         /// </summary>
         private void OnAborted(object sender, EventArgs e)
         {
+            try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
+
             Log.Info(Build.Name + " stopped cleanly.");
         }
     }
