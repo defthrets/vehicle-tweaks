@@ -364,12 +364,13 @@ namespace VehicleTweaks.Core
         /// hundred times the intended pull and the car left like a rocket.
         /// </summary>
         /// <remarks>
-        /// FOUR, NOT ONE AND A HALF. The first honest value was set while the previous one was
-        /// still fifteen hundred times too strong, so it was chosen to be timid on purpose --
-        /// and against a handbrake that is actively braking the car, one and a half metres per
-        /// second squared is a pull you cannot feel. The point is a car that visibly strains.
+        /// EIGHT, AFTER TWO GOES AT IT. One and a half was picked while the version before it
+        /// was still fifteen hundred times too strong -- a timid number chosen in the shadow of
+        /// a rocket -- and four was still not enough to see. The handbrake is braking the car
+        /// the whole time this is pushing it, so the number has to be a real one before anything
+        /// visible happens. The point is a car that plainly strains against the brake.
         /// </remarks>
-        public float FwdHandbrakePull = 4.0f;
+        public float FwdHandbrakePull = 8.0f;
 
         /// <summary>
         /// How fast it can drag the car, in metres a second, before the fronts give up.

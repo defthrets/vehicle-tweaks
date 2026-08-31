@@ -120,13 +120,18 @@ namespace VehicleTweaks.Driving
         /// <summary>
         /// The most speed one frame of this is ever allowed to add, in metres a second.
         ///
-        /// A QUARTER OF A METRE A SECOND is fifteen metres a second squared at sixty frames --
-        /// already brisker than most cars accelerate, and nothing this feature does should ever
-        /// need it. It is not a tuning value, it is a ceiling: the previous version of this
-        /// asked for thirty-seven metres a second in a single frame and the car left like a
-        /// rocket, and no arithmetic mistake in here should be able to do that again.
+        /// A SAFETY NET MUST NOT SHAPE ORDINARY BEHAVIOUR, which a quarter of a metre a second
+        /// had started to: the setting goes to fifteen, and fifteen at sixty frames is exactly a
+        /// quarter -- so the top of the legitimate range was being quietly clipped, and anything
+        /// below sixty frames clipped sooner. Raised so the whole range passes untouched at any
+        /// sane frame rate.
+        ///
+        /// It is still a ceiling and not a tuning value. The version of this that asked for
+        /// thirty-seven metres a second in one frame sent the car off like a rocket; this bounds
+        /// the next arithmetic mistake to something that pulls oddly rather than something that
+        /// leaves the postcode.
         /// </summary>
-        private const float MostPerFrame = 0.25f;
+        private const float MostPerFrame = 0.35f;
 
         /// <summary>
         /// Forward, in the car's own axes, as a change in velocity.
