@@ -312,34 +312,34 @@ namespace VehicleTweaks.Core
                 s.PadOpen = ini.GetString("General", "PadOpen", s.PadOpen);
                 s.PadModifier = ini.GetString("General", "PadModifier", s.PadModifier);
 
-                s.ManualIgnition = ini.GetBool("Ignition", "ManualIgnition", s.ManualIgnition);
-                s.ExitHoldSeconds = ini.GetFloat("Ignition", "ExitHoldSeconds", s.ExitHoldSeconds, 0.1f, 3f);
-                s.ManualIgnitionMaxSpeed = ini.GetFloat("Ignition", "ManualIgnitionMaxSpeed", s.ManualIgnitionMaxSpeed, 0f, 60f);
-                s.ManualIgnitionAircraft = ini.GetBool("Ignition", "ManualIgnitionAircraft", s.ManualIgnitionAircraft);
-                s.StarterCranks = ini.GetBool("Ignition", "StarterCranks", s.StarterCranks);
-                s.RadioKeepsPlaying = ini.GetBool("Ignition", "RadioKeepsPlaying", s.RadioKeepsPlaying);
-                s.LightsStayAsLeft = ini.GetBool("Ignition", "LightsStayAsLeft", s.LightsStayAsLeft);
-                s.LeaveDoorOpen = ini.GetBool("Ignition", "LeaveDoorOpen", s.LeaveDoorOpen);
+                s.ManualIgnition = ini.GetBool("Driving", "ManualIgnition", s.ManualIgnition);
+                s.ExitHoldSeconds = ini.GetFloat("Driving", "ExitHoldSeconds", s.ExitHoldSeconds, 0.1f, 3f);
+                s.ManualIgnitionMaxSpeed = ini.GetFloat("Driving", "ManualIgnitionMaxSpeed", s.ManualIgnitionMaxSpeed, 0f, 60f);
+                s.ManualIgnitionAircraft = ini.GetBool("Driving", "ManualIgnitionAircraft", s.ManualIgnitionAircraft);
+                s.StarterCranks = ini.GetBool("Driving", "StarterCranks", s.StarterCranks);
+                s.RadioKeepsPlaying = ini.GetBool("Leaving", "RadioKeepsPlaying", s.RadioKeepsPlaying);
+                s.LightsStayAsLeft = ini.GetBool("Leaving", "LightsStayAsLeft", s.LightsStayAsLeft);
+                s.LeaveDoorOpen = ini.GetBool("Leaving", "LeaveDoorOpen", s.LeaveDoorOpen);
 
-                s.Blinkers = ini.GetBool("Blinkers", "Blinkers", s.Blinkers);
-                s.BlinkerArmSeconds = ini.GetFloat("Blinkers", "BlinkerArmSeconds", s.BlinkerArmSeconds, 0.1f, 5f);
-                s.BlinkerCancelSeconds = ini.GetFloat("Blinkers", "BlinkerCancelSeconds", s.BlinkerCancelSeconds, 0.1f, 10f);
-                s.BlinkerOppositeSeconds = ini.GetFloat("Blinkers", "BlinkerOppositeSeconds", s.BlinkerOppositeSeconds, 0f, 5f);
-                s.BlinkerDeadzone = ini.GetFloat("Blinkers", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
-                s.BlinkerMinSpeed = ini.GetFloat("Blinkers", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
-                s.BlinkerInvert = ini.GetBool("Blinkers", "BlinkerInvert", s.BlinkerInvert);
-                s.Seatbelt = ini.GetBool("Safety", "Seatbelt", s.Seatbelt);
-                s.SeatbeltKey = ini.GetKey("Safety", "SeatbeltKey", s.SeatbeltKey);
-                s.PadSeatbelt = ini.GetString("Safety", "PadSeatbelt", s.PadSeatbelt);
-                s.SeatbeltSeconds = ini.GetFloat("Safety", "SeatbeltSeconds", s.SeatbeltSeconds, 0f, 10f);
-                s.HandbrakeOnExit = ini.GetBool("Safety", "HandbrakeOnExit", s.HandbrakeOnExit);
-                s.Locking = ini.GetBool("Safety", "Locking", s.Locking);
-                s.LockKey = ini.GetKey("Safety", "LockKey", s.LockKey);
-                s.PadLock = ini.GetString("Safety", "PadLock", s.PadLock);
-                s.LockChirp = ini.GetBool("Safety", "LockChirp", s.LockChirp);
+                s.Blinkers = ini.GetBool("Indicators", "Blinkers", s.Blinkers);
+                s.BlinkerArmSeconds = ini.GetFloat("Indicators", "BlinkerArmSeconds", s.BlinkerArmSeconds, 0.1f, 5f);
+                s.BlinkerCancelSeconds = ini.GetFloat("Indicators", "BlinkerCancelSeconds", s.BlinkerCancelSeconds, 0.1f, 10f);
+                s.BlinkerOppositeSeconds = ini.GetFloat("Indicators", "BlinkerOppositeSeconds", s.BlinkerOppositeSeconds, 0f, 5f);
+                s.BlinkerDeadzone = ini.GetFloat("Indicators", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
+                s.BlinkerMinSpeed = ini.GetFloat("Indicators", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
+                s.BlinkerInvert = ini.GetBool("Indicators", "BlinkerInvert", s.BlinkerInvert);
+                s.Seatbelt = ini.GetBool("Driving", "Seatbelt", s.Seatbelt);
+                s.SeatbeltKey = ini.GetKey("Driving", "SeatbeltKey", s.SeatbeltKey);
+                s.PadSeatbelt = ini.GetString("Driving", "PadSeatbelt", s.PadSeatbelt);
+                s.SeatbeltSeconds = ini.GetFloat("Driving", "SeatbeltSeconds", s.SeatbeltSeconds, 0f, 10f);
+                s.HandbrakeOnExit = ini.GetBool("Leaving", "HandbrakeOnExit", s.HandbrakeOnExit);
+                s.Locking = ini.GetBool("Leaving", "Locking", s.Locking);
+                s.LockKey = ini.GetKey("Leaving", "LockKey", s.LockKey);
+                s.PadLock = ini.GetString("Leaving", "PadLock", s.PadLock);
+                s.LockChirp = ini.GetBool("Leaving", "LockChirp", s.LockChirp);
 
-                s.HazardKey = ini.GetKey("Blinkers", "HazardKey", s.HazardKey);
-                s.PadHazard = ini.GetString("Blinkers", "PadHazard", s.PadHazard);
+                s.HazardKey = ini.GetKey("Indicators", "HazardKey", s.HazardKey);
+                s.PadHazard = ini.GetString("Indicators", "PadHazard", s.PadHazard);
             }
             catch (Exception ex)
             {

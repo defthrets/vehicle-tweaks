@@ -28,11 +28,11 @@ internal static class IniTests
 
         // 1. An existing key, changed in place.
         Check("SetValue reports success on an existing key",
-              IniFile.SetValue(ini, "Blinkers", "BlinkerArmSeconds", "1.4"));
+              IniFile.SetValue(ini, "Indicators", "BlinkerArmSeconds", "1.4"));
 
         // 2. A key that is absent from a section that exists.
         Check("SetValue reports success on a missing key",
-              IniFile.SetValue(ini, "Ignition", "NotAKeyYet", "7"));
+              IniFile.SetValue(ini, "Driving", "NotAKeyYet", "7"));
 
         // 3. A section that does not exist at all.
         Check("SetValue reports success on a missing section",
@@ -76,25 +76,35 @@ internal static class IniTests
         var reread = IniFile.Load(ini);
 
         Check("changed value reads back as 1.4",
-              Math.Abs(reread.GetFloat("Blinkers", "BlinkerArmSeconds", -1f) - 1.4f) < 0.0001f);
+              Math.Abs(reread.GetFloat("Indicators", "BlinkerArmSeconds", -1f) - 1.4f) < 0.0001f);
         Check("appended key reads back from its section",
-              reread.GetString("Ignition", "NotAKeyYet", null) == "7");
+              reread.GetString("Driving", "NotAKeyYet", null) == "7");
         Check("invented section reads back",
               reread.GetString("Invented", "Something", null) == "9");
 
         // Nothing else moved.
         Check("an untouched neighbour is unchanged",
-              Math.Abs(reread.GetFloat("Blinkers", "BlinkerCancelSeconds", -1f) - 2.0f) < 0.0001f);
+              Math.Abs(reread.GetFloat("Indicators", "BlinkerCancelSeconds", -1f) - 2.0f) < 0.0001f);
         Check("an untouched other section is unchanged",
-              reread.GetString("Ignition", "ManualIgnitionMaxSpeed", null) == "2.5");
+              reread.GetString("Driving", "ManualIgnitionMaxSpeed", null) == "2.5");
         // A FUNCTION KEY, which is the case the single-character path in GetKey does NOT
         // cover -- "F8" is two characters and has to survive Enum.TryParse on its own.
         Check("the key parser still reads MenuKey", reread.GetKey("General", "MenuKey",
               System.Windows.Forms.Keys.None) == System.Windows.Forms.Keys.F8);
 
+        // A KEY THAT HAS MOVED SECTION still reads. Settings get regrouped as a mod grows --
+        // the handbrake moved out of [Safety] and in with the rest of parking a car -- and
+        // without this the reorganisation silently resets every setting somebody had edited,
+        // because the key is not where the code now looks and the default quietly applies.
+        Check("a key asked for in the wrong section is still found",
+              reread.GetString("Driving", "BlinkerDeadzone", null) == "0.35");
+
+        Check("and a key that genuinely is not there still falls back",
+              reread.GetString("Driving", "NoSuchSettingAnywhere", "fallback") == "fallback");
+
         // A clamp, which is what stops a bad ini becoming a bad frame.
         Check("out-of-range value is clamped, not taken",
-              Math.Abs(reread.GetFloat("Blinkers", "BlinkerArmSeconds", 1f, 0.1f, 1.0f) - 1.0f) < 0.0001f);
+              Math.Abs(reread.GetFloat("Indicators", "BlinkerArmSeconds", 1f, 0.1f, 1.0f) - 1.0f) < 0.0001f);
 
     }
 }

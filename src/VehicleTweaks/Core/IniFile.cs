@@ -90,10 +90,41 @@ namespace VehicleTweaks.Core
             return s;
         }
 
+        /// <summary>
+        /// A value, looked for in its section and then anywhere.
+        ///
+        /// THE FALLBACK EXISTS SO SETTINGS CAN BE REORGANISED WITHOUT COSTING ANYBODY THEIR ini.
+        /// Sections are how the file is arranged for a person to read, and a good arrangement
+        /// changes as a mod grows -- the handbrake started life under [Safety] and belongs with
+        /// the other things a car keeps when you walk away from it. Moving it would normally be
+        /// silent theft: the key is not found where the code now looks, the built-in default
+        /// applies, and a setting somebody deliberately changed is quietly back to stock with
+        /// nothing anywhere saying so.
+        ///
+        /// Key names are unique across this whole file, so looking in the other sections costs
+        /// nothing and can find nothing it should not. It says where it found it, once, so a
+        /// stale ini is a thing you can see rather than a thing that merely works for now.
+        /// </summary>
         private bool TryGet(string section, string key, out string value)
         {
             value = null;
-            return _sections.TryGetValue(section, out var s) && s.TryGetValue(key, out value);
+
+            if (_sections.TryGetValue(section, out var s) && s.TryGetValue(key, out value)) return true;
+
+            foreach (var other in _sections)
+            {
+                if (string.Equals(other.Key, section, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!other.Value.TryGetValue(key, out value)) continue;
+
+                Log.Once("moved-" + key,
+                         key + " was found under [" + other.Key + "] rather than [" + section +
+                         "], and has been read from there. Your ini predates a tidy-up; " +
+                         "re-installing VehicleTweaks.ini will file it correctly.");
+                return true;
+            }
+
+            value = null;
+            return false;
         }
 
         public string GetString(string section, string key, string fallback)

@@ -68,6 +68,11 @@ Everything is on one panel, in the game, drawn out of rectangles with no UI libr
 | save and close | `BACKSPACE` or `F8` | **B** |
 | jump to a page | `TAB` | — |
 
+Four pages, grouped by **when a setting applies** rather than by which feature owns it:
+**DRIVING** (the ignition, the seatbelt), **LEAVING** (what the car keeps, and the locks),
+**INDICATORS**, **GENERAL**. Headings group each page, and a row that hangs off a toggle that is
+currently off is drawn faint — so a page says at a glance which of it is live.
+
 Directions repeat when held, which matters on a deadzone that steps in hundredths.
 
 **On a controller there is no page button, and none is needed:** UP and DOWN run off the end

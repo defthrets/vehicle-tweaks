@@ -131,6 +131,31 @@ namespace VehicleTweaks.UI
             public string Section;
             public string Key;
             public Func<string> Written;
+
+            /// <summary>
+            /// A heading, not a setting. Drawn differently and skipped by the highlight.
+            ///
+            /// Rows on this panel used to all look identical, which meant a page of eight was
+            /// eight things to read rather than two groups of four. The grouping was real
+            /// -- half of IGNITION was about the key and half was about what the car keeps
+            /// after you have gone -- and nothing on screen said so.
+            /// </summary>
+            public bool IsHeader;
+
+            /// <summary>
+            /// Whether this row currently does anything.
+            ///
+            /// Most settings hang off a toggle above them: the hold time means nothing with the
+            /// manual ignition off, and the deadzone means nothing without the indicators. They
+            /// stay reachable -- you may be about to turn the thing on -- but they are drawn
+            /// faint, so a page says at a glance which of it is live.
+            /// </summary>
+            public Func<bool> Live;
+        }
+
+        private static Item Header(string text)
+        {
+            return new Item { Label = text, IsHeader = true };
         }
 
         private Page Add(string title)
@@ -141,7 +166,7 @@ namespace VehicleTweaks.UI
         }
 
         private static Item Toggle(string label, Func<bool> get, Action<bool> set,
-                                   string section, string key, string hint)
+                                   string section, string key, string hint, Func<bool> live = null)
         {
             var item = new Item
             {
@@ -156,6 +181,7 @@ namespace VehicleTweaks.UI
                 // setting whose state cannot be read. ON and OFF cannot fail to render.
                 Show = () => get() ? "ON" : "OFF",
                 Written = () => get() ? "true" : "false",
+                Live = live,
             };
 
             item.Nudge = d => set(!get());
@@ -165,7 +191,8 @@ namespace VehicleTweaks.UI
 
         private static Item Number(string label, Func<float> get, Action<float> set,
                                    float step, float min, float max, string format,
-                                   string unit, string section, string key, string hint)
+                                   string unit, string section, string key, string hint,
+                                   Func<bool> live = null)
         {
             var item = new Item
             {
@@ -180,6 +207,7 @@ namespace VehicleTweaks.UI
                 Show = () => get().ToString(format, CultureInfo.InvariantCulture) +
                              (string.IsNullOrEmpty(unit) ? "" : " " + unit),
                 Written = () => get().ToString(format, CultureInfo.InvariantCulture),
+                Live = live,
             };
 
             item.Nudge = d =>
@@ -233,7 +261,7 @@ namespace VehicleTweaks.UI
         /// a minute past OemBackslash and LaunchApplication2.
         /// </summary>
         private Item Bind(string label, Func<Keys> get, Action<Keys> set,
-                          string section, string key, string hint)
+                          string section, string key, string hint, Func<bool> live = null)
         {
             Item item = null;
 
@@ -251,6 +279,7 @@ namespace VehicleTweaks.UI
                                  ? "PRESS A KEY"
                                  : get().ToString().ToUpperInvariant(),
                 Written = () => get().ToString(),
+                Live = live,
             };
 
             item.Press = () =>
@@ -311,118 +340,161 @@ namespace VehicleTweaks.UI
             Log.Info(_captureItem.Label + " rebound to " + key + ".");
         }
 
+        /// <summary>
+        /// The pages, grouped by WHEN A SETTING APPLIES rather than by which class implements it.
+        ///
+        /// It used to be the other way round, and it showed. IGNITION held the hold time and the
+        /// hand-back speed -- which are about the key in your hand -- directly above whether the
+        /// radio keeps playing, which is about a car you are walking away from. SAFETY was
+        /// whatever was left over: a seatbelt, a handbrake and a set of door locks, three things
+        /// with nothing in common except having nowhere else to go, and the handbrake plainly
+        /// belonged with the rest of parking a car.
+        ///
+        /// DRIVING is what happens while you are in it. LEAVING is what the car does once you
+        /// are not. Those are the two halves this mod is actually about, and a page you can name
+        /// in one word is a page you can find a setting on.
+        /// </summary>
         private void Build()
         {
-            var ign = Add("IGNITION");
+            var drive = Add("DRIVING");
 
-            ign.Items.Add(Toggle("Manual ignition", () => _cfg.ManualIgnition,
-                                 v => _cfg.ManualIgnition = v, "Ignition", "ManualIgnition",
-                                 "Hold the exit key to stop the engine. Tap it to get out."));
+            drive.Items.Add(Header("THE IGNITION"));
 
-            ign.Items.Add(Number("A hold, rather than a tap", () => _cfg.ExitHoldSeconds,
-                                 v => _cfg.ExitHoldSeconds = v, 0.05f, 0.1f, 3f, "0.00", "s",
-                                 "Ignition", "ExitHoldSeconds",
-                                 "Held longer than this stops the engine. Shorter gets you out."));
+            drive.Items.Add(Toggle("Manual ignition", () => _cfg.ManualIgnition,
+                                   v => _cfg.ManualIgnition = v, "Driving", "ManualIgnition",
+                                   "Hold the exit key to stop the engine. Tap it to get out."));
 
-            ign.Items.Add(Number("Give the key back above", () => _cfg.ManualIgnitionMaxSpeed,
-                                 v => _cfg.ManualIgnitionMaxSpeed = v, 0.5f, 0f, 60f, "0.0", "m/s",
-                                 "Ignition", "ManualIgnitionMaxSpeed",
-                                 "Faster than this and the game's own hold-to-bail is back."));
+            drive.Items.Add(Number("A hold takes", () => _cfg.ExitHoldSeconds,
+                                   v => _cfg.ExitHoldSeconds = v, 0.05f, 0.1f, 3f, "0.00", "s",
+                                   "Driving", "ExitHoldSeconds",
+                                   "Held longer than this stops the engine. Shorter gets you out.",
+                                   () => _cfg.ManualIgnition));
 
-            ign.Items.Add(Toggle("Aircraft too", () => _cfg.ManualIgnitionAircraft,
-                                 v => _cfg.ManualIgnitionAircraft = v,
-                                 "Ignition", "ManualIgnitionAircraft",
-                                 "Off. The gesture that parks a car kills you in a helicopter."));
+            drive.Items.Add(Number("Give the key back above", () => _cfg.ManualIgnitionMaxSpeed,
+                                   v => _cfg.ManualIgnitionMaxSpeed = v, 0.5f, 0f, 60f, "0.0", "m/s",
+                                   "Driving", "ManualIgnitionMaxSpeed",
+                                   "Faster than this and the game's own hold-to-bail is back.",
+                                   () => _cfg.ManualIgnition));
 
-            ign.Items.Add(Toggle("Starter cranks", () => _cfg.StarterCranks,
-                                 v => _cfg.StarterCranks = v, "Ignition", "StarterCranks",
-                                 "The engine turns over before it catches, instead of just being on."));
+            drive.Items.Add(Toggle("Aircraft too", () => _cfg.ManualIgnitionAircraft,
+                                   v => _cfg.ManualIgnitionAircraft = v,
+                                   "Driving", "ManualIgnitionAircraft",
+                                   "Off. The gesture that parks a car kills you in a helicopter.",
+                                   () => _cfg.ManualIgnition));
 
-            ign.Items.Add(Toggle("Radio keeps playing", () => _cfg.RadioKeepsPlaying,
-                                 v => _cfg.RadioKeepsPlaying = v, "Ignition", "RadioKeepsPlaying",
-                                 "A car left running keeps its station, audible from outside."));
+            drive.Items.Add(Toggle("Starter cranks", () => _cfg.StarterCranks,
+                                   v => _cfg.StarterCranks = v, "Driving", "StarterCranks",
+                                   "The engine turns over before it catches, instead of just being on.",
+                                   () => _cfg.ManualIgnition));
 
-            ign.Items.Add(Toggle("Lights stay as left", () => _cfg.LightsStayAsLeft,
-                                 v => _cfg.LightsStayAsLeft = v, "Ignition", "LightsStayAsLeft",
-                                 "Headlights carry through the same way the engine and radio do."));
+            drive.Items.Add(Header("THE SEATBELT"));
 
-            ign.Items.Add(Toggle("Leave the door open", () => _cfg.LeaveDoorOpen,
-                                 v => _cfg.LeaveDoorOpen = v, "Ignition", "LeaveDoorOpen",
-                                 "Getting back in shuts it. Traffic may shut it for you."));
+            drive.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,
+                                   "Driving", "Seatbelt",
+                                   "You are wearing it unless you take it off. No prompt, no icon."));
 
-            var bli = Add("BLINKERS");
+            drive.Items.Add(Bind("Unbuckle key", () => _cfg.SeatbeltKey, v => _cfg.SeatbeltKey = v,
+                                 "Driving", "SeatbeltKey",
+                                 "Takes it off, and it stays off until you get out of this car.",
+                                 () => _cfg.Seatbelt));
 
-            bli.Items.Add(Toggle("Steering indicators", () => _cfg.Blinkers,
-                                 v => _cfg.Blinkers = v, "Blinkers", "Blinkers",
+            drive.Items.Add(Number("Belts up after", () => _cfg.SeatbeltSeconds,
+                                   v => _cfg.SeatbeltSeconds = v, 0.1f, 0f, 10f, "0.0", "s",
+                                   "Driving", "SeatbeltSeconds",
+                                   "About as long as reaching over your shoulder takes.",
+                                   () => _cfg.Seatbelt));
+
+            var leave = Add("LEAVING");
+
+            leave.Items.Add(Header("WHAT THE CAR KEEPS"));
+
+            leave.Items.Add(Toggle("Radio keeps playing", () => _cfg.RadioKeepsPlaying,
+                                   v => _cfg.RadioKeepsPlaying = v, "Leaving", "RadioKeepsPlaying",
+                                   "A car left running keeps its station, audible from outside."));
+
+            leave.Items.Add(Toggle("Lights stay as left", () => _cfg.LightsStayAsLeft,
+                                   v => _cfg.LightsStayAsLeft = v, "Leaving", "LightsStayAsLeft",
+                                   "Headlights carry through the same way the engine and radio do."));
+
+            leave.Items.Add(Toggle("Door left open", () => _cfg.LeaveDoorOpen,
+                                   v => _cfg.LeaveDoorOpen = v, "Leaving", "LeaveDoorOpen",
+                                   "Getting back in shuts it. Traffic may shut it for you."));
+
+            leave.Items.Add(Toggle("Handbrake on exit", () => _cfg.HandbrakeOnExit,
+                                   v => _cfg.HandbrakeOnExit = v, "Leaving", "HandbrakeOnExit",
+                                   "Off is a car at the bottom of the hill you parked on."));
+
+            leave.Items.Add(Header("LOCKING"));
+
+            leave.Items.Add(Toggle("Locking", () => _cfg.Locking, v => _cfg.Locking = v,
+                                   "Leaving", "Locking",
+                                   "Your car only: the one you are in, or the last one you drove."));
+
+            leave.Items.Add(Bind("Lock key", () => _cfg.LockKey, v => _cfg.LockKey = v,
+                                 "Leaving", "LockKey",
+                                 "Locks and unlocks. Works from outside if you are near it.",
+                                 () => _cfg.Locking));
+
+            leave.Items.Add(Toggle("The horn answers", () => _cfg.LockChirp,
+                                   v => _cfg.LockChirp = v, "Leaving", "LockChirp",
+                                   "The way a real one does. It is the only sign it worked.",
+                                   () => _cfg.Locking));
+
+            var ind = Add("INDICATORS");
+
+            ind.Items.Add(Header("THE STALK"));
+
+            ind.Items.Add(Toggle("Steering indicators", () => _cfg.Blinkers,
+                                 v => _cfg.Blinkers = v, "Indicators", "Blinkers",
                                  "Hold the wheel over and that side comes on."));
 
-            bli.Items.Add(Number("Wheel held before it lights", () => _cfg.BlinkerArmSeconds,
+            ind.Items.Add(Number("Comes on after", () => _cfg.BlinkerArmSeconds,
                                  v => _cfg.BlinkerArmSeconds = v, 0.1f, 0.1f, 5f, "0.0", "s",
-                                 "Blinkers", "BlinkerArmSeconds",
-                                 "Short enough to be deliberate, long enough not to be a wobble."));
+                                 "Indicators", "BlinkerArmSeconds",
+                                 "Short enough to be deliberate, long enough not to be a wobble.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Number("Straight cancels after", () => _cfg.BlinkerCancelSeconds,
+            ind.Items.Add(Number("Straight cancels after", () => _cfg.BlinkerCancelSeconds,
                                  v => _cfg.BlinkerCancelSeconds = v, 0.1f, 0.1f, 10f, "0.0", "s",
-                                 "Blinkers", "BlinkerCancelSeconds",
-                                 "Only while moving, which is what lets you signal at a light."));
+                                 "Indicators", "BlinkerCancelSeconds",
+                                 "Only while moving, which is what lets you signal at a light.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Number("Opposite lock cancels after", () => _cfg.BlinkerOppositeSeconds,
+            ind.Items.Add(Number("Opposite lock cancels after", () => _cfg.BlinkerOppositeSeconds,
                                  v => _cfg.BlinkerOppositeSeconds = v, 0.1f, 0f, 5f, "0.0", "s",
-                                 "Blinkers", "BlinkerOppositeSeconds",
-                                 "A held turn the other way. A flick to line up should not count."));
+                                 "Indicators", "BlinkerOppositeSeconds",
+                                 "A held turn the other way. A flick to line up should not count.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Number("Wheel deadzone", () => _cfg.BlinkerDeadzone,
+            ind.Items.Add(Header("READING THE WHEEL"));
+
+            ind.Items.Add(Number("Deadzone", () => _cfg.BlinkerDeadzone,
                                  v => _cfg.BlinkerDeadzone = v, 0.05f, 0.05f, 0.95f, "0.00", null,
-                                 "Blinkers", "BlinkerDeadzone",
-                                 "How far over the wheel counts as turned at all, 0 to 1."));
+                                 "Indicators", "BlinkerDeadzone",
+                                 "How far over the wheel counts as turned at all, 0 to 1.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Number("Cancelling needs at least", () => _cfg.BlinkerMinSpeed,
+            ind.Items.Add(Number("Cancels only above", () => _cfg.BlinkerMinSpeed,
                                  v => _cfg.BlinkerMinSpeed = v, 0.1f, 0f, 20f, "0.0", "m/s",
-                                 "Blinkers", "BlinkerMinSpeed",
-                                 "Below this a centred wheel means nothing. Zero breaks signalling at lights."));
+                                 "Indicators", "BlinkerMinSpeed",
+                                 "Below this a centred wheel means nothing. Zero breaks signalling at lights.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Bind("Hazards key", () => _cfg.HazardKey, v => _cfg.HazardKey = v,
-                               "Blinkers", "HazardKey",
-                               "Both sides at once. On a pad it is the panel's modifier and D-pad down."));
+            ind.Items.Add(Toggle("Invert the fallback axis", () => _cfg.BlinkerInvert,
+                                 v => _cfg.BlinkerInvert = v, "Indicators", "BlinkerInvert",
+                                 "Only for setups where the one-sided steering controls read nothing.",
+                                 () => _cfg.Blinkers));
 
-            bli.Items.Add(Toggle("Invert the fallback axis", () => _cfg.BlinkerInvert,
-                                 v => _cfg.BlinkerInvert = v, "Blinkers", "BlinkerInvert",
-                                 "Only for setups where the one-sided steering controls read nothing."));
+            ind.Items.Add(Header("HAZARDS"));
 
-            var safe = Add("SAFETY");
-
-            safe.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,
-                                  "Safety", "Seatbelt",
-                                  "You are wearing it unless you take it off. No prompt, no icon."));
-
-            safe.Items.Add(Bind("Unbuckle key", () => _cfg.SeatbeltKey, v => _cfg.SeatbeltKey = v,
-                                "Safety", "SeatbeltKey",
-                                "Takes it off, and it stays off until you get out of this car."));
-
-            safe.Items.Add(Number("Belts up after", () => _cfg.SeatbeltSeconds,
-                                  v => _cfg.SeatbeltSeconds = v, 0.1f, 0f, 10f, "0.0", "s",
-                                  "Safety", "SeatbeltSeconds",
-                                  "About as long as reaching over your shoulder takes."));
-
-            safe.Items.Add(Toggle("Handbrake on exit", () => _cfg.HandbrakeOnExit,
-                                  v => _cfg.HandbrakeOnExit = v, "Safety", "HandbrakeOnExit",
-                                  "Off is a car at the bottom of the hill you parked on."));
-
-            safe.Items.Add(Toggle("Locking", () => _cfg.Locking, v => _cfg.Locking = v,
-                                  "Safety", "Locking",
-                                  "Your car only: the one you are in, or the last one you drove."));
-
-            safe.Items.Add(Bind("Lock key", () => _cfg.LockKey, v => _cfg.LockKey = v,
-                                "Safety", "LockKey",
-                                "Locks and unlocks. Works from outside if you are near it."));
-
-            safe.Items.Add(Toggle("Chirp when locking", () => _cfg.LockChirp,
-                                  v => _cfg.LockChirp = v, "Safety", "LockChirp",
-                                  "The horn answers, the way a real one does. It is the only feedback."));
+            ind.Items.Add(Bind("Hazards key", () => _cfg.HazardKey, v => _cfg.HazardKey = v,
+                               "Indicators", "HazardKey",
+                               "Both sides at once. On a pad it is the modifier and D-pad down.",
+                               () => _cfg.Blinkers));
 
             var gen = Add("GENERAL");
 
-            gen.Items.Add(Toggle("Both features on", () => _cfg.Enabled, v => _cfg.Enabled = v,
+            gen.Items.Add(Toggle("Everything on", () => _cfg.Enabled, v => _cfg.Enabled = v,
                                  "General", "Enabled",
                                  "Off leaves the game exactly as it was. This panel still opens."));
 
@@ -432,21 +504,27 @@ namespace VehicleTweaks.UI
 
             // THE LIVE LEVEL IS SET TOO, not just the stored one. Log.Level is what Log actually
             // reads; _cfg.LogLevel is only what gets written to the ini. Setting one without the
-            // other gives a menu row that appears to work, changes nothing until a restart, and
-            // says nothing about it -- on the one setting a person only ever touches because
-            // they are already trying to find out why something is not working.
+            // other gives a row that appears to work, changes nothing until a restart, and says
+            // nothing about it -- on the one setting a person only ever touches because they are
+            // already trying to find out why something is not working.
             gen.Items.Add(Choice("Log detail", () => _cfg.LogLevel,
                                  v => { _cfg.LogLevel = v; Log.Level = v; },
                                  "General", "LogLevel",
                                  "DEBUG is loud, and is what to send with a bug report."));
 
-            gen.Items.Add(Choice("Panel modifier", () => _cfg.MenuModifier,
+            gen.Items.Add(Header("THIS PANEL"));
+
+            gen.Items.Add(Choice("Modifier", () => _cfg.MenuModifier,
                                  v => _cfg.MenuModifier = v, "General", "MenuModifier",
                                  "NONE is the bare key. Pick one you do not drive with."));
 
-            gen.Items.Add(Bind("Panel key", () => _cfg.MenuKey, v => _cfg.MenuKey = v,
+            gen.Items.Add(Bind("Key", () => _cfg.MenuKey, v => _cfg.MenuKey = v,
                                "General", "MenuKey",
                                "ENTER, then press the key you want. ESC cancels."));
+
+            // The highlight cannot start on a heading.
+            _row = 0;
+            Settle(1);
         }
 
         // ==================================================================
@@ -737,11 +815,12 @@ namespace VehicleTweaks.UI
             if (_tab.Fired)
             {
                 TurnPage(1, true);
+                Settle(1);
                 return;
             }
 
-            if (_up.Fired) _row--;
-            if (_down.Fired) _row++;
+            if (_up.Fired) { _row--; Settle(-1); }
+            if (_down.Fired) { _row++; Settle(1); }
 
             // OFF THE END OF A PAGE GOES TO THE NEXT PAGE, not round to the top of this one.
             //
@@ -754,9 +833,6 @@ namespace VehicleTweaks.UI
             //
             // TAB stays, because jumping straight to a page is still faster than scrolling to
             // it, and the keyboard has the key to spare.
-            if (_row < 0) TurnPage(-1, false);
-            else if (_row >= _pages[_page].Items.Count) TurnPage(1, true);
-
             var page = _pages[_page];
 
             // Keep the highlight on screen with a margin, so the next row is visible before
@@ -776,6 +852,31 @@ namespace VehicleTweaks.UI
             }
 
             if (_back.Fired) Close();
+        }
+
+        /// <summary>
+        /// Puts the highlight somewhere it is allowed to be, walking on in the given direction.
+        ///
+        /// HEADINGS ARE NOT ROWS YOU CAN LAND ON, and off the end of a page is the next page --
+        /// which together mean a step is not simply "add one". Both are handled here, in a loop,
+        /// because they compose: stepping off the bottom onto a page whose first row is a heading
+        /// has to keep going, and so does a page that begins with two of them.
+        ///
+        /// The guard is a backstop for a page that is nothing but headings. It cannot happen with
+        /// what Build makes today, and a menu that hangs the game is a bad way to find out that
+        /// changed.
+        /// </summary>
+        private void Settle(int direction)
+        {
+            for (var guard = 0; guard < 64; guard++)
+            {
+                if (_row < 0) TurnPage(-1, false);
+                else if (_row >= _pages[_page].Items.Count) TurnPage(1, true);
+
+                if (!_pages[_page].Items[_row].IsHeader) return;
+
+                _row += direction;
+            }
         }
 
         /// <summary>Moves to another page, landing on its first or last row.</summary>
@@ -889,7 +990,24 @@ namespace VehicleTweaks.UI
 
                 var item = page.Items[index];
                 var y = PanelTop + TitleH + i * RowH;
+
+                if (item.IsHeader)
+                {
+                    // A heading sits low in its row with a hairline under it, so the group it
+                    // opens reads as hanging off it rather than as another setting that happens
+                    // to be in capitals.
+                    Draw.Text(item.Label, PanelX + 0.012f, y + 0.0090f, 0.235f, Amber, Plain);
+                    Draw.Bar(PanelX + 0.012f, y + RowH - 0.0035f, PanelW - 0.024f, 0.0011f,
+                             Color.FromArgb(45, 245, 196, 60));
+                    continue;
+                }
+
                 var selected = index == _row;
+
+                // Whether this row currently does anything: most hang off a toggle above them,
+                // and a deadzone with the indicators switched off is a number that changes
+                // nothing. They stay reachable, because you may be about to turn the thing on.
+                var live = item.Live == null || item.Live();
 
                 if (selected)
                 {
@@ -908,11 +1026,19 @@ namespace VehicleTweaks.UI
                     Draw.Text(">", PanelX + 0.0055f, y + 0.0052f, 0.26f, Amber, Plain);
                 }
 
-                Draw.Text(item.Label, PanelX + 0.017f, y + 0.0044f, 0.295f,
-                          selected ? Ink : Color.FromArgb(200, 205, 205, 208), Plain);
+                var label = selected ? Ink : Color.FromArgb(200, 205, 205, 208);
+                var value = selected ? Amber : Dim;
+
+                if (!live)
+                {
+                    label = selected ? Dim : Faint;
+                    value = Faint;
+                }
+
+                Draw.Text(item.Label, PanelX + 0.017f, y + 0.0044f, 0.295f, label, Plain);
 
                 Draw.Text(item.Show(), PanelX + PanelW - 0.010f, y + 0.0044f, 0.295f,
-                          selected ? Amber : Dim, Plain, false, true);
+                          value, Plain, false, true);
             }
 
             // The scroll bar, only when there is something to scroll. Nothing scrolls today;
