@@ -42,6 +42,7 @@ namespace VehicleTweaks
 
         private readonly Ignition _ignition;
         private readonly Blinkers _blinkers;
+        private readonly FrontWheels _frontWheels;
         private readonly Seatbelt _seatbelt;
         private readonly Locks _locks;
         private readonly Menu _menu;
@@ -56,6 +57,7 @@ namespace VehicleTweaks
 
             _ignition = new Ignition(_cfg);
             _blinkers = new Blinkers(_cfg);
+            _frontWheels = new FrontWheels(_cfg);
             _seatbelt = new Seatbelt(_cfg);
             _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
@@ -147,6 +149,9 @@ namespace VehicleTweaks
         /// <summary>
         /// The indicators, for the car he is actually driving.
         ///
+        /// Also where the front wheels are told about the handbrake, because it needs the same
+        /// answer to the same question and there should be one of those rather than two.
+        ///
         /// The driving test is done here rather than inside Blinkers because Blinkers has no
         /// business deciding it -- and it is by HANDLE, because every one of these properties
         /// hands back a fresh wrapper and reference equality between two of them is never true.
@@ -164,6 +169,7 @@ namespace VehicleTweaks
                               car.Driver.Handle == me.Handle;
 
                 _blinkers.Update(me, car, driving);
+                _frontWheels.Update(car, driving);
             }
             catch (Exception ex)
             {

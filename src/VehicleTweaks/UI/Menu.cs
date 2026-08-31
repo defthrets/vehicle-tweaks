@@ -389,6 +389,24 @@ namespace VehicleTweaks.UI
                                    "The engine turns over before it catches, instead of just being on.",
                                    () => _cfg.ManualIgnition));
 
+            drive.Items.Add(Header("THE HANDBRAKE"));
+
+            drive.Items.Add(Toggle("Front wheels keep pulling", () => _cfg.FwdHandbrake,
+                                   v => _cfg.FwdHandbrake = v, "Driving", "FwdHandbrake",
+                                   "On front-drive cars only. A handbrake is a rear brake."));
+
+            drive.Items.Add(Number("How hard they pull", () => _cfg.FwdHandbrakePull,
+                                   v => _cfg.FwdHandbrakePull = v, 0.1f, 0f, 10f, "0.0", "m/s2",
+                                   "Driving", "FwdHandbrakePull",
+                                   "A real acceleration: the same pull in a hatchback and a van.",
+                                   () => _cfg.FwdHandbrake));
+
+            drive.Items.Add(Number("Until they give up at", () => _cfg.FwdHandbrakeMaxSpeed,
+                                   v => _cfg.FwdHandbrakeMaxSpeed = v, 0.5f, 0.5f, 30f, "0.0", "m/s",
+                                   "Driving", "FwdHandbrakeMaxSpeed",
+                                   "A locked rear axle should win eventually. Eight is a fast jog.",
+                                   () => _cfg.FwdHandbrake));
+
             drive.Items.Add(Header("THE SEATBELT"));
 
             drive.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,

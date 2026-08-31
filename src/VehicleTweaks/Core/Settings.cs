@@ -250,6 +250,40 @@ namespace VehicleTweaks.Core
 
         public bool SpeedoOnlyInVehicle = true;
 
+        /// <summary>
+        /// Front-wheel-drive cars keep pulling when the handbrake is on.
+        ///
+        /// A handbrake is a REAR brake -- a cable to the back wheels, which is why a rear-driver
+        /// spins on it. In a front-driver the driven wheels are the ones it does not touch, so
+        /// the engine can still drag the car forward against a locked rear axle. The game brakes
+        /// the car as a unit and the fronts give up with the rest of it.
+        ///
+        /// Done by pushing the car while both keys are held, NOT by editing its handling. See
+        /// Driving.FrontWheels: handling is per model rather than per car, so turning the
+        /// handbrake force down would weaken it on every other example of that model in the
+        /// world for the rest of the session.
+        /// </summary>
+        public bool FwdHandbrake = true;
+
+        /// <summary>
+        /// How hard the fronts pull, in metres per second squared.
+        ///
+        /// A REAL UNIT RATHER THAN A MAGIC NUMBER. The push is applied as an impulse, and an
+        /// impulse is mass times a change in velocity -- so the car's own mass goes into the sum
+        /// and this figure comes out meaning the same thing in a hatchback and in a van. 1.5 is a
+        /// car dragging itself forward against a locked rear axle, which is about right.
+        /// </summary>
+        public float FwdHandbrakePull = 1.5f;
+
+        /// <summary>
+        /// How fast it can drag the car, in metres a second, before the fronts give up.
+        ///
+        /// Eight is a fast jog. The point is a car that still creeps and still pivots with the
+        /// handbrake up, not one that drives around on it -- a locked rear axle should always
+        /// win eventually, and the force eases off as it approaches this rather than cutting.
+        /// </summary>
+        public float FwdHandbrakeMaxSpeed = 8.0f;
+
         // ---- safety -----------------------------------------------------------
 
         /// <summary>
@@ -417,6 +451,10 @@ namespace VehicleTweaks.Core
                 s.SpeedoRevs = ini.GetBool("Speedo", "SpeedoRevs", s.SpeedoRevs);
                 s.SpeedoGear = ini.GetBool("Speedo", "SpeedoGear", s.SpeedoGear);
                 s.SpeedoOnlyInVehicle = ini.GetBool("Speedo", "SpeedoOnlyInVehicle", s.SpeedoOnlyInVehicle);
+
+                s.FwdHandbrake = ini.GetBool("Driving", "FwdHandbrake", s.FwdHandbrake);
+                s.FwdHandbrakePull = ini.GetFloat("Driving", "FwdHandbrakePull", s.FwdHandbrakePull, 0f, 10f);
+                s.FwdHandbrakeMaxSpeed = ini.GetFloat("Driving", "FwdHandbrakeMaxSpeed", s.FwdHandbrakeMaxSpeed, 0.5f, 30f);
 
                 s.Seatbelt = ini.GetBool("Driving", "Seatbelt", s.Seatbelt);
                 s.SeatbeltKey = ini.GetKey("Driving", "SeatbeltKey", s.SeatbeltKey);

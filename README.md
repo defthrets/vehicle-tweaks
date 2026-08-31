@@ -113,6 +113,24 @@ cancel it*, *ten seconds stopped with the wheel released and it is still on*. Th
 twice, over an LF and a CRLF copy of the real file, because preserving what the file already uses
 is the thing it is checking.
 
+## The handbrake, on a front-driver
+
+A handbrake is a **rear** brake — a cable to the back wheels, which is why a rear-drive car
+spins on it. In a front-wheel-drive car the driven wheels are the ones it does not touch, so the
+engine can still drag the car forward against a locked rear axle. GTA brakes the car as a unit
+and the fronts give up with everything else.
+
+Hold the handbrake *and* the throttle in a front-driver and the fronts keep pulling. The
+handbrake alone still stops the car dead, which is what it is for.
+
+**By pushing the car, not by editing its handling.** `HandlingData` has a `HandBrakeForce` on it
+and turning that down looks like the obvious fix — it is not. Handling is loaded per *model*, so
+weakening it weakens the handbrake on every other example of that model in the world, traffic
+included, for the rest of the session, with nothing to put it back.
+
+Front-drive is asked of the wheels themselves rather than inferred from handling numbers. Four
+wheel drive is a different situation — its rear wheels *are* driven — and is left alone.
+
 ## The speedo
 
 Three seven-segment digits, the unit, a rev strip and the gear — sitting just right of the
