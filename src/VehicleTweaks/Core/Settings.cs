@@ -61,6 +61,27 @@ namespace VehicleTweaks.Core
         public MenuModifier MenuModifier = MenuModifier.None;
 
         /// <summary>
+        /// The pad's way into the panel: a button held, and a button pressed.
+        ///
+        /// STRINGS, NOT GTA.Control, AND THAT IS DELIBERATE. Core does not reference a single
+        /// SHVDN type, which is the only reason the ini reader and its writer can be compiled
+        /// into a console exe and actually TESTED -- see tests\IniTests.cs. Putting a GTA enum
+        /// in this file to save one Enum.TryParse in the panel would trade a test suite that
+        /// runs for a type that reads slightly better. The panel resolves these by name and
+        /// says so in the log, including when it cannot.
+        ///
+        /// A CHORD, because there is no spare pad button. Every face button, shoulder and stick
+        /// is a gameplay action and the D-pad changes the radio station; holding one and
+        /// pressing another is not something a thumb does by accident. The default holds the
+        /// View / Select / touchpad button and presses D-pad up.
+        ///
+        /// "Off" on PadOpen means the pad cannot open the panel. "None" on PadModifier means the
+        /// single button does it on its own.
+        /// </summary>
+        public string PadOpen = "PhoneUp";
+        public string PadModifier = "MultiplayerInfo";
+
+        /// <summary>
         /// The combination, written the way a person would say it.
         ///
         /// HERE RATHER THAN IN THE PANEL, because two places need it and they must not be able
@@ -173,7 +194,9 @@ namespace VehicleTweaks.Core
                 s.AnnounceOnLoad = ini.GetBool("General", "AnnounceOnLoad", s.AnnounceOnLoad);
                 s.LogLevel = ParseEnum(ini.GetString("General", "LogLevel", "Info"), s.LogLevel);
                 s.MenuKey = ini.GetKey("General", "MenuKey", s.MenuKey);
-                s.MenuModifier = ParseEnum(ini.GetString("General", "MenuModifier", "Shift"), s.MenuModifier);
+                s.MenuModifier = ParseEnum(ini.GetString("General", "MenuModifier", "None"), s.MenuModifier);
+                s.PadOpen = ini.GetString("General", "PadOpen", s.PadOpen);
+                s.PadModifier = ini.GetString("General", "PadModifier", s.PadModifier);
 
                 s.ManualIgnition = ini.GetBool("Ignition", "ManualIgnition", s.ManualIgnition);
                 s.ExitHoldSeconds = ini.GetFloat("Ignition", "ExitHoldSeconds", s.ExitHoldSeconds, 0.1f, 3f);

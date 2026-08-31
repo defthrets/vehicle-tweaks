@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
 using GTA;
+using GTA.Native;
 
 // Both namespaces have a Control and only one of them is a game control.
 using Control = GTA.Control;
@@ -88,10 +89,54 @@ namespace VehicleTweaks.UI
         private static readonly Color Panel = Color.FromArgb(234, 15, 15, 18);
         private static readonly Color Head = Color.FromArgb(242, 26, 26, 31);
 
+        /// <summary>The chord that opens this on a pad, resolved once. Null means "not bound".</summary>
+        private readonly Control? _padOpen;
+        private readonly Control? _padModifier;
+
         public Menu(Settings cfg)
         {
             _cfg = cfg;
+
+            _padOpen = ParseControl(cfg.PadOpen);
+            _padModifier = ParseControl(cfg.PadModifier);
+
+            Log.Info("Panel on " + cfg.BindingText() + ", or on a pad " +
+                     (_padOpen == null
+                          ? "not at all (PadOpen is off)"
+                          : (_padModifier == null ? "" : "hold " + _padModifier + " and ") +
+                            "press " + _padOpen) + ".");
+
             Build();
+        }
+
+        /// <summary>
+        /// A GTA control by name, or null.
+        ///
+        /// SAID OUT LOUD WHEN IT FAILS. These two settings are names of things in somebody
+        /// else's enumeration, typed into a text file, and a typo in one is a chord that never
+        /// fires -- which is indistinguishable from a pad that is not being read at all. The
+        /// log is the only place that difference can be seen.
+        /// </summary>
+        private static Control? ParseControl(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+
+            name = name.Trim();
+
+            if (name.Equals("Off", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (Enum.TryParse(name, true, out Control parsed) && Enum.IsDefined(typeof(Control), parsed))
+            {
+                return parsed;
+            }
+
+            Log.Warn("'" + name + "' is not the name of a GTA control - the pad chord is off. " +
+                     "Names come from SHVDN's GTA.Control, for example PhoneUp or MultiplayerInfo.");
+            return null;
         }
 
         // ==================================================================
@@ -382,7 +427,121 @@ namespace VehicleTweaks.UI
         // Input
         // ==================================================================
 
-        private bool _openKey, _up, _down, _left, _right, _enter, _back, _tab;
+        /// <summary>
+        /// One menu input, however it arrives.
+        ///
+        /// A KEY AND A PAD CONTROL COLLAPSED INTO ONE STREAM, rather than two things checked in
+        /// a row. Two separate edge detectors on the same logical button is a bug waiting for
+        /// the frame when both fire: DOWN would move two rows, and a number nudged with LEFT
+        /// would jump two steps. Combining them into a single "is it down" and running ONE edge
+        /// detector on that cannot do it, whether the player is on a pad, on the keyboard, or
+        /// has a hand on each.
+        ///
+        /// It also gives repeat-on-hold, which the keyboard-only version never had. That was
+        /// tolerable when every setting was a toggle; it is not, with a deadzone that steps in
+        /// hundredths, and it is much less tolerable on a D-pad.
+        /// </summary>
+        private sealed class Button
+        {
+            private const int FirstRepeatMs = 350;
+            private const int RepeatMs = 90;
+
+            private readonly Keys _key;
+            private readonly Control _pad;
+            private readonly bool _hasPad;
+            private readonly bool _repeats;
+
+            private bool _down;
+            private int _repeatAt;
+
+            /// <summary>Whether this counted as a press on the frame Poll last ran.</summary>
+            public bool Fired { get; private set; }
+
+            public Button(Keys key, Control pad, bool repeats)
+            {
+                _key = key;
+                _pad = pad;
+                _hasPad = true;
+                _repeats = repeats;
+            }
+
+            public Button(Keys key, bool repeats)
+            {
+                _key = key;
+                _hasPad = false;
+                _repeats = repeats;
+            }
+
+            public void Poll()
+            {
+                var down = Held(_key) || (_hasPad && PadHeld(_pad));
+
+                if (!down)
+                {
+                    _down = false;
+                    Fired = false;
+                    return;
+                }
+
+                if (!_down)
+                {
+                    _down = true;
+                    _repeatAt = Game.GameTime + FirstRepeatMs;
+                    Fired = true;
+                    return;
+                }
+
+                if (_repeats && Game.GameTime >= _repeatAt)
+                {
+                    _repeatAt = Game.GameTime + RepeatMs;
+                    Fired = true;
+                    return;
+                }
+
+                Fired = false;
+            }
+        }
+
+        // THE PAD CONTROLS ARE THE PHONE'S, not the frontend's. Both look right in the enum and
+        // only one of them is reliably readable during gameplay -- the frontend group belongs to
+        // the game's own menus. Phone up/down/left/right/select/cancel are what every other
+        // in-game menu in this game's modding history is driven by, and they map to the D-pad,
+        // A and B on a pad and to the arrows, Enter and Backspace on a keyboard. Which is
+        // exactly the scheme this panel already had.
+        private readonly Button _up = new Button(Keys.Up, Control.PhoneUp, true);
+        private readonly Button _down = new Button(Keys.Down, Control.PhoneDown, true);
+        private readonly Button _left = new Button(Keys.Left, Control.PhoneLeft, true);
+        private readonly Button _right = new Button(Keys.Right, Control.PhoneRight, true);
+        private readonly Button _accept = new Button(Keys.Return, Control.PhoneSelect, false);
+        private readonly Button _back = new Button(Keys.Back, Control.PhoneCancel, false);
+
+        /// <summary>Keyboard only, and it does not need to be anything else. See Navigate.</summary>
+        private readonly Button _tab = new Button(Keys.Tab, false);
+
+        private bool _openKey;
+
+        /// <summary>Set on the frame the panel opens, so that frame's input is primed, not obeyed.</summary>
+        private bool _justOpened;
+
+        /// <summary>
+        /// Polled ONCE a frame, all of them, before anything looks at the answers.
+        ///
+        /// Not where they are used, which is the trap this codebase has already been caught by
+        /// once: Navigate returns early on a page change, and a button whose state is only read
+        /// further down that method would have gone a frame without being updated. It then
+        /// reports a fresh press the next time anything asks, for a button that was held the
+        /// whole time.
+        /// </summary>
+        private void Poll()
+        {
+            _up.Poll();
+            _down.Poll();
+            _left.Poll();
+            _right.Poll();
+            _accept.Poll();
+            _back.Poll();
+            _tab.Poll();
+        }
 
         public void Update()
         {
@@ -390,13 +549,25 @@ namespace VehicleTweaks.UI
             // key state -- short-circuiting past it leaves the key recorded as up while it is
             // held, and it registers a fresh press the next time anything looks.
             var keyEdge = Edge(_cfg.MenuKey, ref _openKey);
-            var toggled = keyEdge && !_capturing && Modifier();
+            var padEdge = PadOpener();
+
+            var toggled = ((keyEdge && Modifier()) || padEdge) && !_capturing;
 
             if (toggled)
             {
-                if (_open) Close();
-                else _open = true;
+                if (_open)
+                {
+                    Close();
+                }
+                else
+                {
+                    _open = true;
+                    _justOpened = true;
+                }
             }
+
+            // EVERY FRAME THE PANEL IS UP, and before anything reads an answer. See Poll.
+            if (_open) Poll();
 
             if (!_open)
             {
@@ -420,6 +591,33 @@ namespace VehicleTweaks.UI
             // the player might want to bind, not commands.
             if (_capturing)
             {
+                // EXCEPT THE WAY OUT. Escape cancels a capture, and Escape arrives through
+                // KeyDown -- which a pad does not have. Without this, a pad user who opened the
+                // rebind row is stuck on a panel that will not move and is waiting for a key
+                // they may not have a keyboard to press. B cancels it.
+                if (_back.Fired)
+                {
+                    _capturing = false;
+                    Log.Debug("Panel: rebind cancelled from the pad.");
+                }
+
+                Render();
+                return;
+            }
+
+            // THE OPENING FRAME IS POLLED BUT NOT ACTED ON.
+            //
+            // The pad chord presses D-pad up, and D-pad up is also this panel's UP. Without
+            // this, opening the panel scrolls it by one row on the same frame -- and because
+            // the buttons are not polled while it is shut, the button is seen going from
+            // "not held" to "held" at exactly the moment it starts to matter.
+            //
+            // Polling and discarding is what makes it a non-event: the button is recorded as
+            // already down, so the next frame is not an edge, and the player has to let go and
+            // press again before anything moves.
+            if (_justOpened)
+            {
+                _justOpened = false;
                 Render();
                 return;
             }
@@ -448,6 +646,76 @@ namespace VehicleTweaks.UI
             return false;
         }
 
+        private bool _padOpenDown;
+
+        /// <summary>
+        /// The pad's way in: a held button and a pressed one.
+        ///
+        /// A CHORD, because a single spare pad button does not exist. Every face button, every
+        /// shoulder and both sticks are spoken for in gameplay, and the D-pad changes the radio
+        /// station. Holding one and pressing another is not something a thumb does by accident,
+        /// which is the same argument the keyboard side makes for a modifier -- except that on
+        /// the keyboard F8 was free and here nothing is.
+        ///
+        /// ONLY WHILE THE PLAYER IS ACTUALLY ON A PAD. The chord's two controls have keyboard
+        /// bindings as well, and without this check the panel would quietly gain a second
+        /// keyboard shortcut that nothing documents and nobody asked for.
+        ///
+        /// Both controls are named in the ini rather than fixed here. This is the one part of
+        /// the mod written without the hardware to try it on: if the default chord turns out to
+        /// be wrong or unreachable on a real pad, it should be a line in a text file rather than
+        /// a rebuild.
+        /// </summary>
+        private bool PadOpener()
+        {
+            var fired = false;
+
+            try
+            {
+                if (!UsingPad() || _padOpen == null)
+                {
+                    _padOpenDown = false;
+                    return false;
+                }
+
+                var held = _padModifier == null || Game.IsControlPressed(_padModifier.Value);
+                var down = held && Game.IsControlPressed(_padOpen.Value);
+
+                fired = down && !_padOpenDown;
+                _padOpenDown = down;
+            }
+            catch
+            {
+                _padOpenDown = false;
+                return false;
+            }
+
+            if (fired) Log.Debug("Panel: opened from the pad.");
+            return fired;
+        }
+
+        /// <summary>
+        /// Whether the player is driving this with a pad rather than a keyboard.
+        ///
+        /// Group 2 is the frontend control group, which is the one that answers this question
+        /// the way a menu means it. Anything that goes wrong is treated as a keyboard, because
+        /// the keyboard is the half that is known to work.
+        /// </summary>
+        private static bool UsingPad()
+        {
+            try { return !Function.Call<bool>(Hash.IS_USING_KEYBOARD_AND_MOUSE, 2); }
+            catch { return false; }
+        }
+
+        private static bool PadHeld(Control control)
+        {
+            // IsControlPressed, not IsEnabledControlPressed, for the same reason the ignition
+            // reads the exit control that way: everything below is disabled every frame so the
+            // game cannot act on it, and read anyway so we can.
+            try { return Game.IsControlPressed(control); }
+            catch { return false; }
+        }
+
         /// <summary>
         /// Holds off every control that would otherwise hear the panel's own keys.
         ///
@@ -457,7 +725,7 @@ namespace VehicleTweaks.UI
         /// VehicleExit is in the list because the ignition is not running while this is open
         /// and nothing else would be holding it.
         /// </summary>
-        private static void Deafen()
+        private void Deafen()
         {
             try
             {
@@ -485,6 +753,23 @@ namespace VehicleTweaks.UI
                 Game.DisableControlThisFrame(Control.VehicleBrake);
                 Game.DisableControlThisFrame(Control.VehicleHandbrake);
                 Game.DisableControlThisFrame(Control.VehicleRadioWheel);
+
+                // THE PANEL'S OWN CONTROLS. These are the pad's way in and out of every row,
+                // and they are the phone's buttons -- so without this, navigating the panel on
+                // a pad rings the phone up behind it and the D-pad changes the radio station
+                // while you are reading a row about the radio.
+                Game.DisableControlThisFrame(Control.Phone);
+                Game.DisableControlThisFrame(Control.PhoneUp);
+                Game.DisableControlThisFrame(Control.PhoneDown);
+                Game.DisableControlThisFrame(Control.PhoneLeft);
+                Game.DisableControlThisFrame(Control.PhoneRight);
+                Game.DisableControlThisFrame(Control.PhoneSelect);
+                Game.DisableControlThisFrame(Control.PhoneCancel);
+
+                // And whatever the chord is made of, so opening the panel does not also do
+                // whatever those two buttons do in the world.
+                if (_padOpen != null) Game.DisableControlThisFrame(_padOpen.Value);
+                if (_padModifier != null) Game.DisableControlThisFrame(_padModifier.Value);
             }
             catch
             {
@@ -494,21 +779,30 @@ namespace VehicleTweaks.UI
 
         private void Navigate()
         {
-            var page = _pages[_page];
-
-            if (Edge(Keys.Tab, ref _tab))
+            if (_tab.Fired)
             {
-                _page = (_page + 1) % _pages.Count;
-                _row = 0;
-                _scroll = 0;
+                TurnPage(1, true);
                 return;
             }
 
-            if (Edge(Keys.Up, ref _up)) _row--;
-            if (Edge(Keys.Down, ref _down)) _row++;
+            if (_up.Fired) _row--;
+            if (_down.Fired) _row++;
 
-            if (_row < 0) _row = page.Items.Count - 1;
-            if (_row >= page.Items.Count) _row = 0;
+            // OFF THE END OF A PAGE GOES TO THE NEXT PAGE, not round to the top of this one.
+            //
+            // This is what makes a D-pad enough on its own. TAB changes page and TAB is a
+            // keyboard key; there is no spare pad button to give it that is not already a
+            // gameplay action, and inventing a second chord for it would be another thing
+            // guessed rather than tried. Making the three pages one continuous list removes
+            // the need for it: seventeen rows in a row, and everything is reachable with UP
+            // and DOWN alone.
+            //
+            // TAB stays, because jumping straight to a page is still faster than scrolling to
+            // it, and the keyboard has the key to spare.
+            if (_row < 0) TurnPage(-1, false);
+            else if (_row >= _pages[_page].Items.Count) TurnPage(1, true);
+
+            var page = _pages[_page];
 
             // Keep the highlight on screen with a margin, so the next row is visible before
             // you get to it rather than appearing as you land on it.
@@ -517,16 +811,27 @@ namespace VehicleTweaks.UI
 
             var item = page.Items[_row];
 
-            if (Edge(Keys.Left, ref _left) && item.Nudge != null) Touch(item, -1);
-            if (Edge(Keys.Right, ref _right) && item.Nudge != null) Touch(item, 1);
+            if (_left.Fired && item.Nudge != null) Touch(item, -1);
+            if (_right.Fired && item.Nudge != null) Touch(item, 1);
 
-            if (Edge(Keys.Return, ref _enter) && item.Press != null)
+            if (_accept.Fired && item.Press != null)
             {
                 item.Press();
                 if (item.Section != null) _changed.Add(item);
             }
 
-            if (Edge(Keys.Back, ref _back)) Close();
+            if (_back.Fired) Close();
+        }
+
+        /// <summary>Moves to another page, landing on its first or last row.</summary>
+        private void TurnPage(int direction, bool top)
+        {
+            _page = ((_page + direction) % _pages.Count + _pages.Count) % _pages.Count;
+
+            var count = _pages[_page].Items.Count;
+
+            _row = top ? 0 : count - 1;
+            _scroll = _row < Rows ? 0 : _row - Rows + 1;
         }
 
         private void Touch(Item item, int direction)
@@ -636,10 +941,16 @@ namespace VehicleTweaks.UI
                     Draw.Bar(PanelX, y, PanelW, RowH, Color.FromArgb(38, 245, 196, 60));
                     Draw.Bar(PanelX, y, 0.0022f, RowH, Amber);
 
-                    // DECORATION ONLY. The highlight bar and the left edge already say which
-                    // row this is; the caret is the flourish on top. If the game's font has no
-                    // glyph for it, nothing about the panel stops working.
-                    Draw.Text("▶", PanelX + 0.0055f, y + 0.0052f, 0.24f, Amber, Plain);
+                    // AN ASCII CARET, because the pretty one does not exist.
+                    //
+                    // This was U+25B6 BLACK RIGHT-POINTING TRIANGLE, chosen on the house rule
+                    // of text symbols over emoji. GTA's Chalet Comprime has no glyph for it and
+                    // drew the missing-character box instead -- a small hollow rectangle, which
+                    // on the selected row of a settings panel reads as a checkbox. It was
+                    // decoration and it survived being wrong, which is exactly why it was made
+                    // decoration; but a box that looks like a control is worse than no caret,
+                    // and ">" is in every font there has ever been.
+                    Draw.Text(">", PanelX + 0.0055f, y + 0.0052f, 0.26f, Amber, Plain);
                 }
 
                 Draw.Text(item.Label, PanelX + 0.017f, y + 0.0044f, 0.295f,
@@ -668,16 +979,27 @@ namespace VehicleTweaks.UI
 
             // The hint for the selected row, cut to the panel rather than run out across the
             // game. Falls back to the keys when a row has nothing to say for itself.
+            var pad = UsingPad();
+
             var hint = _capturing
-                ? "Press the key you want the panel on.  ESC cancels."
+                ? (pad
+                       // A pad has no key to give. Said plainly on the row rather than left for
+                       // the player to work out from a panel that has stopped responding.
+                       ? "This needs a keyboard.  B cancels."
+                       : "Press the key you want the panel on.  ESC cancels.")
                 : page.Items[_row].Hint;
 
-            if (string.IsNullOrEmpty(hint)) hint = "ARROWS change    TAB page";
+            if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
             Draw.Text(Draw.Ellipsis(hint, 0.255f, PanelW - 0.024f, Plain),
                       PanelX + 0.012f, foot + 0.008f, 0.255f, Dim, Plain);
 
-            Draw.Text("TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
+            // THE KEYS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and BACKSPACE
+            // to somebody holding a pad is worse than no footer: they are the two instructions
+            // on screen and neither of them can be followed.
+            Draw.Text(pad
+                          ? "D-PAD move & change   A works a row   B saves & closes"
+                          : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
                       PanelX + 0.012f, foot + 0.026f, 0.235f, Faint, Plain);
         }
 

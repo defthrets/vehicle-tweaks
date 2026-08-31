@@ -47,23 +47,34 @@ turn the other way cancels; a flick to line the car up does not.
 
 Everything is on one panel, in the game, drawn out of rectangles with no UI library behind it.
 
-| | |
-|---|---|
-| `F8` | opens and closes it |
-| `TAB` | IGNITION / BLINKERS / GENERAL |
-| `UP` `DOWN` | move |
-| `LEFT` `RIGHT` | change the selected setting |
-| `ENTER` | works a row — toggles it, or starts a key rebind |
-| `BACKSPACE` | saves and closes, same as `F8` |
+| | keyboard | controller |
+|---|---|---|
+| open / close | `F8` | hold **View / Select / touchpad**, press **D-pad up** |
+| move | `UP` `DOWN` | **D-pad up / down** |
+| change a setting | `LEFT` `RIGHT` | **D-pad left / right** |
+| work a row | `ENTER` | **A** |
+| save and close | `BACKSPACE` or `F8` | **B** |
+| jump to a page | `TAB` | — |
+
+Directions repeat when held, which matters on a deadzone that steps in hundredths.
+
+**On a controller there is no page button, and none is needed:** UP and DOWN run off the end
+of one page onto the next, so the three pages are one continuous list of seventeen rows and
+the D-pad alone reaches everything. `TAB` stays as a keyboard shortcut for jumping straight to
+a page. The footer shows whichever set of controls you are actually holding.
 
 A change applies the instant you make it, so you can try it on the next corner rather than
 alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually
 touched are written back — **in place, keeping every comment in the ini**.
 
-All seventeen settings are here, including the panel's own key: GENERAL has a modifier row and
-a rebind row that waits for you to press the key you want (`ESC` cancels). "Both features on" is
-here too, and the panel deliberately keeps working when it is off — a switch you can only flip
-one way is a trap.
+Seventeen of the nineteen settings are on the panel, including its own keyboard binding: GENERAL
+has a modifier row and a rebind row that waits for you to press the key you want (`ESC`, or **B**
+on a pad, cancels). "Both features on" is here too, and the panel deliberately keeps working when
+it is off — a switch you can only flip one way is a trap.
+
+The two that are not on it are `PadOpen` and `PadModifier`, the controller chord. Those are names
+out of GTA's own control list, and a row that cycled through three hundred and sixty of them
+would not be a menu. They live in the ini, and the log says what they resolved to at start-up.
 
 ## Install
 
