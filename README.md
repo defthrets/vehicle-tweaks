@@ -250,3 +250,11 @@ SHVDN shadow-copies script assemblies, so the dll in `scripts\` is usually not l
 the game runs -- a live redeploy works, and the build tells you which key to press to reload
 (it reads `ReloadKeyBinding` out of each install's own `ScriptHookVDotNet.ini` rather than
 assuming; the two installs here disagree).
+
+A deploy **merges** any settings the installed ini has never heard of, comment blocks and all,
+and leaves every existing line exactly where it is. That matters because the settings panel
+writes to that same file: where your speedo sits, how big it is, which keys you rebound. A new
+build needs the settings that did not exist yet — it does not need to touch the ones you set.
+
+`-FreshIni` *replaces* the installed ini, values and all. It is rarely the right tool, and it
+says plainly what it is about to destroy.
