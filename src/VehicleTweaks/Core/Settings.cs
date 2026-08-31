@@ -3,6 +3,31 @@ using System.Windows.Forms;
 
 namespace VehicleTweaks.Core
 {
+    /// <summary>What the speed is read in.</summary>
+    internal enum SpeedoUnits
+    {
+        Kph,
+        Mph
+    }
+
+    /// <summary>
+    /// What colour the display is lit.
+    ///
+    /// A SHORT LIST RATHER THAN THREE SLIDERS. Red, green and blue as separate numbers is three
+    /// settings whose interesting combinations are a handful and whose uninteresting ones are
+    /// sixteen million -- most of them colours no dashboard has ever been made in. These are the
+    /// ones real displays actually use.
+    /// </summary>
+    internal enum SpeedoColour
+    {
+        Amber,
+        Red,
+        Green,
+        Cyan,
+        Blue,
+        White
+    }
+
     /// <summary>What has to be held down with the menu key.</summary>
     internal enum MenuModifier
     {
@@ -173,6 +198,58 @@ namespace VehicleTweaks.Core
         /// </summary>
         public bool LeaveDoorOpen = true;
 
+        // ---- the speedo -------------------------------------------------------
+
+        /// <summary>
+        /// A speed readout: three seven-segment digits, a unit, a rev strip and the gear.
+        ///
+        /// THE ONE THING THIS MOD LEAVES ON SCREEN. Everything else here is silent on purpose,
+        /// and that stays true: silence was always about not INTERRUPTING -- no prompts, no
+        /// notifications, nothing to dismiss. A dial you glance at is what a car already has,
+        /// and it is the one thing the game itself does not give you.
+        /// </summary>
+        public bool Speedo = true;
+
+        public SpeedoUnits SpeedoUnits = SpeedoUnits.Kph;
+        public SpeedoColour SpeedoColour = SpeedoColour.Amber;
+
+        /// <summary>
+        /// Where it sits, as fractions of the screen from the top left.
+        ///
+        /// Immediately right of the minimap, level with its bottom edge, because that is where
+        /// it was asked for -- and it is the right answer: it puts the speed next to the map you
+        /// are already looking at, in the one strip along the bottom that GTA leaves empty.
+        ///
+        /// THESE ARE AN ESTIMATE OFF A SCREENSHOT and they cannot be anything better. Where the
+        /// minimap actually ends depends on the safe-zone slider and the aspect ratio, and there
+        /// is no way for a script to ask. So the panel draws the speedo while it is open and
+        /// these two rows move it live, which is the only honest way to place something on
+        /// somebody else's screen.
+        /// </summary>
+        public float SpeedoX = 0.268f;
+        public float SpeedoY = 0.928f;
+
+        public float SpeedoScale = 1.0f;
+        public float SpeedoOpacity = 0.90f;
+
+        /// <summary>A dark panel behind it, so it reads against a white car in daylight.</summary>
+        public bool SpeedoBackground = true;
+
+        /// <summary>
+        /// Unlit segments drawn faintly, the way a real display shows them.
+        ///
+        /// The detail that makes it a panel rather than a number: an LCD reading 42 also faintly
+        /// shows the 8 it is not lighting, and without that the digits appear to jump around as
+        /// the speed changes width.
+        /// </summary>
+        public bool SpeedoGhost = true;
+
+        /// <summary>The rev strip under the digits, and the gear beside them.</summary>
+        public bool SpeedoRevs = true;
+        public bool SpeedoGear = true;
+
+        public bool SpeedoOnlyInVehicle = true;
+
         // ---- safety -----------------------------------------------------------
 
         /// <summary>
@@ -328,6 +405,19 @@ namespace VehicleTweaks.Core
                 s.BlinkerDeadzone = ini.GetFloat("Indicators", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
                 s.BlinkerMinSpeed = ini.GetFloat("Indicators", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
                 s.BlinkerInvert = ini.GetBool("Indicators", "BlinkerInvert", s.BlinkerInvert);
+                s.Speedo = ini.GetBool("Speedo", "Speedo", s.Speedo);
+                s.SpeedoUnits = ParseEnum(ini.GetString("Speedo", "SpeedoUnits", "Kph"), s.SpeedoUnits);
+                s.SpeedoColour = ParseEnum(ini.GetString("Speedo", "SpeedoColour", "Amber"), s.SpeedoColour);
+                s.SpeedoX = ini.GetFloat("Speedo", "SpeedoX", s.SpeedoX, 0f, 1f);
+                s.SpeedoY = ini.GetFloat("Speedo", "SpeedoY", s.SpeedoY, 0f, 1f);
+                s.SpeedoScale = ini.GetFloat("Speedo", "SpeedoScale", s.SpeedoScale, 0.4f, 3f);
+                s.SpeedoOpacity = ini.GetFloat("Speedo", "SpeedoOpacity", s.SpeedoOpacity, 0.15f, 1f);
+                s.SpeedoBackground = ini.GetBool("Speedo", "SpeedoBackground", s.SpeedoBackground);
+                s.SpeedoGhost = ini.GetBool("Speedo", "SpeedoGhost", s.SpeedoGhost);
+                s.SpeedoRevs = ini.GetBool("Speedo", "SpeedoRevs", s.SpeedoRevs);
+                s.SpeedoGear = ini.GetBool("Speedo", "SpeedoGear", s.SpeedoGear);
+                s.SpeedoOnlyInVehicle = ini.GetBool("Speedo", "SpeedoOnlyInVehicle", s.SpeedoOnlyInVehicle);
+
                 s.Seatbelt = ini.GetBool("Driving", "Seatbelt", s.Seatbelt);
                 s.SeatbeltKey = ini.GetKey("Driving", "SeatbeltKey", s.SeatbeltKey);
                 s.PadSeatbelt = ini.GetString("Driving", "PadSeatbelt", s.PadSeatbelt);

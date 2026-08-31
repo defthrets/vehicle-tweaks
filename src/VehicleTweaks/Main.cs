@@ -45,6 +45,7 @@ namespace VehicleTweaks
         private readonly Seatbelt _seatbelt;
         private readonly Locks _locks;
         private readonly Menu _menu;
+        private readonly Speedo _speedo;
 
         private int _failures;
         private bool _parked;
@@ -58,6 +59,7 @@ namespace VehicleTweaks
             _seatbelt = new Seatbelt(_cfg);
             _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
+            _speedo = new Speedo(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -128,6 +130,11 @@ namespace VehicleTweaks
                     _seatbelt.Update(me);
                     _locks.Update(me);
                 }
+
+                // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
+                // there is nothing for it to steal, and it has to keep drawing while the panel
+                // is open or the four rows that position it would be moving something invisible.
+                _speedo.Update(me, _menu.IsOpen);
 
                 _failures = 0;
             }

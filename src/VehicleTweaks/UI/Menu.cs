@@ -62,7 +62,7 @@ namespace VehicleTweaks.UI
 
         // Where it sits and how big, as fractions of the screen.
         private const float PanelX = 0.030f;
-        private const float PanelW = 0.245f;
+        private const float PanelW = 0.262f;
         private const float PanelTop = 0.180f;
         private const float TitleH = 0.052f;
         private const float RowH = 0.0295f;
@@ -76,7 +76,7 @@ namespace VehicleTweaks.UI
         /// row the day somebody adds an eighth setting to it. A menu that quietly truncates is
         /// worse than one that scrolls.
         /// </summary>
-        private const int Rows = 11;
+        private const int Rows = 14;
 
         private const int Plain = 4;   // Chalet Comprime Cologne
 
@@ -228,7 +228,8 @@ namespace VehicleTweaks.UI
         }
 
         private static Item Choice<T>(string label, Func<T> get, Action<T> set,
-                                      string section, string key, string hint)
+                                      string section, string key, string hint,
+                                      Func<bool> live = null)
         {
             var values = Enum.GetValues(typeof(T));
 
@@ -240,6 +241,7 @@ namespace VehicleTweaks.UI
                 Key = key,
                 Show = () => get().ToString().ToUpperInvariant(),
                 Written = () => get().ToString(),
+                Live = live,
             };
 
             item.Nudge = d =>
@@ -491,6 +493,74 @@ namespace VehicleTweaks.UI
                                "Indicators", "HazardKey",
                                "Both sides at once. On a pad it is the modifier and D-pad down.",
                                () => _cfg.Blinkers));
+
+            var speed = Add("SPEEDO");
+
+            speed.Items.Add(Header("THE READOUT"));
+
+            speed.Items.Add(Toggle("Speedo", () => _cfg.Speedo, v => _cfg.Speedo = v,
+                                   "Speedo", "Speedo",
+                                   "Three digits, the unit, the revs and the gear."));
+
+            speed.Items.Add(Choice("Units", () => _cfg.SpeedoUnits, v => _cfg.SpeedoUnits = v,
+                                   "Speedo", "SpeedoUnits", "What the number means.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Choice("Colour", () => _cfg.SpeedoColour, v => _cfg.SpeedoColour = v,
+                                   "Speedo", "SpeedoColour",
+                                   "Colours real displays are actually made in.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Rev strip", () => _cfg.SpeedoRevs, v => _cfg.SpeedoRevs = v,
+                                   "Speedo", "SpeedoRevs",
+                                   "Cells that fill as it revs. The last fifth is red.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Gear", () => _cfg.SpeedoGear, v => _cfg.SpeedoGear = v,
+                                   "Speedo", "SpeedoGear",
+                                   "Beside the unit. Reverse reads as r.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Header("WHERE AND HOW BIG"));
+
+            // THE PANEL SHOWS THE SPEEDO WHILE IT IS OPEN, which is what makes these four rows
+            // usable at all. Nudging a position you cannot see is not adjusting, it is guessing
+            // and then going to look.
+            speed.Items.Add(Number("Across", () => _cfg.SpeedoX, v => _cfg.SpeedoX = v,
+                                   0.002f, 0f, 1f, "0.000", null, "Speedo", "SpeedoX",
+                                   "It moves as you hold the arrow. Watch it, do not count.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Number("Down", () => _cfg.SpeedoY, v => _cfg.SpeedoY = v,
+                                   0.002f, 0f, 1f, "0.000", null, "Speedo", "SpeedoY",
+                                   "Zero is the top of the screen, one is the bottom.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Number("Size", () => _cfg.SpeedoScale, v => _cfg.SpeedoScale = v,
+                                   0.05f, 0.4f, 3f, "0.00", null, "Speedo", "SpeedoScale",
+                                   "Everything scales together, including the rev strip.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Number("Opacity", () => _cfg.SpeedoOpacity,
+                                   v => _cfg.SpeedoOpacity = v, 0.05f, 0.15f, 1f, "0.00", null,
+                                   "Speedo", "SpeedoOpacity", "The whole thing at once.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Backing", () => _cfg.SpeedoBackground,
+                                   v => _cfg.SpeedoBackground = v, "Speedo", "SpeedoBackground",
+                                   "A dark panel, so it reads against a white car in daylight.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Unlit segments", () => _cfg.SpeedoGhost,
+                                   v => _cfg.SpeedoGhost = v, "Speedo", "SpeedoGhost",
+                                   "Faintly drawn, the way a real display shows them.",
+                                   () => _cfg.Speedo));
+
+            speed.Items.Add(Toggle("Only in a vehicle", () => _cfg.SpeedoOnlyInVehicle,
+                                   v => _cfg.SpeedoOnlyInVehicle = v,
+                                   "Speedo", "SpeedoOnlyInVehicle",
+                                   "It shows here regardless while this panel is open.",
+                                   () => _cfg.Speedo));
 
             var gen = Add("GENERAL");
 

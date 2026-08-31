@@ -113,6 +113,27 @@ cancel it*, *ten seconds stopped with the wheel released and it is still on*. Th
 twice, over an LF and a CRLF copy of the real file, because preserving what the file already uses
 is the thing it is checking.
 
+## The speedo
+
+Three seven-segment digits, the unit, a rev strip and the gear — sitting just right of the
+minimap, level with its bottom edge.
+
+The digits are **drawn as segments rather than typed in a font**, because none of the four fonts
+GTA ships is a seven-segment one: any of them would have been an ordinary number in an ordinary
+typeface with a box behind it. Unlit segments are drawn faintly, the way a real display shows
+them — an LCD reading 42 also faintly shows the 8 it is not lighting.
+
+The rev strip is cells rather than a sliding bar, for the same reason. A bar that slides is a
+progress bar; cells that snap on one at a time are a rev counter, and they read in peripheral
+vision, which is the only way anybody looks at one. The last fifth is red whatever colour the
+rest is. Reverse shows as a lower-case `r` — the only R seven segments can make.
+
+Position, size, opacity, colour, units and every part of it are settings. **The panel keeps
+drawing the speedo while it is open, including on foot**, so holding LEFT or RIGHT on *Across*
+moves the thing while you watch it — the default position is an estimate off a screenshot, and
+where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
+can ask about.
+
 ## Parking a car
 
 The small print of leaving one behind, all of it silent.
