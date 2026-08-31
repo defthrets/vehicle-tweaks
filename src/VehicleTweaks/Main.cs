@@ -224,9 +224,11 @@ namespace VehicleTweaks
         /// would apply changes for one session and then throw them away. Dismiss shuts it
         /// properly, through the same path the player's own Backspace uses.
         ///
-        /// The other deliberate leftover is a car you have already walked away from:
-        /// SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED stays set on it, and it should. That is a
-        /// decision the player made about that car, not state this script is holding.
+        /// The other deliberate leftover is a car you have already walked away from: the engine
+        /// keeps running, on the game's own SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED, and the
+        /// radio keeps playing. Both should. That is a decision the player made about that car,
+        /// not state this script is holding, and switching it off on the way out would be the
+        /// script tidying away somebody else's parked car because it happened to be reloaded.
         /// </summary>
         private void OnAborted(object sender, EventArgs e)
         {

@@ -60,6 +60,21 @@ namespace VehicleTweaks.Driving
         /// <summary>Set once the exit control has been seen through the disable. See ExitKey.</summary>
         private bool _controlReadable;
 
+        /// <summary>
+        /// Whether he has actually got out of the car he is leaving yet.
+        ///
+        /// Climbing out takes a second or two and he is still IN the vehicle for all of it, so
+        /// "is he in that car" cannot tell the difference between not having left yet and having
+        /// come back. This is the difference.
+        /// </summary>
+        private bool _leftSeat;
+
+        /// <summary>When the exit task was given, so the log can say how long climbing out took.</summary>
+        private int _leftAt;
+
+        /// <summary>Cars left running, kept audible for longer than the hand-out window lasts.</summary>
+        private readonly Radios _radios = new Radios();
+
         /// <summary>The station that was playing as he got out, and whether it has been put back on.</summary>
         private string _station;
         private bool _radioSet;
@@ -75,14 +90,33 @@ namespace VehicleTweaks.Driving
 
             try
             {
+                _radios.Update(me);
+
                 var car = me == null ? null : me.CurrentVehicle;
 
-                // BACK IN THE SAME CAR ENDS THE ENFORCEMENT, and it has to happen before
-                // Settle runs. Otherwise the few-second window that keeps a car as you left it
-                // goes on holding its engine off while you sit in it -- so getting out and
-                // straight back in gave a car that would not start for several seconds however
-                // hard the throttle was pressed, and nothing on screen to say why.
-                if (_leaving != null && Same(car, _leaving)) _leaving = null;
+                // BACK IN THE SAME CAR ENDS THE ENFORCEMENT -- BUT ONLY ONCE HE HAS ACTUALLY
+                // BEEN OUT OF IT.
+                //
+                // The guard exists so that getting out and straight back in does not leave you
+                // sitting in a car whose engine is being held off for the rest of the window,
+                // with nothing on screen to say why. That part is right and stays.
+                //
+                // What was wrong was the test. Leaving a car is an ANIMATION, one to two seconds
+                // of it, and the ped is still in the vehicle for all of it -- so CurrentVehicle
+                // still answers with the car being left, this read "he is back in it", and the
+                // whole hand-out was cancelled on the frame after it started. Every frame of it:
+                // the engine was never held on, the radio was never set, and the log line that
+                // was put in Radio() to prove it had worked never appeared even once.
+                //
+                // It cannot be cancelled by a car he has not left yet. _leftSeat is set the
+                // first time he is seen clear of the seat, and only then does getting back in
+                // mean anything.
+                if (_leaving != null && _leftSeat && Same(car, _leaving))
+                {
+                    Log.Debug("Ignition: back in " + Name(_leaving) + "; enforcement ends.");
+                    _radios.Forget(_leaving, false);
+                    _leaving = null;
+                }
 
                 Settle(me);
 
@@ -266,6 +300,8 @@ namespace VehicleTweaks.Driving
                 // just covers a clean exit is one that silently does nothing on a slow one, and
                 // the failure looks exactly like the feature not existing.
                 _leavingUntil = Game.GameTime + 6000;
+                _leftAt = Game.GameTime;
+                _leftSeat = false;
                 _radioSet = false;
 
                 // THE STATION HAS TO BE READ NOW, from inside. This native answers "what is the
@@ -291,6 +327,15 @@ namespace VehicleTweaks.Driving
                 catch { /* the enforcement window still covers it */ }
 
                 Function.Call(Hash.TASK_LEAVE_VEHICLE, me.Handle, car.Handle, 0);
+
+                // The first of the breadcrumbs. Between this and the lines in Settle and Radio,
+                // a Debug log says exactly how far the hand-out got: tapped out, clear of the
+                // seat, station set -- or which of those never happened. That mattered enough to
+                // be worth the lines: the bug that stopped any of it working was invisible from
+                // inside the game and showed up as a radio that simply went quiet.
+                Log.Debug("Ignition: tapped out of " + Name(car) + "; engine " +
+                          (_leavingRunning ? "running" : "off") + ", station " +
+                          (string.IsNullOrEmpty(_station) ? "none" : _station) + ".");
             }
             catch (Exception ex)
             {
@@ -304,15 +349,43 @@ namespace VehicleTweaks.Driving
         {
             if (_leaving == null) return;
 
+            if (!_leftSeat && Clear(me))
+            {
+                _leftSeat = true;
+                Log.Debug("Ignition: clear of the seat after " + (Game.GameTime - _leftAt) + "ms.");
+            }
+
             if (Game.GameTime > _leavingUntil || !_leaving.Exists() || _leaving.IsDead)
             {
+                // The window is over, not the feature. A car handed to Radios goes on being
+                // kept there; this only stops the frame-by-frame argument with the game.
+                Log.Debug("Ignition: hand-out window closed for " + Name(_leaving) +
+                          (_radioSet ? "." : " WITHOUT the radio ever being set."));
+
                 _leaving = null;
                 return;
             }
 
             Engine(_leaving, _leavingRunning);
-            Radio(me);
+            Radio();
             HoldRadio();
+        }
+
+        /// <summary>True once he is no longer in the car he is leaving.</summary>
+        private bool Clear(Ped me)
+        {
+            try
+            {
+                if (me == null) return false;
+
+                var still = me.CurrentVehicle;
+                return still == null || still.Handle != _leaving.Handle;
+            }
+            catch
+            {
+                // Unknown is treated as still inside, which only delays the radio.
+                return false;
+            }
         }
 
         /// <summary>
@@ -329,22 +402,13 @@ namespace VehicleTweaks.Driving
         /// radio does play, at the volume it has for somebody sitting inside, which from the
         /// pavement is silence.
         /// </summary>
-        private void Radio(Ped me)
+        private void Radio()
         {
             if (_radioSet || !_cfg.RadioKeepsPlaying) return;
 
-            // Still climbing out. The radio is the game's until he is clear of the seat.
-            try
-            {
-                if (me == null) return;
-
-                var still = me.CurrentVehicle;
-                if (still != null && still.Handle == _leaving.Handle) return;
-            }
-            catch
-            {
-                return;
-            }
+            // Still climbing out. The radio is the game's until he is clear of the seat, and
+            // Settle has already worked out whether he is.
+            if (!_leftSeat) return;
 
             _radioSet = true;
 
@@ -364,6 +428,9 @@ namespace VehicleTweaks.Driving
                 }
                 catch { /* nothing worth reporting */ }
 
+                Log.Debug("Ignition: " + Name(_leaving) + " left " +
+                          (_leavingRunning ? "running but with nothing playing" : "switched off") +
+                          "; radio off with it.");
                 return;
             }
 
@@ -372,6 +439,12 @@ namespace VehicleTweaks.Driving
                 Function.Call(Hash.SET_VEHICLE_RADIO_ENABLED, _leaving.Handle, true);
                 Function.Call(Hash.SET_VEH_RADIO_STATION, _leaving.Handle, _station);
                 Function.Call(Hash.SET_VEHICLE_RADIO_LOUD, _leaving.Handle, true);
+
+                // AND HANDED ON, so it outlives this window. Everything above is about winning
+                // the argument the game picks in the second or two after a driver leaves; none
+                // of it says anything about the minute after that, which is when you are
+                // actually stood outside the car listening to it.
+                _radios.Keep(_leaving);
 
                 // Says what actually happened, because the alternative is me telling you it
                 // works and neither of us being able to check. If this line names a station and
