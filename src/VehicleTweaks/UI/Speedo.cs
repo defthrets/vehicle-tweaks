@@ -37,11 +37,21 @@ namespace VehicleTweaks.UI
             _cfg = cfg;
         }
 
-        // The shape of one digit at scale 1, as fractions of the screen.
-        private const float DigitW = 0.0150f;
+        // The shape of one digit at scale 1, ALL OF IT IN FRACTIONS OF SCREEN HEIGHT.
+        //
+        // Every number here is a height, including the widths, and the horizontal ones are
+        // converted on use by Across(). That is not fussiness -- it is the bug this display
+        // shipped with. A screen fraction is a fraction of the screen IN THAT AXIS, so on a
+        // sixteen-by-nine display 0.015 across is 29 pixels while 0.030 down is 32: digits that
+        // were meant to be half as wide as they were tall came out very nearly square, and the
+        // upright bars came out almost twice as thick as the flat ones, because one thickness
+        // number was being used for both and only one of them was in the right axis.
+        //
+        // Six-tenths of the height is roughly what a real seven-segment digit is.
+        private const float DigitW = 0.0180f;
         private const float DigitH = 0.0300f;
-        private const float Thick = 0.0034f;
-        private const float Gap = 0.0044f;
+        private const float Thick = 0.0042f;
+        private const float Gap = 0.0060f;
         private const float RevHeight = 0.0060f;
 
         /// <summary>
@@ -94,6 +104,25 @@ namespace VehicleTweaks.UI
             {
                 Log.Once("speedo", "The speedo fell over: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// A height turned into the width that draws the same size on screen.
+        ///
+        /// Asked of the game rather than assumed to be sixteen by nine, so an ultrawide gets
+        /// digits of the right shape instead of ones squashed by a third. A nonsense answer
+        /// falls back to the common case rather than to a division by zero.
+        /// </summary>
+        private static float Across(float height)
+        {
+            float aspect;
+
+            try { aspect = GTA.UI.Screen.AspectRatio; }
+            catch { aspect = 16f / 9f; }
+
+            if (aspect < 0.5f || aspect > 6f) aspect = 16f / 9f;
+
+            return height / aspect;
         }
 
         /// <summary>Metres a second as whatever the player asked to read.</summary>
@@ -156,10 +185,16 @@ namespace VehicleTweaks.UI
         {
             var scale = _cfg.SpeedoScale;
 
-            var dw = DigitW * scale;
             var dh = DigitH * scale;
-            var th = Thick * scale;
-            var gap = Gap * scale;
+            var dw = Across(DigitW * scale);
+
+            // ONE THICKNESS, TWO AXES. A flat bar is this tall and an upright one is this wide,
+            // and they have to be the same size on the glass or the digit looks like it is made
+            // of two different pens.
+            var ty = Thick * scale;
+            var tx = Across(Thick * scale);
+
+            var gap = Across(Gap * scale);
 
             var digits = dw * 3f + gap * 2f;
 
@@ -175,9 +210,10 @@ namespace VehicleTweaks.UI
             // The gear sits right of the unit, smaller than the speed, because it is a thing you
             // check rather than a thing you read.
             var gearScale = scale * 0.72f;
-            var gw = DigitW * gearScale;
             var gh = DigitH * gearScale;
-            var gt = Thick * gearScale;
+            var gw = Across(DigitW * gearScale);
+            var gty = Thick * gearScale;
+            var gtx = Across(Thick * gearScale);
 
             var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f);
 
@@ -188,8 +224,11 @@ namespace VehicleTweaks.UI
                 // A little wider than the digits and the unit together. Deliberately plain: the
                 // game has no rounded rectangle, and a fake one drawn out of squares looks worse
                 // than an honest box.
-                var padX = 0.0060f * scale;
+                // The same padding all the way round, which it was not: 0.0060 across was eleven
+                // pixels and 0.0055 down was six, so the box had twice the margin at the sides
+                // that it had at the top. That is most of what made the panel look stretched.
                 var padY = 0.0055f * scale;
+                var padX = Across(0.0055f * scale);
 
                 var tall = dh + (_cfg.SpeedoRevs ? revGap + revH : 0f);
 
@@ -208,7 +247,7 @@ namespace VehicleTweaks.UI
 
                 var on = at >= 0 ? Numerals[text[at] - '0'] : 0;
 
-                Digit(dx, y, dw, dh, th, on, lit);
+                Digit(dx, y, dw, dh, tx, ty, on, lit);
             }
 
             Draw.Text(unitText, x + digits + gap, y + dh * 0.5f - unitScale * 0.028f,
@@ -222,7 +261,7 @@ namespace VehicleTweaks.UI
                 var shape = gear == 0 ? 0x50 : Numerals[gear];
 
                 Digit(x + digits + gap + unitWidth + gap * 2f, y + (dh - gh) * 0.5f,
-                      gw, gh, gt, shape, lit);
+                      gw, gh, gtx, gty, shape, lit);
             }
 
             if (_cfg.SpeedoRevs) Tacho(x, y + dh + revGap, block, revH, revs, lit);
@@ -268,24 +307,26 @@ namespace VehicleTweaks.UI
         /// One digit: seven bars, of which the unlit ones are drawn faintly rather than not
         /// at all.
         /// </summary>
-        private void Digit(float x, float y, float w, float h, float t, int on, Color lit)
+        private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit)
         {
             var ghost = _cfg.SpeedoGhost
                             ? Color.FromArgb(Math.Max(6, lit.A / 9), lit.R, lit.G, lit.B)
                             : Color.FromArgb(0, 0, 0, 0);
 
-            // The gap between the top of the middle bar and the top of the display, which is
-            // also the length of each vertical once the bars at either end are taken off it.
-            var half = (h - t) * 0.5f;
-            var stem = half - t;
+            // The drop from the top of the display to the top of the middle bar, which is also
+            // the length of each upright once the bars at either end are taken off it.
+            var half = (h - ty) * 0.5f;
+            var stem = half - ty;
 
-            Bar(x + t, y, w - t * 2f, t, (on & 0x01) != 0, lit, ghost);              // a  top
-            Bar(x + w - t, y + t, t, stem, (on & 0x02) != 0, lit, ghost);            // b  top right
-            Bar(x + w - t, y + half + t, t, stem, (on & 0x04) != 0, lit, ghost);     // c  bottom right
-            Bar(x + t, y + h - t, w - t * 2f, t, (on & 0x08) != 0, lit, ghost);      // d  bottom
-            Bar(x, y + half + t, t, stem, (on & 0x10) != 0, lit, ghost);             // e  bottom left
-            Bar(x, y + t, t, stem, (on & 0x20) != 0, lit, ghost);                    // f  top left
-            Bar(x + t, y + half, w - t * 2f, t, (on & 0x40) != 0, lit, ghost);       // g  middle
+            var flat = w - tx * 2f;
+
+            Bar(x + tx, y, flat, ty, (on & 0x01) != 0, lit, ghost);                  // a  top
+            Bar(x + w - tx, y + ty, tx, stem, (on & 0x02) != 0, lit, ghost);         // b  top right
+            Bar(x + w - tx, y + half + ty, tx, stem, (on & 0x04) != 0, lit, ghost);  // c  bottom right
+            Bar(x + tx, y + h - ty, flat, ty, (on & 0x08) != 0, lit, ghost);         // d  bottom
+            Bar(x, y + half + ty, tx, stem, (on & 0x10) != 0, lit, ghost);           // e  bottom left
+            Bar(x, y + ty, tx, stem, (on & 0x20) != 0, lit, ghost);                  // f  top left
+            Bar(x + tx, y + half, flat, ty, (on & 0x40) != 0, lit, ghost);           // g  middle
         }
 
         private static void Bar(float x, float y, float w, float h, bool on, Color lit, Color ghost)
