@@ -390,30 +390,6 @@ namespace VehicleTweaks.UI
                                    "The engine turns over before it catches, instead of just being on.",
                                    () => _cfg.ManualIgnition));
 
-            drive.Items.Add(Header("THE HANDBRAKE"));
-
-            drive.Items.Add(Toggle("Front wheels keep pulling", () => _cfg.FwdHandbrake,
-                                   v => _cfg.FwdHandbrake = v, "Driving", "FwdHandbrake",
-                                   "On front-drive cars only. A handbrake is a rear brake."));
-
-            drive.Items.Add(Number("How hard they pull", () => _cfg.FwdHandbrakePull,
-                                   v => _cfg.FwdHandbrakePull = v, 0.5f, 0f, 15f, "0.0", "m/s2",
-                                   "Driving", "FwdHandbrakePull",
-                                   "A real acceleration: the same pull in a hatchback and a van.",
-                                   () => _cfg.FwdHandbrake));
-
-            drive.Items.Add(Number("Until they give up at", () => _cfg.FwdHandbrakeMaxSpeed,
-                                   v => _cfg.FwdHandbrakeMaxSpeed = v, 0.5f, 0.5f, 30f, "0.0", "m/s",
-                                   "Driving", "FwdHandbrakeMaxSpeed",
-                                   "A locked rear axle should win eventually. Eight is a fast jog.",
-                                   () => _cfg.FwdHandbrake));
-
-            drive.Items.Add(Header("THE TYRES"));
-
-            drive.Items.Add(Choice("Drift mode", () => _cfg.DriftTyres,
-                                   v => _cfg.DriftTyres = v, "Driving", "DriftTyres",
-                                   "Online's drift tuning where it fits, low grip everywhere else."));
-
             drive.Items.Add(Header("THE DASH"));
 
             drive.Items.Add(Toggle("Cabin lights with the headlights", () => _cfg.DashLight,
@@ -436,6 +412,61 @@ namespace VehicleTweaks.UI
                                    "Driving", "SeatbeltSeconds",
                                    "About as long as reaching over your shoulder takes.",
                                    () => _cfg.Seatbelt));
+
+            // A PAGE OF ITS OWN, because DRIVING was carrying five groups and had run out of
+            // room three features ago. Ignition, handbrake, tyres, dash and seatbelt is not one
+            // page, it is a page and a bit -- and the three that are about how much the car
+            // holds the road belong together anyway.
+            //
+            // Their ini section is still [Driving]. Pages and sections have matched everywhere
+            // else and here they do not, deliberately: moving the keys would mean the merge
+            // adding fresh defaults under a new heading while somebody's real values sat under
+            // the old one, and the new copy would win. A page is a way to find a setting; the
+            // section is where the value has always lived.
+            var grip = Add("GRIP");
+
+            grip.Items.Add(Header("THE HANDBRAKE"));
+
+            grip.Items.Add(Toggle("Front wheels keep pulling", () => _cfg.FwdHandbrake,
+                                   v => _cfg.FwdHandbrake = v, "Driving", "FwdHandbrake",
+                                   "On front-drive cars only. A handbrake is a rear brake."));
+
+            grip.Items.Add(Number("How hard they pull", () => _cfg.FwdHandbrakePull,
+                                   v => _cfg.FwdHandbrakePull = v, 0.5f, 0f, 15f, "0.0", "m/s2",
+                                   "Driving", "FwdHandbrakePull",
+                                   "A real acceleration: the same pull in a hatchback and a van.",
+                                   () => _cfg.FwdHandbrake));
+
+            grip.Items.Add(Number("Until they give up at", () => _cfg.FwdHandbrakeMaxSpeed,
+                                   v => _cfg.FwdHandbrakeMaxSpeed = v, 0.5f, 0.5f, 30f, "0.0", "m/s",
+                                   "Driving", "FwdHandbrakeMaxSpeed",
+                                   "A locked rear axle should win eventually. Eight is a fast jog.",
+                                   () => _cfg.FwdHandbrake));
+
+            grip.Items.Add(Header("THE TYRES"));
+
+            grip.Items.Add(Choice("Drift mode", () => _cfg.DriftTyres,
+                                   v => _cfg.DriftTyres = v, "Driving", "DriftTyres",
+                                   "Online's drift tuning where it fits, low grip everywhere else."));
+
+
+            grip.Items.Add(Header("UNDER A SLIDE"));
+
+            grip.Items.Add(Toggle("Keep the power on", () => _cfg.DriftPower,
+                                  v => _cfg.DriftPower = v, "Driving", "DriftPower",
+                                  "The game bogs a car down the moment it goes sideways."));
+
+            grip.Items.Add(Number("How much it finds", () => _cfg.DriftPowerBoost,
+                                  v => _cfg.DriftPowerBoost = v, 0.05f, 1f, 3f, "0.00", null,
+                                  "Driving", "DriftPowerBoost",
+                                  "At full slide. 1.00 is none at all.",
+                                  () => _cfg.DriftPower));
+
+            grip.Items.Add(Number("Counts as a slide past", () => _cfg.DriftAngle,
+                                  v => _cfg.DriftAngle = v, 1f, 3f, 60f, "0", "deg",
+                                  "Driving", "DriftAngle",
+                                  "Between where it points and where it is going.",
+                                  () => _cfg.DriftPower));
 
             var leave = Add("LEAVING");
 

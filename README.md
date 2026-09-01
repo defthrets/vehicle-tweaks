@@ -158,6 +158,21 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## Holding a slide
+
+**The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops
+pointing where it is going, which is what makes long drifts collapse — the back comes out, the
+power falls away underneath you, and the slide dies of its own accord rather than because you
+ended it.
+
+The slide is *measured*, not guessed: the angle between where the car points and where it is
+actually travelling is what a drift **is**. The compensation ramps in as that angle opens up
+rather than switching on at a line, because a car that suddenly found more power at twelve
+degrees would be harder to hold than one that never found any.
+
+Done with `EnginePowerMultiplier`, which is per *car* and per moment — not handling data, which
+is per *model* and would change every other example of that car in the world for the session.
+
 ## Drift mode
 
 **Off / Light / Medium / Heavy, on any car.** Two of Rockstar's own mechanisms and nothing here

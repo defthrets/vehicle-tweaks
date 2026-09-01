@@ -395,6 +395,37 @@ namespace VehicleTweaks.Core
         public DriftMode DriftTyres = DriftMode.Off;
 
         /// <summary>
+        /// The engine keeps pulling while the car is sideways.
+        ///
+        /// GTA bogs a car down the moment it stops pointing where it is going, which is what
+        /// makes long drifts collapse: the back comes out, the power falls away underneath you,
+        /// and the slide dies of its own accord rather than because you ended it.
+        ///
+        /// Done with EnginePowerMultiplier, which is per CAR and per moment -- not handling
+        /// data, which is per model and would change every other example of that car in the
+        /// world for the session.
+        /// </summary>
+        public bool DriftPower = true;
+
+        /// <summary>
+        /// How much power it finds at full slide. 1.0 is none at all.
+        ///
+        /// Reached gradually as the angle opens up rather than switched on at a line: a car that
+        /// suddenly found more power at twelve degrees would be harder to hold than one that
+        /// never found any.
+        /// </summary>
+        public float DriftPowerBoost = 1.4f;
+
+        /// <summary>
+        /// How far sideways counts as a slide, in degrees.
+        ///
+        /// The angle between where the car points and where it is actually travelling, which is
+        /// what a drift IS. Twelve is past what a fast corner asks for and short of what a
+        /// deliberate slide gives you.
+        /// </summary>
+        public float DriftAngle = 12f;
+
+        /// <summary>
         /// The cabin lights up when the headlights are on.
         ///
         /// Tied to the headlights rather than to the clock, which is both simpler and more
@@ -673,6 +704,10 @@ namespace VehicleTweaks.Core
                 else if (drift.Equals("false", StringComparison.OrdinalIgnoreCase)) drift = "Off";
 
                 s.DriftTyres = ParseEnum(drift, s.DriftTyres);
+
+                s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
+                s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
+                s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);

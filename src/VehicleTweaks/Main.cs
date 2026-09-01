@@ -54,6 +54,7 @@ namespace VehicleTweaks
         private readonly Stations _stations;
         private readonly Cruise _cruise;
         private readonly Chauffeur _chauffeur;
+        private readonly Slides _slides;
 
         private int _failures;
         private bool _parked;
@@ -76,6 +77,7 @@ namespace VehicleTweaks
             _stations = new Stations(_cfg);
             _cruise = new Cruise(_cfg);
             _chauffeur = new Chauffeur(_cfg);
+            _slides = new Slides(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -152,6 +154,7 @@ namespace VehicleTweaks
                     _stations.Update(me);
                     _cruise.Update(me);
                     _chauffeur.Update(me);
+                    _slides.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
@@ -286,6 +289,7 @@ namespace VehicleTweaks
             try { _frontWheels.Release(); } catch (Exception ex) { Log.Error("Front wheels", ex); }
             try { _chauffeur.Stop(Game.Player.Character); } catch (Exception ex) { Log.Error("Self driving", ex); }
             try { _cruise.Release(); } catch (Exception ex) { Log.Error("Cruise", ex); }
+            try { _slides.Release(); } catch (Exception ex) { Log.Error("Slide power", ex); }
             try { _myCar.Release(); } catch (Exception ex) { Log.Error("Parked car", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
