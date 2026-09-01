@@ -52,18 +52,21 @@ namespace VehicleTweaks.Driving
                     return;
                 }
 
+                var inside = Inside(me, car);
+
                 if (_mine != null && _mine.Handle == car.Handle)
                 {
-                    // Same car. The two settings can be switched on and off while it is held, so
-                    // what it is wearing is checked rather than assumed.
-                    Hold(car);
+                    // Same car. The two settings can be switched on and off while it is held,
+                    // and he can get in and out of it, so what it is wearing is checked every
+                    // time rather than assumed.
+                    Hold(car, inside);
                     return;
                 }
 
                 Release();
 
                 _mine = car;
-                Hold(car);
+                Hold(car, inside);
 
                 Log.Debug("Parked: keeping " + Name(car) + ".");
             }
@@ -97,7 +100,7 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        private void Hold(Vehicle car)
+        private void Hold(Vehicle car, bool inside)
         {
             try
             {
@@ -108,8 +111,29 @@ namespace VehicleTweaks.Driving
                 // Not something worth a line a frame.
             }
 
-            if (_cfg.ParkedBlip) Mark(car);
+            // NOT WHILE HE IS SITTING IN IT. The blip answers "where did I leave it", and that
+            // is not a question anybody has from the driver's seat -- there it is just a marker
+            // sat on top of the player, moving with them, telling them where they already are.
+            // Persistence stays on either way: that is about the car surviving, not finding it.
+            if (_cfg.ParkedBlip && !inside) Mark(car);
             else Unmark();
+        }
+
+        private static bool Inside(Ped me, Vehicle car)
+        {
+            try
+            {
+                if (me == null) return false;
+
+                var now = me.CurrentVehicle;
+                return now != null && now.Exists() && now.Handle == car.Handle;
+            }
+            catch
+            {
+                // Unknown counts as outside, which errs towards showing the blip rather than
+                // losing it.
+                return false;
+            }
         }
 
         private void Mark(Vehicle car)

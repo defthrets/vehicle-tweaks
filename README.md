@@ -201,7 +201,9 @@ is deleted the moment your back is turned. Exactly one car is held, and taking a
 hands the previous back; persistence is a promise the game may never clean something up, and
 handing that out freely fills the world with cars nobody is returning for.
 
-**A blip on it**, because still being there is no good if you cannot remember which street.
+**A blip on it**, because still being there is no good if you cannot remember which street — and
+it goes away while you are sitting in the car. The blip answers *where did I leave it*, which is
+not a question anybody has from the driver's seat.
 
 **It remembers its station**, so getting back in puts you on what you left it on rather than
 whatever the game picks. This session only — remembering across sessions means a file, and this

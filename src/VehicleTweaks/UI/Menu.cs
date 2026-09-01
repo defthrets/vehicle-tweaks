@@ -512,7 +512,7 @@ namespace VehicleTweaks.UI
 
             leave.Items.Add(Toggle("Blip on it", () => _cfg.ParkedBlip,
                                    v => _cfg.ParkedBlip = v, "Leaving", "ParkedBlip",
-                                   "Still being there is no good if you cannot find it."));
+                                   "Hidden while you are in it. It is for finding, not riding along."));
 
             leave.Items.Add(Toggle("Remembers its station", () => _cfg.RememberStations,
                                    v => _cfg.RememberStations = v, "Leaving", "RememberStations",
