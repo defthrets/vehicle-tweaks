@@ -1,23 +1,9 @@
 using System;
+using System.Globalization;
 using System.Windows.Forms;
 
 namespace VehicleTweaks.Core
 {
-    /// <summary>
-    /// How loose a car is in drift mode.
-    ///
-    /// A LEVEL RATHER THAN A SWITCH, because the fallback below has one. Where the game will
-    /// take real drift tuning it takes it and this does nothing; where it will not, this is how
-    /// far the grip comes off instead.
-    /// </summary>
-    internal enum DriftMode
-    {
-        Off,
-        Light,
-        Medium,
-        Heavy
-    }
-
     /// <summary>
     /// How the chauffeur drives.
     ///
@@ -376,14 +362,16 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// Drift tyres, the ones GTA Online actually has.
         ///
-        /// TWO OF ROCKSTAR'S OWN, because one of them will not go on everything. SET_DRIFT_TYRES
-        /// is the Drift Races tuning and it is gated to the cars that were given it, which is
-        /// most of why "drift mode on any car" needed a second answer. The second answer is the
-        /// other thing the same update shipped: low grip tyres, which go on anything.
+        /// A SLIDER, 0 TO 1, AND NOT A LIST OF FOUR WORDS. Off, Light, Medium and Heavy were
+        /// four points on something that is plainly continuous, and picking between them is not
+        /// the same as finding the one that feels right. 0.20 is a light default: enough to feel
+        /// on a roundabout, not enough to be a nuisance on a motorway.
         ///
-        /// So drift mode asks for the real tuning first and falls back to low grip when the car
-        /// will not take it -- and says in the log which one it got, because "it feels different
-        /// in this car" should be a thing you can look up rather than wonder about.
+        /// TWO OF ROCKSTAR'S OWN UNDERNEATH IT, because one of them will not go on everything.
+        /// SET_DRIFT_TYRES is the Drift Races tuning and it is gated to the cars that were given
+        /// it, which is most of why "drift mode on any car" needed a second answer. The friction
+        /// override is the second answer: it takes a float, it goes on anything, and it is what
+        /// makes the slider a slider rather than three steps wearing a decimal point.
         ///
         /// OFF BY DEFAULT, because it is the only setting in this mod that changes how a car
         /// goes round a corner. Everything else adds something the game was missing; this one
@@ -392,7 +380,7 @@ namespace VehicleTweaks.Core
         /// A car that already had drift tuning when we found it keeps it and is left alone --
         /// somebody paid for that, and it is not ours to take off when this is switched back off.
         /// </summary>
-        public DriftMode DriftTyres = DriftMode.Off;
+        public float DriftAmount = 0.20f;
 
         /// <summary>
         /// The engine keeps pulling while the car is sideways.
@@ -694,16 +682,12 @@ namespace VehicleTweaks.Core
                 s.SpeedoLampsX = ini.GetFloat("Speedo", "SpeedoLampsX", s.SpeedoLampsX, 0f, 1f);
                 s.SpeedoLampsY = ini.GetFloat("Speedo", "SpeedoLampsY", s.SpeedoLampsY, 0f, 1f);
 
-                // TAKES THE OLD SPELLING TOO. This was a yes/no before it was a level, and an ini
-                // written by the previous build says true or false -- which would otherwise warn
-                // and fall back to Off, quietly switching the feature off for anybody who had
-                // turned it on.
-                var drift = ini.GetString("Driving", "DriftTyres", "Off");
-
-                if (drift.Equals("true", StringComparison.OrdinalIgnoreCase)) drift = "Medium";
-                else if (drift.Equals("false", StringComparison.OrdinalIgnoreCase)) drift = "Off";
-
-                s.DriftTyres = ParseEnum(drift, s.DriftTyres);
+                // THIS SETTING HAS BEEN THREE THINGS NOW: a yes/no, then four words, and now a
+                // number. Anybody's ini is written in whichever of those their last build used,
+                // and each of them would fail to parse as the next -- warning once and quietly
+                // resetting a setting somebody had chosen. So every spelling it has ever had is
+                // still understood, and the new name is looked for first.
+                s.DriftAmount = Drift(ini, s.DriftAmount);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
@@ -740,6 +724,47 @@ namespace VehicleTweaks.Core
 
             Log.Level = s.LogLevel;
             return s;
+        }
+
+        /// <summary>
+        /// The drift amount, in whichever of its three spellings the file happens to use.
+        /// </summary>
+        private static float Drift(IniFile ini, float fallback)
+        {
+            // The name it has now.
+            var raw = ini.GetString("Driving", "DriftAmount", null);
+
+            // The name it had when it was a yes/no and when it was four words.
+            if (string.IsNullOrEmpty(raw)) raw = ini.GetString("Driving", "DriftTyres", null);
+
+            if (string.IsNullOrEmpty(raw)) return fallback;
+
+            raw = raw.Trim();
+
+            if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var n))
+            {
+                if (n < 0f) return 0f;
+                return n > 1f ? 1f : n;
+            }
+
+            switch (raw.ToLowerInvariant())
+            {
+                case "off":
+                case "false":
+                case "no": return 0f;
+
+                case "light": return 0.20f;
+
+                case "true":
+                case "medium": return 0.50f;
+
+                case "heavy": return 0.85f;
+            }
+
+            Log.Warn("[Driving] the drift amount reads '" + raw + "', which is neither a number " +
+                     "between 0 and 1 nor a word this understands - using " + fallback + ".");
+
+            return fallback;
         }
 
         private static T ParseEnum<T>(string text, T fallback) where T : struct

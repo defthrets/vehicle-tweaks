@@ -175,17 +175,27 @@ is per *model* and would change every other example of that car in the world for
 
 ## Drift mode
 
-**Off / Light / Medium / Heavy, on any car.** Two of Rockstar's own mechanisms and nothing here
-models grip or fakes a slide.
+**A slider, 0.00 to 1.00, on any car** — 0.20 by default. A slider rather than a short list,
+because how much a car drifts is plainly continuous and picking between *Light* and *Medium* is
+not the same as finding the one that feels right. Nudge it on the panel while driving and the car
+changes under you.
+
+Two of Rockstar's own mechanisms underneath, and nothing here models grip or fakes a slide.
 
 `SET_DRIFT_TYRES` is the Drift Races tuning and it is the better of the two — the handling
 Rockstar wrote, engaging on their terms. But it is **gated to the cars that update gave it to**,
 and on anything else it does not fail: it is simply ignored, which is the worst way for a
 feature to not work. On its own it was never going to be "drift mode on any car".
 
-So the second one: **low grip tyres**, the other thing the same update shipped, which go on
-anything. The real tuning is asked for first, the game is asked back whether it took, and low
-grip is what a car gets when it would not have it. The log says which one each car got.
+So the second one: the **friction override**, which goes on anything and takes a *float*. That
+last part is what makes this a slider at all — the obvious partner native takes a whole number on
+a scale nobody has written down, which is three steps wearing a decimal point. Friction is scaled
+by the slider on every car, so turning the knob does something whatever you are driving. Full
+tilt takes half the grip away — half and not all, because a car with no friction does not drift,
+it stops being connected to the road.
+
+The real tuning is asked for first and the game is asked back whether it took. The log says which
+one each car got.
 
 **Off by default** — it is the only setting in this mod that changes how a car goes round a
 corner. Everything else adds something the game was missing; this replaces something it had.

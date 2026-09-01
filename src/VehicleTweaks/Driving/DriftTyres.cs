@@ -18,9 +18,14 @@ namespace VehicleTweaks.Driving
     /// is the worst way for a feature to not work. Asked for drift mode on ANY car, that alone
     /// was never going to be the answer.
     ///
-    /// So the second one: low grip tyres, the other thing the same update shipped, which go on
-    /// anything. The real tuning is asked for first, GET_DRIFT_TYRES_SET says whether it took,
-    /// and low grip is what a car gets when it would not have it.
+    /// So the second one: the friction override, which goes on anything and TAKES A FLOAT. That
+    /// last part is what makes the setting a slider rather than a short list -- REDUCE_GRIP_LEVEL
+    /// was the obvious partner to the drift tyres and it takes a whole number on a scale nobody
+    /// has written down, which is three steps wearing a decimal point at best.
+    ///
+    /// The real tuning is asked for first, GET_DRIFT_TYRES_SET says whether it took, and the
+    /// friction is scaled by the slider on every car either way -- so turning the knob does
+    /// something no matter what is being driven, which is the whole point of a knob.
     ///
     /// The log says which one each car got. "It feels different in this car" should be something
     /// you can look up rather than something you wonder about.
@@ -57,7 +62,7 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                if (_cfg.DriftTyres == DriftMode.Off)
+                if (_cfg.DriftAmount <= 0f)
                 {
                     // Switched off in the panel: the cars we did it to get their grip back on the
                     // same frame, rather than the next time they happen to be looked at.
@@ -70,7 +75,14 @@ namespace VehicleTweaks.Driving
 
                 foreach (var held in _ours)
                 {
-                    if (held.Car != null && held.Car.Handle == car.Handle) return;
+                    if (held.Car == null || held.Car.Handle != car.Handle) continue;
+
+                    // ALREADY FITTED, BUT THE SLIDER MAY HAVE MOVED SINCE. Friction is a state,
+                    // costs nothing to set to what it already is, and this is the row somebody
+                    // will sit and nudge while driving -- so it has to follow the setting rather
+                    // than be whatever it was when they got in.
+                    Friction(car, _cfg.DriftAmount);
+                    return;
                 }
 
                 // ALREADY ON IT, AND NOT BY US. Drift tuning is something a player buys, so a car
@@ -85,7 +97,7 @@ namespace VehicleTweaks.Driving
                     _ours.RemoveAt(0);
                 }
 
-                _ours.Add(Apply(car, _cfg.DriftTyres));
+                _ours.Add(Apply(car, _cfg.DriftAmount));
             }
             catch (Exception ex)
             {
@@ -119,7 +131,7 @@ namespace VehicleTweaks.Driving
         /// without asking it this feature would have been silently doing nothing on most of the
         /// cars in the game while its setting sat there saying it was on.
         /// </summary>
-        private static Held Apply(Vehicle car, DriftMode mode)
+        private static Held Apply(Vehicle car, float amount)
         {
             var held = new Held { Car = car };
 
@@ -133,48 +145,38 @@ namespace VehicleTweaks.Driving
                 held.Tuned = false;
             }
 
-            if (held.Tuned)
-            {
-                Log.Debug("Drift mode: " + Name(car) + " took the real drift tuning.");
-                return held;
-            }
+            Friction(car, amount);
+            held.Loosened = true;
 
-            // It would not have it. Low grip tyres are the other half of the same update and
-            // they go on anything -- the boolean does the work and the level modulates it.
-            try
-            {
-                Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, car.Handle, true);
-                Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP_LEVEL, car.Handle, Level(mode));
-
-                held.Loosened = true;
-
-                Log.Debug("Drift mode: " + Name(car) + " will not take drift tuning, so it has " +
-                          "low grip tyres at level " + Level(mode) + " (" + mode + ").");
-            }
-            catch (Exception ex)
-            {
-                Log.Once("drift-grip", "Could not fit low grip tyres: " + ex.Message);
-            }
+            Log.Debug("Drift mode: " + Name(car) +
+                      (held.Tuned ? " took the real drift tuning, " : " would not take drift tuning, ") +
+                      "friction " + Grip(amount).ToString("0.00") +
+                      " at " + amount.ToString("0.00") + ".");
 
             return held;
         }
 
         /// <summary>
-        /// The level the native is given.
+        /// The slider, as a friction figure.
         ///
-        /// The scale is the game's and it is not written down anywhere I can check, so the
-        /// number is logged next to the word that produced it. If Heavy turns out to be no
-        /// different from Light, the log is what says whether the level was ignored or whether
-        /// the whole call was.
+        /// One is normal grip and the slider takes half of it away at full tilt. HALF, not all:
+        /// a car with no friction at all does not drift, it simply stops being connected to the
+        /// road, and there is no interesting driving anywhere in the last stretch of that range.
+        /// Spending the whole slider on the half that is usable is worth more than a top end
+        /// nobody would choose.
         /// </summary>
-        private static int Level(DriftMode mode)
+        private static float Grip(float amount)
         {
-            switch (mode)
-            {
-                case DriftMode.Light: return 0;
-                case DriftMode.Heavy: return 2;
-                default: return 1;
-            }
+            if (amount < 0f) amount = 0f;
+            if (amount > 1f) amount = 1f;
+
+            return 1f - amount * 0.5f;
+        }
+
+        private static void Friction(Vehicle car, float amount)
+        {
+            try { Function.Call(Hash.SET_VEHICLE_FRICTION_OVERRIDE, car.Handle, Grip(amount)); }
+            catch { /* the next pass will try again */ }
         }
 
         private static void Release(Held held)
@@ -188,7 +190,10 @@ namespace VehicleTweaks.Driving
                 // is usually harmless and occasionally is not, and there is no reason to guess
                 // when the record is right here.
                 if (held.Tuned) Function.Call(Hash.SET_DRIFT_TYRES, car.Handle, false);
-                if (held.Loosened) Function.Call(Hash.SET_VEHICLE_REDUCE_GRIP, car.Handle, false);
+
+                // Back to normal grip, which is one. There is no "stop overriding" to call, so
+                // the override stays -- set to the value that means it is not doing anything.
+                if (held.Loosened) Function.Call(Hash.SET_VEHICLE_FRICTION_OVERRIDE, car.Handle, 1f);
             }
             catch
             {

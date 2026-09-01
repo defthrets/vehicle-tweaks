@@ -445,9 +445,10 @@ namespace VehicleTweaks.UI
 
             grip.Items.Add(Header("THE TYRES"));
 
-            grip.Items.Add(Choice("Drift mode", () => _cfg.DriftTyres,
-                                   v => _cfg.DriftTyres = v, "Driving", "DriftTyres",
-                                   "Online's drift tuning where it fits, low grip everywhere else."));
+            grip.Items.Add(Number("Drift", () => _cfg.DriftAmount,
+                                  v => _cfg.DriftAmount = v, 0.05f, 0f, 1f, "0.00", null,
+                                  "Driving", "DriftAmount",
+                                  "0 is off. Nudge it while driving and the car changes under you."));
 
 
             grip.Items.Add(Header("UNDER A SLIDE"));
