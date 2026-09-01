@@ -50,6 +50,10 @@ namespace VehicleTweaks
         private readonly DashLight _dash;
         private readonly Crashes _crashes;
         private readonly DriftTyres _drift;
+        private readonly Parked _myCar;
+        private readonly Stations _stations;
+        private readonly Cruise _cruise;
+        private readonly Chauffeur _chauffeur;
 
         private int _failures;
         private bool _parked;
@@ -68,6 +72,10 @@ namespace VehicleTweaks
             _dash = new DashLight(_cfg);
             _crashes = new Crashes(_cfg);
             _drift = new DriftTyres(_cfg);
+            _myCar = new Parked(_cfg);
+            _stations = new Stations(_cfg);
+            _cruise = new Cruise(_cfg);
+            _chauffeur = new Chauffeur(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -140,6 +148,10 @@ namespace VehicleTweaks
                     _dash.Update(me);
                     _crashes.Update(me);
                     _drift.Update(me);
+                    _myCar.Update(me);
+                    _stations.Update(me);
+                    _cruise.Update(me);
+                    _chauffeur.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
@@ -272,6 +284,9 @@ namespace VehicleTweaks
             try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
             try { _drift.ReleaseAll(); } catch (Exception ex) { Log.Error("Drift tyres", ex); }
             try { _frontWheels.Release(); } catch (Exception ex) { Log.Error("Front wheels", ex); }
+            try { _chauffeur.Stop(Game.Player.Character); } catch (Exception ex) { Log.Error("Self driving", ex); }
+            try { _cruise.Release(); } catch (Exception ex) { Log.Error("Cruise", ex); }
+            try { _myCar.Release(); } catch (Exception ex) { Log.Error("Parked car", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
             Log.Info(Build.Name + " stopped cleanly.");

@@ -178,6 +178,40 @@ corner. Everything else adds something the game was missing; this replaces somet
 Cars lose it again when you switch it off or reload. A car that *already* had drift tuning is
 left alone — somebody paid for that, and it is not ours to remove.
 
+## Coming back to it
+
+**Your car is still there.** GTA throws away vehicles nobody is looking at, which makes nonsense
+of everything else here — a car left running, lit, locked and handbraked is not much use if it
+is deleted the moment your back is turned. Exactly one car is held, and taking a different one
+hands the previous back; persistence is a promise the game may never clean something up, and
+handing that out freely fills the world with cars nobody is returning for.
+
+**A blip on it**, because still being there is no good if you cannot remember which street.
+
+**It remembers its station**, so getting back in puts you on what you left it on rather than
+whatever the game picks. This session only — remembering across sessions means a file, and this
+mod writes nothing but its log.
+
+## The autopilot
+
+**Cruise control** (`U`) holds the speed you set it at. A *cap*, not a throttle: the game is told
+the car may not exceed a speed, so steering and braking stay entirely yours and the worst a bug
+can do is limit a car rather than drive one. Braking cancels it, as in every car that has ever
+had it.
+
+**Self driving** (`O`, off by default) hands over to `CruiseWithVehicle` — the task every ambient
+driver in the city is already running, so the car obeys lights, overtakes and gives way exactly
+as traffic does. Nothing here steers.
+
+Four styles: **Cautious** stops for people as well as cars; **Normal** stops for cars and waits
+at lights; **Brisk** goes around what is in the way instead of queueing; **Reckless** neither
+stops nor waits. Reckless is not a joke setting — it will take you through a junction on red.
+
+**Touch any control and it is yours again** — throttle, brake, handbrake or steering. It also
+stops on the key, on getting out, on being switched off, and when the script shuts down. Handing
+the player's own ped to a task is the most control this mod ever takes, and grabbing the wheel is
+what anybody would try first, so that is what works.
+
 ## The warning lamps
 
 **Their own cluster, in their own place — not part of the speedo.** The **engine lamp** is green,

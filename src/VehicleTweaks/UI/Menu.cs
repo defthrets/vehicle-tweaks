@@ -473,6 +473,55 @@ namespace VehicleTweaks.UI
                                    "The way a real one does. It is the only sign it worked.",
                                    () => _cfg.Locking));
 
+            leave.Items.Add(Header("COMING BACK TO IT"));
+
+            leave.Items.Add(Toggle("Your car stays put", () => _cfg.KeepParked,
+                                   v => _cfg.KeepParked = v, "Leaving", "KeepParked",
+                                   "GTA throws away cars nobody is looking at. This one it keeps."));
+
+            leave.Items.Add(Toggle("Blip on it", () => _cfg.ParkedBlip,
+                                   v => _cfg.ParkedBlip = v, "Leaving", "ParkedBlip",
+                                   "Still being there is no good if you cannot find it."));
+
+            leave.Items.Add(Toggle("Remembers its station", () => _cfg.RememberStations,
+                                   v => _cfg.RememberStations = v, "Leaving", "RememberStations",
+                                   "Get back in and it is on what you left it on."));
+
+            var auto = Add("AUTOPILOT");
+
+            auto.Items.Add(Header("CRUISE CONTROL"));
+
+            auto.Items.Add(Toggle("Cruise control", () => _cfg.Cruise, v => _cfg.Cruise = v,
+                                  "Autopilot", "Cruise",
+                                  "Holds the speed you set it at. Braking cancels it."));
+
+            auto.Items.Add(Bind("Cruise key", () => _cfg.CruiseKey, v => _cfg.CruiseKey = v,
+                                "Autopilot", "CruiseKey",
+                                "Sets it at whatever you are doing. Press again to let go.",
+                                () => _cfg.Cruise));
+
+            auto.Items.Add(Header("SELF DRIVING"));
+
+            auto.Items.Add(Toggle("Self driving", () => _cfg.AutoDrive, v => _cfg.AutoDrive = v,
+                                  "Autopilot", "AutoDrive",
+                                  "The task every ambient driver runs. Touch any control to take over."));
+
+            auto.Items.Add(Bind("Self driving key", () => _cfg.AutoDriveKey,
+                                v => _cfg.AutoDriveKey = v, "Autopilot", "AutoDriveKey",
+                                "Hands the car over, and takes it back.",
+                                () => _cfg.AutoDrive));
+
+            auto.Items.Add(Number("It drives at", () => _cfg.AutoDriveSpeed,
+                                  v => _cfg.AutoDriveSpeed = v, 5f, 5f, 200f, "0", "kph",
+                                  "Autopilot", "AutoDriveSpeed",
+                                  "What it aims for. Traffic and corners have their own opinions.",
+                                  () => _cfg.AutoDrive));
+
+            auto.Items.Add(Choice("How it drives", () => _cfg.AutoDriveStyle,
+                                  v => _cfg.AutoDriveStyle = v, "Autopilot", "AutoDriveStyle",
+                                  "RECKLESS ignores red lights. It is not a joke setting.",
+                                  () => _cfg.AutoDrive));
+
             var ind = Add("INDICATORS");
 
             ind.Items.Add(Header("THE STALK"));

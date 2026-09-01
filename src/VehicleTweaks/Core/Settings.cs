@@ -18,6 +18,21 @@ namespace VehicleTweaks.Core
         Heavy
     }
 
+    /// <summary>
+    /// How the chauffeur drives.
+    ///
+    /// FOUR WORDS A PERSON WOULD USE, mapped in the Driving layer onto the game's own flags --
+    /// whose list is six names of uneven usefulness, one of them called SometimesOvertakeTraffic.
+    /// These are the ones worth choosing between.
+    /// </summary>
+    internal enum AutoStyle
+    {
+        Cautious,
+        Normal,
+        Brisk,
+        Reckless
+    }
+
     /// <summary>What the speed is read in.</summary>
     internal enum SpeedoUnits
     {
@@ -212,6 +227,68 @@ namespace VehicleTweaks.Core
         /// realistic outcome and not everybody's idea of a good time.
         /// </summary>
         public bool LeaveDoorOpen = true;
+
+        // ---- coming back to it ------------------------------------------------
+
+        /// <summary>
+        /// Your car is still there when you come back.
+        ///
+        /// GTA throws away vehicles nobody is looking at, which is the most everyday annoyance
+        /// in the game and makes nonsense of everything else in this mod: a car left running,
+        /// lit, locked and handbraked is not much use if it is deleted while your back is turned.
+        ///
+        /// EXACTLY ONE CAR is held, and taking a different one hands the previous back.
+        /// Persistence tells the game a vehicle may never be cleaned up, and handing that out
+        /// freely fills the world's budget with cars nobody is returning for.
+        /// </summary>
+        public bool KeepParked = true;
+
+        /// <summary>A blip on it, because a car that is still there is no good if you cannot find it.</summary>
+        public bool ParkedBlip = true;
+
+        /// <summary>
+        /// Each car remembers what it was playing.
+        ///
+        /// One of those things nobody notices until it is missing -- which in GTA it is, so the
+        /// first ten seconds of every journey go on cycling back to the station you were on.
+        /// This session only: remembering across sessions means a file, and this mod writes
+        /// nothing but its log.
+        /// </summary>
+        public bool RememberStations = true;
+
+        // ---- the autopilot ----------------------------------------------------
+
+        /// <summary>
+        /// Cruise control: holds the speed you set it at.
+        ///
+        /// A CAP RATHER THAN A THROTTLE. MaxSpeed tells the game this car may not exceed a
+        /// speed, which is a far smaller instrument than driving the accelerator ourselves --
+        /// steering and braking stay entirely yours, and the worst a bug here can do is limit a
+        /// car rather than drive one.
+        /// </summary>
+        public bool Cruise = true;
+
+        public Keys CruiseKey = Keys.U;
+        public string PadCruise = "Off";
+
+        /// <summary>
+        /// Self driving, using the task every ambient driver in the city is already running.
+        ///
+        /// Nothing here steers. It obeys lights, overtakes and gives way exactly as traffic
+        /// does, because it IS traffic's own task.
+        ///
+        /// Off by default: it is the most control this mod ever takes, and taking the wheel out
+        /// of somebody's hands is a thing to be asked for rather than switched on by an update.
+        /// </summary>
+        public bool AutoDrive = false;
+
+        public Keys AutoDriveKey = Keys.O;
+        public string PadAutoDrive = "Off";
+
+        /// <summary>How fast it drives, in kilometres an hour.</summary>
+        public float AutoDriveSpeed = 60f;
+
+        public AutoStyle AutoDriveStyle = AutoStyle.Normal;
 
         // ---- the speedo -------------------------------------------------------
 
@@ -556,6 +633,19 @@ namespace VehicleTweaks.Core
                 s.BlinkerDeadzone = ini.GetFloat("Indicators", "BlinkerDeadzone", s.BlinkerDeadzone, 0.05f, 0.95f);
                 s.BlinkerMinSpeed = ini.GetFloat("Indicators", "BlinkerMinSpeed", s.BlinkerMinSpeed, 0f, 20f);
                 s.BlinkerInvert = ini.GetBool("Indicators", "BlinkerInvert", s.BlinkerInvert);
+                s.KeepParked = ini.GetBool("Leaving", "KeepParked", s.KeepParked);
+                s.ParkedBlip = ini.GetBool("Leaving", "ParkedBlip", s.ParkedBlip);
+                s.RememberStations = ini.GetBool("Leaving", "RememberStations", s.RememberStations);
+
+                s.Cruise = ini.GetBool("Autopilot", "Cruise", s.Cruise);
+                s.CruiseKey = ini.GetKey("Autopilot", "CruiseKey", s.CruiseKey);
+                s.PadCruise = ini.GetString("Autopilot", "PadCruise", s.PadCruise);
+                s.AutoDrive = ini.GetBool("Autopilot", "AutoDrive", s.AutoDrive);
+                s.AutoDriveKey = ini.GetKey("Autopilot", "AutoDriveKey", s.AutoDriveKey);
+                s.PadAutoDrive = ini.GetString("Autopilot", "PadAutoDrive", s.PadAutoDrive);
+                s.AutoDriveSpeed = ini.GetFloat("Autopilot", "AutoDriveSpeed", s.AutoDriveSpeed, 5f, 200f);
+                s.AutoDriveStyle = ParseEnum(ini.GetString("Autopilot", "AutoDriveStyle", "Normal"), s.AutoDriveStyle);
+
                 s.Speedo = ini.GetBool("Speedo", "Speedo", s.Speedo);
                 s.SpeedoUnits = ParseEnum(ini.GetString("Speedo", "SpeedoUnits", "Kph"), s.SpeedoUnits);
                 s.SpeedoColour = ParseEnum(ini.GetString("Speedo", "SpeedoColour", "Amber"), s.SpeedoColour);
