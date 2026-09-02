@@ -221,6 +221,10 @@ mod writes nothing but its log.
 
 ## The autopilot
 
+**The speed digits change colour** when the speed is not your own doing — one colour while
+cruise control is holding, another while the car is driving itself. A cruise control that
+silently refuses to go faster is a bug, not a feature.
+
 **Cruise control** (`U`) holds the speed you set it at. A *cap*, not a throttle: the game is told
 the car may not exceed a speed, so steering and braking stay entirely yours and the worst a bug
 can do is limit a car rather than drive one. Braking cancels it, as in every car that has ever

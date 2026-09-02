@@ -160,7 +160,7 @@ namespace VehicleTweaks
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
                 // there is nothing for it to steal, and it has to keep drawing while the panel
                 // is open or the four rows that position it would be moving something invisible.
-                _speedo.Update(me, _menu.IsOpen);
+                _speedo.Update(me, _menu.IsOpen, _cruise.Holding > 0f, _chauffeur.Driving);
 
                 _failures = 0;
             }

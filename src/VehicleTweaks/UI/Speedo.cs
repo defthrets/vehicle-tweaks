@@ -32,6 +32,10 @@ namespace VehicleTweaks.UI
     {
         private readonly Settings _cfg;
 
+        /// <summary>Whether something other than the driver's right foot is setting the speed.</summary>
+        private bool _cruising;
+        private bool _chauffeured;
+
         public Speedo(Settings cfg)
         {
             _cfg = cfg;
@@ -114,8 +118,13 @@ namespace VehicleTweaks.UI
         /// nudging X while the thing you are moving is invisible is not adjusting, it is
         /// guessing and then going to look.
         /// </param>
-        public void Update(Ped me, bool preview)
+        /// <param name="cruising">Cruise control is holding a speed.</param>
+        /// <param name="chauffeured">The car is driving itself.</param>
+        public void Update(Ped me, bool preview, bool cruising, bool chauffeured)
         {
+            _cruising = cruising;
+            _chauffeured = chauffeured;
+
             if (!_cfg.Speedo && !_cfg.SpeedoEngineIcon && !_cfg.SpeedoOilLight) return;
 
             try
@@ -287,7 +296,7 @@ namespace VehicleTweaks.UI
             var x = _cfg.SpeedoX;
             var y = _cfg.SpeedoY;
 
-            var lit = Tint(_cfg.SpeedoOpacity);
+            var lit = Held(Tint(_cfg.SpeedoOpacity));
 
             // The gear sits right of the unit, smaller than the speed, because it is a thing you
             // check rather than a thing you read.
@@ -522,6 +531,31 @@ namespace VehicleTweaks.UI
             if (colour.A == 0) return;
 
             Draw.Bar(x, y, w, h, colour);
+        }
+
+        /// <summary>
+        /// The digits, in a different colour when the speed is not the driver's own doing.
+        ///
+        /// A CRUISE CONTROL HAS TO SAY SOMEWHERE THAT IT IS ON. A car quietly refusing to go
+        /// faster with nothing on screen to explain it is a bug, not a feature -- that was the
+        /// whole argument for why this could be built once the cluster existed, and then the
+        /// cluster was never told. The Holding property on Cruise even carried a comment saying
+        /// this read it. It did not.
+        ///
+        /// COLOUR RATHER THAN A BADGE, because the alternative is more things in a readout that
+        /// has already had two ornaments taken back out of it. The number IS the thing being
+        /// held, so the number is what changes -- nothing moves, nothing gets wider, and the
+        /// panel does not learn a new shape.
+        ///
+        /// Self driving wins over cruise when both are true. It is the larger fact about who is
+        /// in charge of the car.
+        /// </summary>
+        private Color Held(Color lit)
+        {
+            if (_chauffeured) return Color.FromArgb(lit.A, 120, 220, 255);
+            if (_cruising) return Color.FromArgb(lit.A, 130, 240, 160);
+
+            return lit;
         }
 
         /// <summary>

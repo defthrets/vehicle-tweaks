@@ -51,7 +51,7 @@ namespace VehicleTweaks.Driving
             _chord = new Chord(cfg.PadModifier, cfg.PadCruise, "cruise");
         }
 
-        /// <summary>The speed being held, or zero. The cluster reads this.</summary>
+        /// <summary>The speed being held, or zero. The cluster reads this and colours the digits.</summary>
         public float Holding => _on ? _held : 0f;
 
         public void Update(Ped me)

@@ -43,6 +43,7 @@ namespace VehicleTweaks.Driving
             _chord = new Chord(cfg.PadModifier, cfg.PadAutoDrive, "self driving");
         }
 
+        /// <summary>Whether the car is driving itself. The cluster reads this and colours the digits.</summary>
         public bool Driving => _on;
 
         public void Update(Ped me)
