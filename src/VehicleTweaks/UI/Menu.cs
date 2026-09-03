@@ -429,7 +429,7 @@ namespace VehicleTweaks.UI
 
             train.Items.Add(Toggle("Manual gearbox", () => _cfg.ManualBox,
                                    v => _cfg.ManualBox = v, "Driving", "ManualBox",
-                                   "You change gear. The buttons are in the ini."));
+                                   "You change gear. A up, X down, handbrake to RB."));
 
             train.Items.Add(Toggle("Hold first and second", () => _cfg.HoldLowGears,
                                    v => _cfg.HoldLowGears = v, "Driving", "HoldLowGears",

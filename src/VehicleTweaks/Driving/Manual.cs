@@ -23,13 +23,16 @@ namespace VehicleTweaks.Driving
     /// what the car IS: get in with it on and you will pull away in whatever gear you left it
     /// in. That is a choice, not an improvement, and it should be made deliberately.
     ///
-    /// A AND X, WHICH ARE NOT FREE BUTTONS. There is no spare button on a pad -- the reasoning
-    /// is written out in full over in Chord -- so these two are shared with whatever the game
-    /// already does with them in a car, and pressing one will do both things. The bindings are
-    /// settings for exactly that reason, and paddles on the bumpers are what a real sequential
-    /// box uses anyway. THE LOG SAYS WHICH PHYSICAL BUTTON each vehicle action is on, once, from
-    /// the game's own glyph table, so the collision is a fact you can read rather than something
-    /// to find out about at a junction.
+    /// A AND X, WHICH ARE NOT FREE BUTTONS. There is no spare button on a pad -- the reasoning is
+    /// written out in full over in Chord -- and A is where the handbrake already was. Two things
+    /// on one button is two things happening, so rather than put the shift somewhere quieter,
+    /// THE HANDBRAKE MOVES: to a shoulder, silenced on its old button, and applied to the car
+    /// directly from the new one. See Brake, which owns that and is the one place anything is
+    /// allowed to ask whether the handbrake is on.
+    ///
+    /// THE LOG STILL NAMES WHICH PHYSICAL BUTTON each vehicle action is on, once, from the
+    /// game's own glyph table -- the handbrake is dealt with, but the horn, the duck and the
+    /// cinematic camera are on buttons too, and which ones depends on a layout this cannot see.
     ///
     /// HANDS OFF AT A STANDSTILL, which is what makes reverse still work. Below walking pace it
     /// writes nothing at all and the game has its own gearbox back, so holding the brake picks
@@ -42,6 +45,7 @@ namespace VehicleTweaks.Driving
         private const float Crawl = 2.0f;
 
         private readonly Settings _cfg;
+        private readonly Brake _brake;
 
         private readonly Control? _up;
         private readonly Control? _down;
@@ -63,11 +67,15 @@ namespace VehicleTweaks.Driving
         /// <summary>Shifts asked for by keyboard since the last tick, which arrive off it.</summary>
         private int _pending;
 
+        /// <summary>Whether the handbrake is currently being forced on from its new button.</summary>
+        private bool _braking;
+
         private bool _glyphed;
 
-        public Manual(Settings cfg)
+        public Manual(Settings cfg, Brake brake)
         {
             _cfg = cfg;
+            _brake = brake;
 
             _up = Pad.Parse(cfg.ManualUpPad, "shifting up on a pad");
             _down = Pad.Parse(cfg.ManualDownPad, "shifting down on a pad");
@@ -116,6 +124,13 @@ namespace VehicleTweaks.Driving
                 }
 
                 Glyphs();
+
+                // BEFORE THE STANDSTILL CHECK BELOW, AND EVERY FRAME. The gear logic stands off
+                // at walking pace so that reverse still works, but the handbrake does not get to
+                // stand off with it -- a handbrake that comes back on its old button whenever the
+                // car is stopped is a gearshift that pulls the handbrake at every junction.
+                _brake.Silence();
+                Handbrake(car);
 
                 var gear = Read(car);
                 var speed = Math.Abs(Speed(car));
@@ -204,6 +219,27 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
+        /// The handbrake, on its new button.
+        ///
+        /// SET_VEHICLE_HANDBRAKE RATHER THAN THE CONTROL, because the control is the thing being
+        /// silenced. It is a forced state on the car, so it is written every frame it is wanted
+        /// and cleared once on the way out -- and cleared again by handle on release, because a
+        /// car left with its handbrake forced on is a car that will not move and says nothing
+        /// about why.
+        /// </summary>
+        private void Handbrake(Vehicle car)
+        {
+            var want = _brake.Moved && _brake.Asked();
+
+            if (!want && !_braking) return;
+
+            try { car.IsHandbrakeForcedOn = want; }
+            catch { /* the next frame will try again */ }
+
+            _braking = want;
+        }
+
+        /// <summary>
         /// Which physical button each vehicle action is on, said once, from the game's own table.
         ///
         /// WORTH THE CALL BECAUSE THE ANSWER IS NOT KNOWABLE FROM HERE. A control is an action,
@@ -227,7 +263,8 @@ namespace VehicleTweaks.Driving
                           Glyph(Control.VehicleDuck, "duck") + ", " +
                           Glyph(Control.VehicleAttack, "attack") + ", " +
                           Glyph(Control.VehicleCinCam, "cinematic camera") +
-                          ". A shift shares its button with whichever of those is on it.";
+                          ". The handbrake has been moved off its own; a shift still shares " +
+                          "with whichever of the rest is on it.";
 
                 Log.Info(say);
             }
@@ -282,19 +319,24 @@ namespace VehicleTweaks.Driving
         {
             var handle = _car;
             var top = _top;
+            var braking = _braking;
 
             _car = 0;
             _gear = 0;
             _top = 0;
+            _braking = false;
             _upWas = false;
             _downWas = false;
 
-            if (handle == 0 || top <= 0) return;
+            if (handle == 0 || (top <= 0 && !braking)) return;
 
             try
             {
                 var car = (Vehicle)Entity.FromHandle(handle);
-                if (car != null && car.Exists()) car.HighGear = top;
+                if (car == null || !car.Exists()) return;
+
+                if (top > 0) car.HighGear = top;
+                if (braking) car.IsHandbrakeForcedOn = false;
             }
             catch
             {

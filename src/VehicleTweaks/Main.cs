@@ -57,6 +57,7 @@ namespace VehicleTweaks
         private readonly Slides _slides;
         private readonly Drivetrain _drivetrain;
         private readonly Manual _manual;
+        private readonly Brake _brake;
 
         private int _failures;
         private bool _parked;
@@ -67,7 +68,8 @@ namespace VehicleTweaks
 
             _ignition = new Ignition(_cfg);
             _blinkers = new Blinkers(_cfg);
-            _frontWheels = new FrontWheels(_cfg);
+            _brake = new Brake(_cfg);
+            _frontWheels = new FrontWheels(_cfg, _brake);
             _seatbelt = new Seatbelt(_cfg);
             _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
@@ -81,7 +83,7 @@ namespace VehicleTweaks
             _chauffeur = new Chauffeur(_cfg);
             _slides = new Slides(_cfg);
             _drivetrain = new Drivetrain(_cfg);
-            _manual = new Manual(_cfg);
+            _manual = new Manual(_cfg, _brake);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.

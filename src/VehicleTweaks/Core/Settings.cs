@@ -447,6 +447,25 @@ namespace VehicleTweaks.Core
         public Keys ManualDownKey = Keys.LControlKey;
 
         /// <summary>
+        /// Where the handbrake goes, once the shift has taken its button.
+        ///
+        /// THE OTHER HALF OF PUTTING A GEARSHIFT ON A. Two things on one button is two things
+        /// happening, and of the two the handbrake is the one that can be moved -- so it goes to
+        /// a shoulder, the game's own handbrake control is silenced so the old button only
+        /// shifts, and the brake is applied to the car directly from the new button.
+        ///
+        /// NOT A REBIND, because a script cannot rebind a control. It is the nearest honest
+        /// thing, and the difference matters in one place: anything that READS the handbrake has
+        /// to ask Brake rather than the control, or it is watching a button that no longer does
+        /// it. The front-wheel pull was the one that would have broken.
+        ///
+        /// Only on a pad, and only while the manual box is on -- disabling a control disables it
+        /// for every device, and a keyboard player has no collision to fix. "Off" leaves the
+        /// handbrake exactly where the game put it.
+        /// </summary>
+        public string ManualHandbrakePad = "FrontendRb";
+
+        /// <summary>
         /// First and second are held very slightly longer under power.
         ///
         /// GTA'S LOW GEARS ARE SHORT AND IT LEAVES THEM EARLY, so pulling away is two flat
@@ -822,6 +841,7 @@ namespace VehicleTweaks.Core
                 s.ManualDownPad = ini.GetString("Driving", "ManualDownPad", s.ManualDownPad);
                 s.ManualUpKey = ini.GetKey("Driving", "ManualUpKey", s.ManualUpKey);
                 s.ManualDownKey = ini.GetKey("Driving", "ManualDownKey", s.ManualDownKey);
+                s.ManualHandbrakePad = ini.GetString("Driving", "ManualHandbrakePad", s.ManualHandbrakePad);
 
                 s.HoldLowGears = ini.GetBool("Driving", "HoldLowGears", s.HoldLowGears);
                 s.HoldLowGearsSeconds = ini.GetFloat("Driving", "HoldLowGearsSeconds", s.HoldLowGearsSeconds, 0.1f, 2f);

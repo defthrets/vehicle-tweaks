@@ -168,12 +168,21 @@ a small correction to a car that still drives the way you expect. This changes w
 get in with it on and you will pull away in whatever gear you left it in. That is a choice, not
 an improvement.
 
-**A and X are not free buttons.** There is no spare button on a pad — every face button, shoulder
-and stick is already a gameplay action — so a shift shares its button with whatever the game
-already does with it, and pressing one will do both things. Paddles on the bumpers (`FrontendLb`,
-`FrontendRb`) are what a real sequential box uses anyway. The log names **which physical button
-each vehicle action sits on**, once, out of the game's own glyph table, so the collision is a line
-you can read rather than something to find out about at a junction.
+**A is where the handbrake was, so the handbrake moves.** There is no spare button on a pad —
+every face button, shoulder and stick is already a gameplay action — and two things on one button
+is two things happening. Of the two, the handbrake is the one that can be moved: it goes to **RB**,
+the game's own handbrake control is silenced so A only shifts, and the brake is applied to the car
+directly from the new button.
+
+It is **not a rebind** — a script cannot rebind a control. It is the nearest honest thing, and the
+difference shows up in exactly one place: anything that *reads* the handbrake has to ask `Brake`
+rather than reading the control, or it is watching a button that no longer does it. The
+front-wheel-drive pull was the one that would otherwise have started firing on gearshifts.
+
+Only on a pad, and only while the manual box is on — disabling a control disables it for every
+device, and a keyboard player has no collision to fix. The log still names **which physical button
+each remaining vehicle action sits on**, once, out of the game's own glyph table: the handbrake is
+dealt with, but the horn and the rest are on buttons too.
 
 **Hands off at a standstill**, which is what makes reverse still work. Reverse is gear nought, and
 a forward gear written sixty times a second over the top of it is a car that can never reverse —
