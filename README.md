@@ -158,72 +158,7 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
-## The manual gearbox
-
-**You change gear. Nothing else does.** `A` up, `X` down on a pad; `Shift` and `Ctrl` on a
-keyboard. All four are settings.
-
-**Off by default, and it is the only thing here that has to be.** Everything else in this mod is
-a small correction to a car that still drives the way you expect. This changes what the car *is*:
-get in with it on and you will pull away in whatever gear you left it in. That is a choice, not
-an improvement.
-
-**A is where the handbrake was, so the handbrake moves.** There is no spare button on a pad —
-every face button, shoulder and stick is already a gameplay action — and two things on one button
-is two things happening. Of the two, the handbrake is the one that can be moved: it goes to **RB**,
-the game's own handbrake control is silenced so A only shifts, and the brake is applied to the car
-directly from the new button.
-
-It is **not a rebind** — a script cannot rebind a control. It is the nearest honest thing, and the
-difference shows up in exactly one place: anything that *reads* the handbrake has to ask `Brake`
-rather than reading the control, or it is watching a button that no longer does it. The
-front-wheel-drive pull was the one that would otherwise have started firing on gearshifts.
-
-Only on a pad, and only while the manual box is on — disabling a control disables it for every
-device, and a keyboard player has no collision to fix. The log still names **which physical button
-each remaining vehicle action sits on**, once, out of the game's own glyph table: the handbrake is
-dealt with, but the horn and the rest are on buttons too.
-
-**Hands off at a standstill**, which is what makes reverse still work. Reverse is gear nought, and
-a forward gear written sixty times a second over the top of it is a car that can never reverse —
-so below walking pace it writes nothing and the game has its own box back. The gear also goes
-quietly to first down there, so pulling away is never in fifth because that is where you stopped.
-
-While it is on, the hold on first and second does nothing. Both cap the same field, and a manual
-gearbox that changes gear on its own is the one thing a manual gearbox must never be.
-
-## The drivetrain
-
-**The shifting is the game's.** An earlier version held the gear through a slide and through a
-wheelspin, in both directions, on the argument that GTA shifts on road speed and a real box
-shifts on revs. The argument was sound and the result was still wrong: a gearbox that refuses
-shifts is a gearbox you are *aware* of, and being aware of the gearbox is the thing nobody wants.
-Up, down, sideways, lit up — the box decides.
-
-**What is left is one small thing.** First and second are held very slightly longer under power.
-GTA's low gears are short and it leaves them early, so pulling away is two flat little shifts and
-then you are in third at walking pace with nothing to hear. Half a second more in each lets the
-engine come up before it changes, and is not enough to be a feature you would name if asked what
-the car was doing.
-
-It caps `HighGear`, the top gear the transmission *has*, so the box never decides to shift and
-then gets overruled — it simply has nowhere to go. Nothing is written to the current gear at all,
-so a **downshift is never blocked**. The clock runs from the throttle going down rather than from
-the gear arriving, so pulling away from a standstill gets the whole window instead of having
-spent it idling at the lights. The original top gear goes back on every path out, **by handle**.
-
-**The revs are told about the tyres.** `CurrentRPM` runs nought to one — not an assumption, the
-tacho has been clamping and drawing it since it was built. Wheelspin adds to it, ramped, capped at
-the limiter. Only ever *upwards*, and never held: the instant the tyres grip it stops writing and
-the engine is the game's again on the next frame, so there is nothing to restore. The engine note
-comes off the same value, so a lit tyre is something you **hear**.
-
 ## Holding a slide
-
-**The engine keeps pulling while the car is sideways** — on both multipliers, power *and*
-torque. Power is the top end; torque is what is available down low, which is what actually keeps
-the back out once the revs have fallen into the middle of the range. Boosting power alone was
-asking the engine for help in the one place a sideways car never is.
 
 **The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops
 pointing where it is going, which is what makes long drifts collapse — the back comes out, the
@@ -235,15 +170,8 @@ actually travelling is what a drift **is**. The compensation ramps in as that an
 rather than switching on at a line, because a car that suddenly found more power at twelve
 degrees would be harder to hold than one that never found any.
 
-**And more steering lock to catch it with**, on the same ramp. Catching a slide means winding on
-more opposite lock than the car came with, and once you run out there is nothing to do but wait
-and see where it goes — which is most of why GTA slides feel like they end of their own accord
-rather than because you saved them. Extended steering angle is the single most common
-modification made to a real drift car, for exactly this reason.
-
-Both are per *car* and per moment — `EnginePowerMultiplier` and `SteeringLimitMultiplier` — not
-handling data, which is per *model* and would change every other example of that car in the world
-for the session. And it asks the game which wheels steer rather than assuming the front two.
+Done with `EnginePowerMultiplier`, which is per *car* and per moment — not handling data, which
+is per *model* and would change every other example of that car in the world for the session.
 
 ## Drift mode
 

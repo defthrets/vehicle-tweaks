@@ -55,7 +55,6 @@ namespace VehicleTweaks.Driving
     internal sealed class FrontWheels
     {
         private readonly Settings _cfg;
-        private readonly Brake _brake;
 
         /// <summary>Which car was last looked at, and whether it drives its front wheels only.</summary>
         private int _car;
@@ -67,10 +66,9 @@ namespace VehicleTweaks.Driving
         private bool _spinning;
         private int _spun;
 
-        public FrontWheels(Settings cfg, Brake brake)
+        public FrontWheels(Settings cfg)
         {
             _cfg = cfg;
-            _brake = brake;
         }
 
         public void Update(Vehicle car, bool driving)
@@ -115,11 +113,7 @@ namespace VehicleTweaks.Driving
                 // a mod moving something that should not move.
                 var speed = Speed(car);
 
-                // THE HANDBRAKE IS ASKED FOR, NOT READ OFF ITS CONTROL. The manual gearbox
-                // can move it to a shoulder button, and a feature that kept reading
-                // Control.VehicleHandbrake would then be firing on the gearshift and never on
-                // the brake -- which is the sort of bug that gets blamed on the physics.
-                var want = _brake.Asked() &&
+                var want = Held(Control.VehicleHandbrake) &&
                            Held(Control.VehicleAccelerate) &&
                            Running(car) &&
                            Gripping(car) &&

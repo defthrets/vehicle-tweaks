@@ -1,13 +1,12 @@
 using System;
 using GTA;
-
+using GTA.Math;
 using VehicleTweaks.Core;
 
 namespace VehicleTweaks.Driving
 {
     /// <summary>
-    /// What happens while the car is sideways: the engine keeps pulling, and there is more
-    /// steering lock to catch it with.
+    /// The engine keeps pulling while the car is sideways.
     ///
     /// GTA BOGS A CAR DOWN THE MOMENT IT STOPS POINTING WHERE IT IS GOING, which is the thing
     /// that makes long drifts collapse: you get the back out, the power falls away underneath
@@ -19,34 +18,24 @@ namespace VehicleTweaks.Driving
     /// the same distinction the front-wheel handbrake turns on, and it is the reason this is a
     /// small safe thing rather than a large dangerous one.
     ///
-    /// AND MORE LOCK TO CATCH IT WITH, which is the other half of the same problem. Catching a
-    /// slide means winding on more opposite lock than the car came with, and once you run out
-    /// there is nothing left to do but wait and see where it goes -- which is why GTA drifts
-    /// feel like they end of their own accord rather than because you saved them. Extended
-    /// steering angle is the single most common modification made to a real drift car, and for
-    /// this exact reason.
-    ///
-    /// SteeringLimitMultiplier is per WHEEL and per car. Same small safe instrument, same
-    /// distinction from handling data, which is per model and permanent for the session.
-    ///
-    /// THE SLIDE IS MEASURED, NOT GUESSED AT -- and measured in ONE place, Attitude, which the
-    /// gearbox reads too. The angle between where the car is pointing and where it is actually
-    /// travelling is what a drift IS, and if these two features worked it out separately there
-    /// would be an angle somewhere in the middle at which the engine has found more power and
-    /// the gearbox has decided the car is straight.
-    ///
-    /// The compensation comes in gradually as the angle opens rather than switching on at a
-    /// line. A car that suddenly found more power at twelve degrees would be harder to hold
-    /// than one that never found any.
+    /// THE SLIDE IS MEASURED, NOT GUESSED AT. The angle between where the car is pointing and
+    /// where it is actually travelling is what a drift IS -- so it is worked out from those two
+    /// directly, and the compensation comes in gradually as the angle opens up rather than
+    /// switching on at a line. A car that suddenly found more power at twelve degrees would be
+    /// harder to hold than one that never found any.
     /// </summary>
     internal sealed class Slides
     {
+        /// <summary>Below this it is parking, not drifting, and the angle means nothing.</summary>
+        private const float Least = 6f;
+
+        /// <summary>Past this it is not a slide, it is reversing.</summary>
+        private const float Backwards = 90f;
+
         private readonly Settings _cfg;
 
         private int _car;
-
-        /// <summary>Whether anything is currently being held on the car, so it can be given back.</summary>
-        private bool _applied;
+        private bool _boosted;
 
         public Slides(Settings cfg)
         {
@@ -57,7 +46,7 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                if (!_cfg.DriftPower && !_cfg.CounterSteer)
+                if (!_cfg.DriftPower)
                 {
                     Release();
                     return;
@@ -77,44 +66,26 @@ namespace VehicleTweaks.Driving
                     _car = car.Handle;
                 }
 
-                var angle = Attitude.Sideways(car);
+                var angle = Slip(car);
 
                 if (angle < _cfg.DriftAngle)
                 {
-                    // Straight again. Both of these are states left on the car, so they are put
-                    // back rather than left to be noticed later as a car that feels quick and
-                    // steers oddly.
-                    if (_applied) Restore(car);
+                    // Straight again. The multiplier is a state left on the car, so it is put
+                    // back rather than left to be noticed later as a car that feels quick.
+                    if (_boosted) Restore(car);
                     return;
                 }
 
-                // RAMPED, not switched. Full effect is reached at three times the angle that
-                // counts as a slide, so both arrive as the car goes further sideways -- which is
-                // when the power is being taken away and when the lock is running out.
+                // RAMPED, not switched. Full compensation is reached at three times the angle
+                // that counts as a slide, so the power arrives as the car goes further sideways
+                // -- which is when it is being taken away.
                 var over = (angle - _cfg.DriftAngle) / (_cfg.DriftAngle * 2f);
 
                 if (over < 0f) over = 0f;
                 if (over > 1f) over = 1f;
 
-                if (_cfg.DriftPower)
-                {
-                    // BOTH MULTIPLIERS, because they are different halves of the engine and a
-                    // slide needs the other one. Power is the top end; TORQUE is what is
-                    // available down low, which is what actually keeps the back out when the
-                    // revs have fallen into the middle of the range. Boosting power alone was
-                    // asking the engine for help in the one place a sideways car never is.
-                    var found = 1f + (_cfg.DriftPowerBoost - 1f) * over;
-
-                    car.EnginePowerMultiplier = found;
-                    car.EngineTorqueMultiplier = found;
-                }
-
-                if (_cfg.CounterSteer)
-                {
-                    Lock(car, 1f + (_cfg.CounterSteerLock - 1f) * over);
-                }
-
-                _applied = true;
+                car.EnginePowerMultiplier = 1f + (_cfg.DriftPowerBoost - 1f) * over;
+                _boosted = true;
             }
             catch (Exception ex)
             {
@@ -124,44 +95,54 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// The steering wheels, given more lock.
+        /// How far sideways the car is, in degrees.
         ///
-        /// ASKED WHICH WHEELS STEER rather than assuming the front two. Most things in this game
-        /// steer with the front wheels and some do not, and IsSteeringWheel is the game's own
-        /// answer per wheel -- the same reasoning as reading IsDrivingWheel to find a
-        /// front-driver instead of working it out from the handling numbers.
+        /// The angle between the way it points and the way it is actually moving. Flattened,
+        /// because a car going down a hill is not drifting and the height difference would say
+        /// otherwise.
         /// </summary>
-        private static void Lock(Vehicle car, float multiplier)
+        private static float Slip(Vehicle car)
         {
             try
             {
-                foreach (var wheel in car.Wheels.GetAllWheels())
-                {
-                    if (wheel != null && wheel.IsSteeringWheel) wheel.SteeringLimitMultiplier = multiplier;
-                }
+                var travel = car.Velocity;
+                var facing = car.ForwardVector;
+
+                travel.Z = 0f;
+                facing.Z = 0f;
+
+                var speed = travel.Length();
+                if (speed < Least) return 0f;
+
+                travel.Normalize();
+                facing.Normalize();
+
+                var dot = Vector3.Dot(travel, facing);
+
+                if (dot > 1f) dot = 1f;
+                if (dot < -1f) dot = -1f;
+
+                var angle = (float)(Math.Acos(dot) * 180.0 / Math.PI);
+
+                // Reversing is not sliding, and it reads as almost a hundred and eighty degrees.
+                return angle >= Backwards ? 0f : angle;
             }
             catch
             {
-                // Something without wheels, or without those wheels. Nothing to steer with.
+                return 0f;
             }
         }
 
         private void Restore(Vehicle car)
         {
-            _applied = false;
+            _boosted = false;
 
-            try
-            {
-                car.EnginePowerMultiplier = 1f;
-                car.EngineTorqueMultiplier = 1f;
-            }
+            try { car.EnginePowerMultiplier = 1f; }
             catch { /* the next frame will try again */ }
-
-            Lock(car, 1f);
         }
 
         /// <summary>
-        /// Hands the power and the steering back, wherever they were given.
+        /// Hands the power back, wherever it was given.
         ///
         /// BY HANDLE, like every other override in here: stepping out of one car and into
         /// another has to put the first one's engine back to normal, and that car is no longer
@@ -169,7 +150,7 @@ namespace VehicleTweaks.Driving
         /// </summary>
         public void Release()
         {
-            if (!_applied)
+            if (!_boosted)
             {
                 _car = 0;
                 return;
@@ -177,21 +158,17 @@ namespace VehicleTweaks.Driving
 
             var handle = _car;
 
-            _applied = false;
+            _boosted = false;
             _car = 0;
 
             try
             {
                 var car = (Vehicle)Entity.FromHandle(handle);
-                if (car == null || !car.Exists()) return;
-
-                car.EnginePowerMultiplier = 1f;
-                car.EngineTorqueMultiplier = 1f;
-                Lock(car, 1f);
+                if (car != null && car.Exists()) car.EnginePowerMultiplier = 1f;
             }
             catch
             {
-                // The car is gone, and both went with it.
+                // The car is gone, and the multiplier went with it.
             }
         }
     }

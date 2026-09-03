@@ -423,45 +423,6 @@ namespace VehicleTweaks.UI
             // adding fresh defaults under a new heading while somebody's real values sat under
             // the old one, and the new copy would win. A page is a way to find a setting; the
             // section is where the value has always lived.
-            var train = Add("DRIVETRAIN");
-
-            train.Items.Add(Header("THE GEARBOX"));
-
-            train.Items.Add(Toggle("Manual gearbox", () => _cfg.ManualBox,
-                                   v => _cfg.ManualBox = v, "Driving", "ManualBox",
-                                   "You change gear. A up, X down, handbrake to RB."));
-
-            train.Items.Add(Toggle("Hold first and second", () => _cfg.HoldLowGears,
-                                   v => _cfg.HoldLowGears = v, "Driving", "HoldLowGears",
-                                   "GTA's low gears are short and it leaves them early.",
-                                   () => !_cfg.ManualBox));
-
-            train.Items.Add(Number("For how much longer", () => _cfg.HoldLowGearsSeconds,
-                                   v => _cfg.HoldLowGearsSeconds = v, 0.05f, 0.1f, 2f, "0.00", "s",
-                                   "Driving", "HoldLowGearsSeconds",
-                                   "From the throttle going down. Meant to be felt, not noticed.",
-                                   () => _cfg.HoldLowGears && !_cfg.ManualBox));
-
-            train.Items.Add(Header("THE REV COUNTER"));
-
-            train.Items.Add(Toggle("Revs read the wheels", () => _cfg.RevsFollowWheels,
-                                   v => _cfg.RevsFollowWheels = v, "Driving", "RevsFollowWheels",
-                                   "So a lit tyre shows on the tacho, and can be heard."));
-
-            train.Items.Add(Number("How far they climb", () => _cfg.RevsWheelspinGain,
-                                   v => _cfg.RevsWheelspinGain = v, 0.05f, 0f, 1f, "0.00", null,
-                                   "Driving", "RevsWheelspinGain",
-                                   "Of the whole rev range, added on top, at a full spin.",
-                                   () => _cfg.RevsFollowWheels));
-
-            train.Items.Add(Header("WHAT COUNTS AS SPINNING"));
-
-            train.Items.Add(Number("Wheels outrun the road by", () => _cfg.WheelspinSlip,
-                                   v => _cfg.WheelspinSlip = v, 0.5f, 0.5f, 20f, "0.0", "m/s",
-                                   "Driving", "WheelspinSlip",
-                                   "How far the wheels outrun the road before it counts.",
-                                   () => _cfg.RevsFollowWheels));
-
             var grip = Add("GRIP");
 
             grip.Items.Add(Header("THE HANDBRAKE"));
@@ -502,21 +463,11 @@ namespace VehicleTweaks.UI
                                   "At full slide. 1.00 is none at all.",
                                   () => _cfg.DriftPower));
 
-            grip.Items.Add(Toggle("More lock to catch it", () => _cfg.CounterSteer,
-                                  v => _cfg.CounterSteer = v, "Driving", "CounterSteer",
-                                  "Running out of steering is why GTA slides end by themselves."));
-
-            grip.Items.Add(Number("How much more lock", () => _cfg.CounterSteerLock,
-                                  v => _cfg.CounterSteerLock = v, 0.05f, 1f, 3f, "0.00", null,
-                                  "Driving", "CounterSteerLock",
-                                  "At full slide. 1.00 is the car as it came.",
-                                  () => _cfg.CounterSteer));
-
             grip.Items.Add(Number("Counts as a slide past", () => _cfg.DriftAngle,
                                   v => _cfg.DriftAngle = v, 1f, 3f, 60f, "0", "deg",
                                   "Driving", "DriftAngle",
-                                  "Between where it points and where it is going. Governs both.",
-                                  () => _cfg.DriftPower || _cfg.CounterSteer));
+                                  "Between where it points and where it is going.",
+                                  () => _cfg.DriftPower));
 
             var leave = Add("LEAVING");
 
