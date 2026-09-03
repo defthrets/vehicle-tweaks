@@ -405,6 +405,46 @@ namespace VehicleTweaks.Core
         public float DriftPowerBoost = 1.4f;
 
         /// <summary>
+        /// More steering lock while the car is sideways, so a slide can be caught.
+        ///
+        /// THIS IS HOW A REAL DRIFT CAR IS BUILT. The single most common modification on one is
+        /// extended steering angle -- knuckles, spacers, whatever it takes -- for exactly this
+        /// reason: catching a slide means winding on more opposite lock than the car came with,
+        /// and once you run out of lock the car is going wherever it was already going.
+        ///
+        /// The stock limit is what makes GTA drifts feel like they end by themselves. It is per
+        /// WHEEL and per car, not handling data, so it is the same small safe instrument as the
+        /// power above.
+        /// </summary>
+        public bool CounterSteer = true;
+
+        /// <summary>
+        /// How much more lock, at full slide. 1.0 is the car as it came.
+        ///
+        /// Reached on the same ramp as the power, so both arrive as the angle opens rather than
+        /// switching on at a line -- a car whose steering suddenly got quicker mid-corner would
+        /// be harder to hold, not easier.
+        /// </summary>
+        public float CounterSteerLock = 1.6f;
+
+        /// <summary>
+        /// How far sideways you have to be, in degrees, before all of that lock has arrived.
+        ///
+        /// THE HALF THAT USED TO BE HARD-CODED. How MUCH extra lock was a setting from the
+        /// start; where it turns up was three times the slide angle and nothing else, which is
+        /// the part you actually feel. Arriving too early is a car that goes vague as soon as it
+        /// steps out; too late is running out of steering in the only moment it was needed.
+        ///
+        /// Thirty degrees is a proper slide, held. Anything under about fifteen means the extra
+        /// lock is already all there by the time you have noticed the back move.
+        ///
+        /// SEPARATE FROM THE POWER'S RAMP, deliberately. The power is undoing something the game
+        /// does to a sideways car, so it follows the game's problem; the lock is giving you
+        /// something, so where it arrives is taste.
+        /// </summary>
+        public float CounterSteerFull = 30f;
+
+        /// <summary>
         /// How far sideways counts as a slide, in degrees.
         ///
         /// The angle between where the car points and where it is actually travelling, which is
@@ -692,6 +732,9 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
+                s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
+                s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
+                s.CounterSteerFull = ini.GetFloat("Driving", "CounterSteerFull", s.CounterSteerFull, 5f, 90f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
