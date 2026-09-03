@@ -404,25 +404,78 @@ namespace VehicleTweaks.Core
         /// </summary>
         public float DriftPowerBoost = 1.4f;
 
-        /// <summary>
-        /// Second gear stays second for a while, rather than a step the box passes through.
-        ///
-        /// SECOND IS THE USEFUL ONE and the game barely lets you have it: it is the gear for
-        /// coming out of a junction, holding a slide, or getting the back out on purpose, and
-        /// the box treats it as the way to third or drops back to first the moment the speed
-        /// falls. Held against BOTH, because holding one direction alone just loses it the other
-        /// way.
-        /// </summary>
-        public bool HoldSecond = true;
+        // ---- the drivetrain ---------------------------------------------------
 
         /// <summary>
-        /// How long it is held for, in seconds.
+        /// The gearbox stops shifting on road speed and starts paying attention to the car.
         ///
-        /// A window rather than a rule, so the box is never permanently one gear -- and it lets
-        /// go the moment the throttle does regardless, because refusing to change down for
-        /// somebody trying to slow is the same interference in the other direction.
+        /// EVERY DRIVETRAIN COMPLAINT IN THIS GAME COMES FROM ONE FACT: GTA's box shifts on how
+        /// fast the car is going. Sideways it upshifts, because the road speed is still rising,
+        /// and the torque drop ends the slide. Scrubbing speed sideways it drops to first, which
+        /// is a torque spike into a car that is already loose. Spinning the tyres it does
+        /// nothing at all, because the road speed never moved.
+        ///
+        /// THE MASTER SWITCH for both halves below. Off, the gearbox and the rev counter are
+        /// exactly the game's, with nothing written.
         /// </summary>
-        public float HoldSecondSeconds = 2.5f;
+        public bool SmartGearbox = true;
+
+        /// <summary>
+        /// While the car is sideways, the gear it is in is the gear it keeps.
+        ///
+        /// BOTH DIRECTIONS, because a slide loses it both ways. The upshift ends the drift by
+        /// taking the torque away; the drop to first ends it by putting too much back in at
+        /// once. Neither has anything to do with what the engine is doing.
+        /// </summary>
+        public bool HoldGearSideways = true;
+
+        /// <summary>
+        /// While the tyres are lit, the gear it is in is the gear it keeps.
+        ///
+        /// AN UPSHIFT ENDS A WHEELSPIN, which is the whole problem: the revs climb, the box
+        /// takes the next gear, the torque at the wheels falls with it and the tyres hook up.
+        /// The game stops the thing you were deliberately doing at the exact moment it started
+        /// working.
+        ///
+        /// SEPARATE FROM THE ONE ABOVE because they are separate wants. A burnout is not a
+        /// drift, and somebody who never goes sideways on purpose may still want the one.
+        /// </summary>
+        public bool HoldGearWheelspin = true;
+
+        /// <summary>
+        /// The rev counter reads the wheels, so a lit tyre shows on it and can be heard.
+        ///
+        /// GTA'S REVS FOLLOW ROAD SPEED, so the one moment the engine is working hardest --
+        /// tyres spinning, car going nowhere -- is the one moment the needle says nothing. The
+        /// engine note comes off the same value, so this is as much about what a burnout SOUNDS
+        /// like as what the tacho shows.
+        ///
+        /// Only ever upwards, and never held: the instant the tyres grip, this stops writing and
+        /// the engine is the game's again on the next frame.
+        /// </summary>
+        public bool RevsFollowWheels = true;
+
+        /// <summary>
+        /// How far up the range a fully lit tyre pushes the revs, as a fraction of the whole.
+        ///
+        /// 0.5 is half the rev range added on top of wherever the engine already was, which is
+        /// enough to reach the limiter from the middle without pinning it there from idle.
+        /// </summary>
+        public float RevsWheelspinGain = 0.5f;
+
+        /// <summary>
+        /// How much faster the wheels have to turn than the road goes by, in metres a second,
+        /// before it counts as spinning.
+        ///
+        /// MEASURED RATHER THAN ASSUMED FROM THE THROTTLE. Wheel speed against road speed is the
+        /// tyres turning faster than the ground is passing, which is what wheelspin IS; a
+        /// throttle position says nothing about whether they have actually let go.
+        ///
+        /// ONE NUMBER, TWO USES, deliberately: it is where the gear starts being held and it is
+        /// where the revs reach their full extra. Two settings for the same physical fact would
+        /// be two numbers that can disagree about whether a tyre is spinning.
+        /// </summary>
+        public float WheelspinSlip = 3.0f;
 
         /// <summary>
         /// More steering lock while the car is sideways, so a slide can be caught.
@@ -735,8 +788,12 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
-                s.HoldSecond = ini.GetBool("Driving", "HoldSecond", s.HoldSecond);
-                s.HoldSecondSeconds = ini.GetFloat("Driving", "HoldSecondSeconds", s.HoldSecondSeconds, 0.5f, 10f);
+                s.SmartGearbox = ini.GetBool("Driving", "SmartGearbox", s.SmartGearbox);
+                s.HoldGearSideways = ini.GetBool("Driving", "HoldGearSideways", s.HoldGearSideways);
+                s.HoldGearWheelspin = ini.GetBool("Driving", "HoldGearWheelspin", s.HoldGearWheelspin);
+                s.RevsFollowWheels = ini.GetBool("Driving", "RevsFollowWheels", s.RevsFollowWheels);
+                s.RevsWheelspinGain = ini.GetFloat("Driving", "RevsWheelspinGain", s.RevsWheelspinGain, 0f, 1f);
+                s.WheelspinSlip = ini.GetFloat("Driving", "WheelspinSlip", s.WheelspinSlip, 0.5f, 20f);
                 s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);

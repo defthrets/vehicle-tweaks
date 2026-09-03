@@ -1,6 +1,6 @@
 using System;
 using GTA;
-using GTA.Math;
+
 using VehicleTweaks.Core;
 
 namespace VehicleTweaks.Driving
@@ -29,20 +29,18 @@ namespace VehicleTweaks.Driving
     /// SteeringLimitMultiplier is per WHEEL and per car. Same small safe instrument, same
     /// distinction from handling data, which is per model and permanent for the session.
     ///
-    /// THE SLIDE IS MEASURED, NOT GUESSED AT. The angle between where the car is pointing and
-    /// where it is actually travelling is what a drift IS -- so it is worked out from those two
-    /// directly, and the compensation comes in gradually as the angle opens up rather than
-    /// switching on at a line. A car that suddenly found more power at twelve degrees would be
-    /// harder to hold than one that never found any.
+    /// THE SLIDE IS MEASURED, NOT GUESSED AT -- and measured in ONE place, Attitude, which the
+    /// gearbox reads too. The angle between where the car is pointing and where it is actually
+    /// travelling is what a drift IS, and if these two features worked it out separately there
+    /// would be an angle somewhere in the middle at which the engine has found more power and
+    /// the gearbox has decided the car is straight.
+    ///
+    /// The compensation comes in gradually as the angle opens rather than switching on at a
+    /// line. A car that suddenly found more power at twelve degrees would be harder to hold
+    /// than one that never found any.
     /// </summary>
     internal sealed class Slides
     {
-        /// <summary>Below this it is parking, not drifting, and the angle means nothing.</summary>
-        private const float Least = 6f;
-
-        /// <summary>Past this it is not a slide, it is reversing.</summary>
-        private const float Backwards = 90f;
-
         private readonly Settings _cfg;
 
         private int _car;
@@ -79,7 +77,7 @@ namespace VehicleTweaks.Driving
                     _car = car.Handle;
                 }
 
-                var angle = Slip(car);
+                var angle = Attitude.Sideways(car);
 
                 if (angle < _cfg.DriftAngle)
                 {
@@ -100,7 +98,15 @@ namespace VehicleTweaks.Driving
 
                 if (_cfg.DriftPower)
                 {
-                    car.EnginePowerMultiplier = 1f + (_cfg.DriftPowerBoost - 1f) * over;
+                    // BOTH MULTIPLIERS, because they are different halves of the engine and a
+                    // slide needs the other one. Power is the top end; TORQUE is what is
+                    // available down low, which is what actually keeps the back out when the
+                    // revs have fallen into the middle of the range. Boosting power alone was
+                    // asking the engine for help in the one place a sideways car never is.
+                    var found = 1f + (_cfg.DriftPowerBoost - 1f) * over;
+
+                    car.EnginePowerMultiplier = found;
+                    car.EngineTorqueMultiplier = found;
                 }
 
                 if (_cfg.CounterSteer)
@@ -114,45 +120,6 @@ namespace VehicleTweaks.Driving
             {
                 Release();
                 Log.Once("slides", "Holding the power through a slide fell over: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// How far sideways the car is, in degrees.
-        ///
-        /// The angle between the way it points and the way it is actually moving. Flattened,
-        /// because a car going down a hill is not drifting and the height difference would say
-        /// otherwise.
-        /// </summary>
-        private static float Slip(Vehicle car)
-        {
-            try
-            {
-                var travel = car.Velocity;
-                var facing = car.ForwardVector;
-
-                travel.Z = 0f;
-                facing.Z = 0f;
-
-                var speed = travel.Length();
-                if (speed < Least) return 0f;
-
-                travel.Normalize();
-                facing.Normalize();
-
-                var dot = Vector3.Dot(travel, facing);
-
-                if (dot > 1f) dot = 1f;
-                if (dot < -1f) dot = -1f;
-
-                var angle = (float)(Math.Acos(dot) * 180.0 / Math.PI);
-
-                // Reversing is not sliding, and it reads as almost a hundred and eighty degrees.
-                return angle >= Backwards ? 0f : angle;
-            }
-            catch
-            {
-                return 0f;
             }
         }
 
@@ -183,7 +150,11 @@ namespace VehicleTweaks.Driving
         {
             _applied = false;
 
-            try { car.EnginePowerMultiplier = 1f; }
+            try
+            {
+                car.EnginePowerMultiplier = 1f;
+                car.EngineTorqueMultiplier = 1f;
+            }
             catch { /* the next frame will try again */ }
 
             Lock(car, 1f);
@@ -215,6 +186,7 @@ namespace VehicleTweaks.Driving
                 if (car == null || !car.Exists()) return;
 
                 car.EnginePowerMultiplier = 1f;
+                car.EngineTorqueMultiplier = 1f;
                 Lock(car, 1f);
             }
             catch

@@ -423,6 +423,46 @@ namespace VehicleTweaks.UI
             // adding fresh defaults under a new heading while somebody's real values sat under
             // the old one, and the new copy would win. A page is a way to find a setting; the
             // section is where the value has always lived.
+            var train = Add("DRIVETRAIN");
+
+            train.Items.Add(Header("THE GEARBOX"));
+
+            train.Items.Add(Toggle("Stop shifting on speed", () => _cfg.SmartGearbox,
+                                   v => _cfg.SmartGearbox = v, "Driving", "SmartGearbox",
+                                   "GTA shifts on how fast you are going, not on the engine."));
+
+            train.Items.Add(Toggle("Hold the gear sideways", () => _cfg.HoldGearSideways,
+                                   v => _cfg.HoldGearSideways = v, "Driving", "HoldGearSideways",
+                                   "The upshift kills the slide. So does the drop to first.",
+                                   () => _cfg.SmartGearbox));
+
+            train.Items.Add(Toggle("Hold it through a wheelspin", () => _cfg.HoldGearWheelspin,
+                                   v => _cfg.HoldGearWheelspin = v, "Driving", "HoldGearWheelspin",
+                                   "An upshift ends a burnout right when it starts working.",
+                                   () => _cfg.SmartGearbox));
+
+            train.Items.Add(Header("THE REV COUNTER"));
+
+            train.Items.Add(Toggle("Revs read the wheels", () => _cfg.RevsFollowWheels,
+                                   v => _cfg.RevsFollowWheels = v, "Driving", "RevsFollowWheels",
+                                   "So a lit tyre shows on the tacho, and can be heard.",
+                                   () => _cfg.SmartGearbox));
+
+            train.Items.Add(Number("How far they climb", () => _cfg.RevsWheelspinGain,
+                                   v => _cfg.RevsWheelspinGain = v, 0.05f, 0f, 1f, "0.00", null,
+                                   "Driving", "RevsWheelspinGain",
+                                   "Of the whole rev range, added on top, at a full spin.",
+                                   () => _cfg.SmartGearbox && _cfg.RevsFollowWheels));
+
+            train.Items.Add(Header("WHAT COUNTS AS SPINNING"));
+
+            train.Items.Add(Number("Wheels outrun the road by", () => _cfg.WheelspinSlip,
+                                   v => _cfg.WheelspinSlip = v, 0.5f, 0.5f, 20f, "0.0", "m/s",
+                                   "Driving", "WheelspinSlip",
+                                   "One number for both: where the gear holds and the revs peak.",
+                                   () => _cfg.SmartGearbox &&
+                                         (_cfg.HoldGearWheelspin || _cfg.RevsFollowWheels)));
+
             var grip = Add("GRIP");
 
             grip.Items.Add(Header("THE HANDBRAKE"));
@@ -451,18 +491,6 @@ namespace VehicleTweaks.UI
                                   "0 is off. Nudge it while driving and the car changes under you."));
 
 
-            grip.Items.Add(Header("SECOND GEAR"));
-
-            grip.Items.Add(Toggle("Hold second", () => _cfg.HoldSecond, v => _cfg.HoldSecond = v,
-                                  "Driving", "HoldSecond",
-                                  "Against third AND against first. Lifting off lets it go."));
-
-            grip.Items.Add(Number("Hold it for", () => _cfg.HoldSecondSeconds,
-                                  v => _cfg.HoldSecondSeconds = v, 0.5f, 0.5f, 10f, "0.0", "s",
-                                  "Driving", "HoldSecondSeconds",
-                                  "From when the box picks second, while you stay on the power.",
-                                  () => _cfg.HoldSecond));
-
             grip.Items.Add(Header("UNDER A SLIDE"));
 
             grip.Items.Add(Toggle("Keep the power on", () => _cfg.DriftPower,
@@ -488,8 +516,9 @@ namespace VehicleTweaks.UI
             grip.Items.Add(Number("Counts as a slide past", () => _cfg.DriftAngle,
                                   v => _cfg.DriftAngle = v, 1f, 3f, 60f, "0", "deg",
                                   "Driving", "DriftAngle",
-                                  "Between where it points and where it is going. Governs both.",
-                                  () => _cfg.DriftPower || _cfg.CounterSteer));
+                                  "Between where it points and where it goes. Governs the gearbox too.",
+                                  () => _cfg.DriftPower || _cfg.CounterSteer ||
+                                        (_cfg.SmartGearbox && _cfg.HoldGearSideways)));
 
             var leave = Add("LEAVING");
 
