@@ -85,7 +85,11 @@ namespace VehicleTweaks.Driving
 
                 if (_cfg.RevsFollowWheels) Rev(car, Attitude.Wheelspin(car));
 
-                if (_cfg.HoldLowGears) Hold(car);
+                // NOT WHILE THE BOX IS MANUAL. Both of these cap HighGear, and two features
+                // writing the same field is one of them silently winning -- a manual gearbox
+                // with a hold on first and second is a manual gearbox that changes gear on its
+                // own, which is the one thing it must never do.
+                if (_cfg.HoldLowGears && !_cfg.ManualBox) Hold(car);
                 else Uncap(car);
             }
             catch (Exception ex)

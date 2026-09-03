@@ -407,6 +407,46 @@ namespace VehicleTweaks.Core
         // ---- the drivetrain ---------------------------------------------------
 
         /// <summary>
+        /// You change gear. Nothing else does.
+        ///
+        /// OFF, AND IT IS THE ONLY THING HERE THAT HAS TO BE. Everything else in this mod is a
+        /// small correction to a car that still drives the way you expect; this changes what the
+        /// car IS. Get in with it on and you will pull away in whatever gear you left it in.
+        /// That is a choice, not an improvement.
+        ///
+        /// Below walking pace it writes nothing at all, so reverse still works exactly as it
+        /// did -- and the gear goes quietly back to first, so pulling away is never in fifth
+        /// because that is where you happened to stop.
+        /// </summary>
+        public bool ManualBox = false;
+
+        /// <summary>
+        /// The pad buttons, up and down, by GTA control name.
+        ///
+        /// A AND X, WHICH ARE NOT FREE BUTTONS. There is no spare button on a pad -- every face
+        /// button, shoulder and stick is already a gameplay action -- so these share with
+        /// whatever the game does with them in a car, and a shift will do both things. They are
+        /// settings for exactly that reason, and paddles on the bumpers (FrontendLb, FrontendRb)
+        /// are what a real sequential box uses anyway.
+        ///
+        /// The log names which physical button each vehicle action sits on, once, out of the
+        /// game's own glyph table, so the collision is something you can read rather than
+        /// something to discover at a junction.
+        /// </summary>
+        public string ManualUpPad = "FrontendAccept";
+        public string ManualDownPad = "FrontendX";
+
+        /// <summary>
+        /// And the same two on a keyboard.
+        ///
+        /// SHIFT AND CONTROL, the pair every driving game has used for this since before they
+        /// had pads. Left Control is the game's duck-in-a-vehicle, which is a collision worth
+        /// naming and not worth avoiding; both are settings.
+        /// </summary>
+        public Keys ManualUpKey = Keys.LShiftKey;
+        public Keys ManualDownKey = Keys.LControlKey;
+
+        /// <summary>
         /// First and second are held very slightly longer under power.
         ///
         /// GTA'S LOW GEARS ARE SHORT AND IT LEAVES THEM EARLY, so pulling away is two flat
@@ -777,6 +817,12 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
+                s.ManualBox = ini.GetBool("Driving", "ManualBox", s.ManualBox);
+                s.ManualUpPad = ini.GetString("Driving", "ManualUpPad", s.ManualUpPad);
+                s.ManualDownPad = ini.GetString("Driving", "ManualDownPad", s.ManualDownPad);
+                s.ManualUpKey = ini.GetKey("Driving", "ManualUpKey", s.ManualUpKey);
+                s.ManualDownKey = ini.GetKey("Driving", "ManualDownKey", s.ManualDownKey);
+
                 s.HoldLowGears = ini.GetBool("Driving", "HoldLowGears", s.HoldLowGears);
                 s.HoldLowGearsSeconds = ini.GetFloat("Driving", "HoldLowGearsSeconds", s.HoldLowGearsSeconds, 0.1f, 2f);
                 s.RevsFollowWheels = ini.GetBool("Driving", "RevsFollowWheels", s.RevsFollowWheels);

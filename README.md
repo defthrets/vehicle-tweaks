@@ -158,6 +158,31 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## The manual gearbox
+
+**You change gear. Nothing else does.** `A` up, `X` down on a pad; `Shift` and `Ctrl` on a
+keyboard. All four are settings.
+
+**Off by default, and it is the only thing here that has to be.** Everything else in this mod is
+a small correction to a car that still drives the way you expect. This changes what the car *is*:
+get in with it on and you will pull away in whatever gear you left it in. That is a choice, not
+an improvement.
+
+**A and X are not free buttons.** There is no spare button on a pad — every face button, shoulder
+and stick is already a gameplay action — so a shift shares its button with whatever the game
+already does with it, and pressing one will do both things. Paddles on the bumpers (`FrontendLb`,
+`FrontendRb`) are what a real sequential box uses anyway. The log names **which physical button
+each vehicle action sits on**, once, out of the game's own glyph table, so the collision is a line
+you can read rather than something to find out about at a junction.
+
+**Hands off at a standstill**, which is what makes reverse still work. Reverse is gear nought, and
+a forward gear written sixty times a second over the top of it is a car that can never reverse —
+so below walking pace it writes nothing and the game has its own box back. The gear also goes
+quietly to first down there, so pulling away is never in fifth because that is where you stopped.
+
+While it is on, the hold on first and second does nothing. Both cap the same field, and a manual
+gearbox that changes gear on its own is the one thing a manual gearbox must never be.
+
 ## The drivetrain
 
 **The shifting is the game's.** An earlier version held the gear through a slide and through a

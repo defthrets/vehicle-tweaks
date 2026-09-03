@@ -427,15 +427,20 @@ namespace VehicleTweaks.UI
 
             train.Items.Add(Header("THE GEARBOX"));
 
+            train.Items.Add(Toggle("Manual gearbox", () => _cfg.ManualBox,
+                                   v => _cfg.ManualBox = v, "Driving", "ManualBox",
+                                   "You change gear. The buttons are in the ini."));
+
             train.Items.Add(Toggle("Hold first and second", () => _cfg.HoldLowGears,
                                    v => _cfg.HoldLowGears = v, "Driving", "HoldLowGears",
-                                   "GTA's low gears are short and it leaves them early."));
+                                   "GTA's low gears are short and it leaves them early.",
+                                   () => !_cfg.ManualBox));
 
             train.Items.Add(Number("For how much longer", () => _cfg.HoldLowGearsSeconds,
                                    v => _cfg.HoldLowGearsSeconds = v, 0.05f, 0.1f, 2f, "0.00", "s",
                                    "Driving", "HoldLowGearsSeconds",
                                    "From the throttle going down. Meant to be felt, not noticed.",
-                                   () => _cfg.HoldLowGears));
+                                   () => _cfg.HoldLowGears && !_cfg.ManualBox));
 
             train.Items.Add(Header("THE REV COUNTER"));
 

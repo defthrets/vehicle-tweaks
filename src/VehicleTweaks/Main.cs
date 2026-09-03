@@ -56,6 +56,7 @@ namespace VehicleTweaks
         private readonly Chauffeur _chauffeur;
         private readonly Slides _slides;
         private readonly Drivetrain _drivetrain;
+        private readonly Manual _manual;
 
         private int _failures;
         private bool _parked;
@@ -80,6 +81,7 @@ namespace VehicleTweaks
             _chauffeur = new Chauffeur(_cfg);
             _slides = new Slides(_cfg);
             _drivetrain = new Drivetrain(_cfg);
+            _manual = new Manual(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -110,7 +112,7 @@ namespace VehicleTweaks
         {
             if (_parked) return;
 
-            try { _menu.OnKey(e.KeyCode); }
+            try { _menu.OnKey(e.KeyCode); _manual.OnKey(e.KeyCode); }
             catch (Exception ex) { Log.Once("keydown", "Key handling failed: " + ex.Message); }
         }
 
@@ -158,6 +160,7 @@ namespace VehicleTweaks
                     _chauffeur.Update(me);
                     _slides.Update(me);
                     _drivetrain.Update(me);
+                    _manual.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
@@ -294,6 +297,7 @@ namespace VehicleTweaks
             try { _cruise.Release(); } catch (Exception ex) { Log.Error("Cruise", ex); }
             try { _slides.Release(); } catch (Exception ex) { Log.Error("Slide power", ex); }
             try { _drivetrain.Release(); } catch (Exception ex) { Log.Error("Gearbox", ex); }
+            try { _manual.Release(); } catch (Exception ex) { Log.Error("Manual gearbox", ex); }
             try { _myCar.Release(); } catch (Exception ex) { Log.Error("Parked car", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
