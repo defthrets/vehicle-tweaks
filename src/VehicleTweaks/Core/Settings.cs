@@ -405,6 +405,26 @@ namespace VehicleTweaks.Core
         public float DriftPowerBoost = 1.4f;
 
         /// <summary>
+        /// While the tyres are spinning, the gear it is in is the gear it stays in.
+        ///
+        /// AN UPSHIFT ENDS A WHEELSPIN. The revs climb, the box takes the next gear, the torque
+        /// at the wheels drops with it and the tyres hook up -- so the game stops the thing you
+        /// were deliberately doing at the exact moment it was working. Holding a burnout or
+        /// feeding power into a slide means fighting the gearbox as much as the car.
+        /// </summary>
+        public bool HoldGear = true;
+
+        /// <summary>
+        /// How much faster the wheels have to be turning than the car is moving, in metres a
+        /// second, before it counts as spinning.
+        ///
+        /// MEASURED RATHER THAN ASSUMED FROM THE THROTTLE. WheelSpeed against Speed is the tyres
+        /// turning faster than the road is going by, which is what wheelspin IS; a throttle
+        /// position says nothing about whether they have actually let go.
+        /// </summary>
+        public float HoldGearSlip = 3.0f;
+
+        /// <summary>
         /// More steering lock while the car is sideways, so a slide can be caught.
         ///
         /// THIS IS HOW A REAL DRIFT CAR IS BUILT. The single most common modification on one is
@@ -715,6 +735,8 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
+                s.HoldGear = ini.GetBool("Driving", "HoldGear", s.HoldGear);
+                s.HoldGearSlip = ini.GetFloat("Driving", "HoldGearSlip", s.HoldGearSlip, 0.5f, 20f);
                 s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);

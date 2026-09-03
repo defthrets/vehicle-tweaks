@@ -55,6 +55,7 @@ namespace VehicleTweaks
         private readonly Cruise _cruise;
         private readonly Chauffeur _chauffeur;
         private readonly Slides _slides;
+        private readonly Gearing _gearing;
 
         private int _failures;
         private bool _parked;
@@ -78,6 +79,7 @@ namespace VehicleTweaks
             _cruise = new Cruise(_cfg);
             _chauffeur = new Chauffeur(_cfg);
             _slides = new Slides(_cfg);
+            _gearing = new Gearing(_cfg);
 
             // Every frame. Both features read controls, and a control read on a slower interval
             // is a key press that lands between two ticks and never happened.
@@ -155,6 +157,7 @@ namespace VehicleTweaks
                     _cruise.Update(me);
                     _chauffeur.Update(me);
                     _slides.Update(me);
+                    _gearing.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
