@@ -451,17 +451,17 @@ namespace VehicleTweaks.UI
                                   "0 is off. Nudge it while driving and the car changes under you."));
 
 
-            grip.Items.Add(Header("WHEELSPIN"));
+            grip.Items.Add(Header("SECOND GEAR"));
 
-            grip.Items.Add(Toggle("Hold the gear", () => _cfg.HoldGear, v => _cfg.HoldGear = v,
-                                  "Driving", "HoldGear",
-                                  "An upshift ends a wheelspin, right when it was working."));
+            grip.Items.Add(Toggle("Hold second", () => _cfg.HoldSecond, v => _cfg.HoldSecond = v,
+                                  "Driving", "HoldSecond",
+                                  "Against third AND against first. Lifting off lets it go."));
 
-            grip.Items.Add(Number("Counts as spinning past", () => _cfg.HoldGearSlip,
-                                  v => _cfg.HoldGearSlip = v, 0.5f, 0.5f, 20f, "0.0", "m/s",
-                                  "Driving", "HoldGearSlip",
-                                  "How far the wheels outrun the road before it holds.",
-                                  () => _cfg.HoldGear));
+            grip.Items.Add(Number("Hold it for", () => _cfg.HoldSecondSeconds,
+                                  v => _cfg.HoldSecondSeconds = v, 0.5f, 0.5f, 10f, "0.0", "s",
+                                  "Driving", "HoldSecondSeconds",
+                                  "From when the box picks second, while you stay on the power.",
+                                  () => _cfg.HoldSecond));
 
             grip.Items.Add(Header("UNDER A SLIDE"));
 

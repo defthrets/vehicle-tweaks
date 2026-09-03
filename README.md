@@ -158,24 +158,29 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
-## Wheelspin
+## Second gear
 
-**The gear it is in is the gear it stays in.** An upshift ends a wheelspin — the revs climb, the
-box takes the next gear, the torque at the wheels drops with it and the tyres hook up. The game
-stops the thing you were deliberately doing at the exact moment it was working.
+**Second is the useful one, and the game barely lets you have it.** It is the gear for coming
+out of a junction, holding a slide, or getting the back out on purpose — and the box treats it
+as a step on the way to third, or drops back to first the moment the speed falls. Either way the
+thing you were doing ends because the transmission had an opinion about it.
 
-The spin is *measured*: wheel speed against road speed is the tyres turning faster than the
-ground is going by, which is what wheelspin **is**. A throttle position says nothing about
-whether they have actually let go.
+It is held against **both** directions, which is the point: holding against the upshift alone
+still loses second every time you scrub off speed, and holding against the downshift alone leaves
+it running away into third.
 
-The gear is taken at the *start* of the spin and held there, not read fresh each frame —
-otherwise a shift that slipped through between two frames becomes the new floor and the box walks
-up through the gears one escape at a time.
+**On a timer, and only under power.** It lets go when the window runs out, so the box is never
+permanently one gear, and it lets go the moment you lift off, so coasting to a stop behaves
+exactly as it always has. Refusing to change down for somebody trying to slow down would be the
+same interference in the other direction.
 
-It works by **capping the top gear** rather than asking the box not to shift. `NextGear` is a
-statement of intent and the gearbox is the one making it — set it back and the box simply chooses
-again next frame. `HighGear` is the top gear the transmission *has*: cap it and there is nothing
-above to shift into. The original is written down first and put back on every path out.
+Three fields do three different jobs. `HighGear` is the top gear the transmission *has*, so
+capping it removes third as an option rather than arguing against it. `NextGear` is a statement
+of intent — set it alone and the box simply chooses again next frame. And `CurrentGear` is the
+only thing that stops the drop to first, because there is no floor to set; the gear itself is
+written. The original top gear is written down first and put back on every path out, **by
+handle**, so stepping straight from one car into another does not leave the first one capped at
+forty with nothing on screen to say why.
 
 ## Holding a slide
 

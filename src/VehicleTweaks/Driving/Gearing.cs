@@ -2,50 +2,46 @@ using System;
 using GTA;
 using VehicleTweaks.Core;
 
+// Both namespaces have a Control and only one of them is a game control.
+using Control = GTA.Control;
+
 namespace VehicleTweaks.Driving
 {
     /// <summary>
-    /// While the tyres are spinning, the gear it is in is the gear it stays in.
+    /// Second gear stays second for a while, rather than being somewhere the box passes through.
     ///
-    /// AN UPSHIFT ENDS A WHEELSPIN, which is the whole problem. The revs climb, the box takes
-    /// the next gear, the torque at the wheels drops with it and the tyres hook up -- so the
-    /// game puts a stop to the thing you were deliberately doing, at the exact moment it was
-    /// working. Anybody holding a burnout or feeding power into a slide is fighting the gearbox
-    /// as much as the car.
+    /// SECOND IS THE USEFUL ONE and GTA barely lets you have it. It is the gear for coming out of
+    /// a junction, holding a slide, or getting the back out on purpose -- and the box treats it
+    /// as a step on the way to third, or drops back to first the moment the speed falls. Either
+    /// way the thing you were doing ends because the transmission had an opinion about it.
     ///
-    /// THE SPIN IS MEASURED, not assumed from the throttle. WheelSpeed is how fast the wheels
-    /// are turning and Speed is how fast the car is actually going: when the first is well past
-    /// the second, the tyres are turning faster than the road is going by, and that is what
-    /// wheelspin IS. A throttle position would have said nothing about whether the tyres had
-    /// actually let go.
+    /// BOTH DIRECTIONS, which is the point. Holding against the upshift alone would still let it
+    /// fall to first every time you scrubbed off speed; holding against the downshift alone
+    /// leaves it running away into third. Second is held, and second means second.
     ///
-    /// THE GEAR IS TAKEN AT THE START OF THE SPIN and held there, rather than whatever gear is
-    /// current each frame. Holding "the current one" would let a shift that happened between two
-    /// frames become the new floor, and the box would walk up through the gears one escape at a
-    /// time -- slower than doing nothing, and much harder to explain.
+    /// ON A TIMER, AND ONLY UNDER POWER. It lets go when the window runs out, so the box is never
+    /// permanently one gear, and it lets go the moment the throttle does, so coasting to a stop
+    /// behaves exactly as it always has. Holding a gear against somebody who is trying to slow
+    /// down would be the transmission having an opinion again, in the other direction.
     ///
-    /// IT CAPS THE TOP GEAR, WHICH IS THE PART THAT ACTUALLY WORKS. The first version set
-    /// NextGear -- the gear the box is shifting towards -- on the reasoning that setting it back
-    /// is the instruction not to go up. It fired correctly, held for whole seconds at a time,
-    /// said so in the log, and did nothing you could feel: the box simply chose again on the
-    /// next frame. NextGear is a statement of intent and the gearbox is the one making it.
-    ///
-    /// HighGear is the top gear the box HAS. Cap it and there is nothing above to shift into,
-    /// which is a fact about the transmission rather than a request to it. That makes this a
-    /// real override -- a car left capped at first is a car stuck in first -- so the original is
-    /// written down before it is touched and put back on every path out, including the one where
-    /// the script is shutting down. This class had no Release before, and the comment saying it
-    /// did not need one was right about NextGear and is wrong now.
+    /// THIS REPLACES HOLDING WHATEVER GEAR A WHEELSPIN STARTED IN, which was asked for, built,
+    /// and then not wanted. Worth saying that the mechanism underneath is the same and its
+    /// effectiveness is still unproven: the version that capped HighGear was deployed but never
+    /// once ran, because the script was not reloaded before it was judged. So if second still
+    /// slips away, the honest next question is whether these fields move the gearbox at all --
+    /// and the log below is what answers it.
     /// </summary>
     internal sealed class Gearing
     {
-        /// <summary>Below this, wheel speed and road speed disagree for uninteresting reasons.</summary>
-        private const float Least = 1.5f;
+        /// <summary>The gear this is about. Second, and only second.</summary>
+        private const int Second = 2;
 
         private readonly Settings _cfg;
 
         private int _car;
-        private int _held;
+
+        /// <summary>When the hold started, or zero when nothing is being held.</summary>
+        private int _since;
 
         /// <summary>The top gear the box had before it was capped, so it can be given back.</summary>
         private int _top;
@@ -59,7 +55,7 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                if (!_cfg.HoldGear)
+                if (!_cfg.HoldSecond)
                 {
                     Release();
                     return;
@@ -79,83 +75,60 @@ namespace VehicleTweaks.Driving
                     _car = car.Handle;
                 }
 
-                if (!Spinning(car))
-                {
-                    if (_held != 0)
-                    {
-                        Restore(car);
-                        Log.Debug("Gear hold: released, tyres hooked up.");
-                    }
+                var gear = Gear(car);
 
+                // NOTHING HELD YET: second has to arrive on its own before it can be kept. This
+                // does not put the car into second, it stops the box leaving one it chose.
+                if (_since == 0)
+                {
+                    if (gear != Second || !OnPower()) return;
+
+                    _since = Game.GameTime;
+                    _top = Top(car);
+
+                    Log.Debug("Second gear: holding, top gear " + _top + " capped to " + Second + ".");
+                    Hold(car);
                     return;
                 }
 
-                if (_held == 0)
+                // Off the throttle, or the window is up. Either way the box is the game's again.
+                if (!OnPower())
                 {
-                    _held = Gear(car);
-                    _top = Top(car);
+                    Restore(car, "throttle released");
+                    return;
+                }
 
-                    Log.Debug("Gear hold: holding " + _held + " while the tyres spin, top gear " +
-                              _top + " capped to " + _held + ".");
+                if (Game.GameTime - _since >= (int)(_cfg.HoldSecondSeconds * 1000f))
+                {
+                    Restore(car, "held its " + _cfg.HoldSecondSeconds.ToString("0.0") + "s");
+                    return;
                 }
 
                 Hold(car);
             }
             catch (Exception ex)
             {
-                // A throw in here must not leave a gearbox capped. Release rather than merely
-                // forgetting, which is what this used to do back when there was nothing to undo.
+                // A throw in here must not leave a gearbox capped at second.
                 Release();
-                Log.Once("gearing", "Holding the gear fell over: " + ex.Message);
+                Log.Once("gearing", "Holding second fell over: " + ex.Message);
             }
         }
 
         /// <summary>
-        /// Whether the tyres are turning faster than the road is going past.
+        /// Keeps it in second, against the box going either way.
         ///
-        /// Both figures unsigned, because reversing is still wheelspin and the two would
-        /// otherwise cancel into nonsense. IsInBurnout is taken as well: it is the game's own
-        /// answer to the same question, and it catches the case where the car is not moving at
-        /// all and the difference alone is small.
-        /// </summary>
-        private bool Spinning(Vehicle car)
-        {
-            try
-            {
-                if (car.IsInBurnout) return true;
-
-                var wheels = Math.Abs(car.WheelSpeed);
-                var road = Math.Abs(car.Speed);
-
-                if (wheels < Least) return false;
-
-                return wheels - road >= _cfg.HoldGearSlip;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Keeps the box where it was, by leaving it nowhere to go.
-        ///
-        /// THE CAP IS THE ONE THAT BITES. HighGear is the top gear the transmission has, so
-        /// setting it to the held gear removes the option rather than arguing against it -- and
-        /// arguing was what the first version did, setting NextGear every frame while the box
-        /// cheerfully chose again on the next one.
-        ///
-        /// The other two stay as belt and braces. They cost a native call each and they close
-        /// the gap between the cap being set and the box noticing.
+        /// THREE FIELDS, AND THEY DO DIFFERENT JOBS. HighGear is the top gear the transmission
+        /// has, so capping it removes third as an option rather than arguing against it.
+        /// CurrentGear is what stops the drop to first, which no cap can do -- there is no floor
+        /// to set, so the gear itself is written. NextGear closes the gap between the two.
         /// </summary>
         private void Hold(Vehicle car)
         {
             try
             {
-                car.HighGear = _held;
-                car.NextGear = _held;
-
-                if (car.CurrentGear > _held) car.CurrentGear = _held;
+                car.HighGear = Second;
+                car.NextGear = Second;
+                car.CurrentGear = Second;
             }
             catch
             {
@@ -163,27 +136,29 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>Gives the box its gears back. Safe when nothing was ever taken.</summary>
-        private void Restore(Vehicle car)
+        private void Restore(Vehicle car, string why)
         {
             var top = _top;
 
-            _held = 0;
+            _since = 0;
             _top = 0;
 
-            if (top <= 0) return;
+            if (top > 0)
+            {
+                try { car.HighGear = top; }
+                catch { /* the release by handle is the other chance */ }
+            }
 
-            try { car.HighGear = top; }
-            catch { /* the release by handle below is the other chance */ }
+            Log.Debug("Second gear: let go, " + why + ".");
         }
 
         /// <summary>
         /// Uncaps the box wherever it was capped, and forgets the car.
         ///
-        /// BY HANDLE, like every other override in here. Stepping straight out of one car and
-        /// into another has to give the first one its gears back, and that car is no longer
-        /// anybody's CurrentVehicle -- a car left capped at first is a car stuck in first, with
-        /// nothing on screen to say why.
+        /// BY HANDLE, like every other override in here. Stepping straight out of one car into
+        /// another has to give the first its gears back, and that car is no longer anybody's
+        /// CurrentVehicle -- a car left capped at second is a car that will not do more than
+        /// forty, with nothing on screen to say why.
         /// </summary>
         public void Release()
         {
@@ -191,7 +166,7 @@ namespace VehicleTweaks.Driving
             var top = _top;
 
             _car = 0;
-            _held = 0;
+            _since = 0;
             _top = 0;
 
             if (handle == 0 || top <= 0) return;
@@ -207,7 +182,25 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>The top gear the box has, or nothing if it will not say.</summary>
+        /// <summary>
+        /// Whether he is asking for drive.
+        ///
+        /// Coasting is not holding a gear, it is slowing down, and a box that refused to drop
+        /// while somebody was trying to lose speed would be exactly the interference this
+        /// feature exists to remove.
+        /// </summary>
+        private static bool OnPower()
+        {
+            try { return Game.IsControlPressed(Control.VehicleAccelerate); }
+            catch { return false; }
+        }
+
+        private static int Gear(Vehicle car)
+        {
+            try { return car.CurrentGear; }
+            catch { return 0; }
+        }
+
         private static int Top(Vehicle car)
         {
             try
@@ -218,19 +211,6 @@ namespace VehicleTweaks.Driving
             catch
             {
                 return 0;
-            }
-        }
-
-        private static int Gear(Vehicle car)
-        {
-            try
-            {
-                var g = car.CurrentGear;
-                return g < 1 ? 1 : g;
-            }
-            catch
-            {
-                return 1;
             }
         }
 
