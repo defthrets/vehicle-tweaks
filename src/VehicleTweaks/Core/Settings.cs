@@ -405,6 +405,29 @@ namespace VehicleTweaks.Core
         public float DriftPowerBoost = 1.4f;
 
         /// <summary>
+        /// More steering lock while the car is sideways, so a slide can be caught.
+        ///
+        /// THIS IS HOW A REAL DRIFT CAR IS BUILT. The single most common modification on one is
+        /// extended steering angle -- knuckles, spacers, whatever it takes -- for exactly this
+        /// reason: catching a slide means winding on more opposite lock than the car came with,
+        /// and once you run out of lock the car is going wherever it was already going.
+        ///
+        /// The stock limit is what makes GTA drifts feel like they end by themselves. It is per
+        /// WHEEL and per car, not handling data, so it is the same small safe instrument as the
+        /// power above.
+        /// </summary>
+        public bool CounterSteer = true;
+
+        /// <summary>
+        /// How much more lock, at full slide. 1.0 is the car as it came.
+        ///
+        /// Reached on the same ramp as the power, so both arrive as the angle opens rather than
+        /// switching on at a line -- a car whose steering suddenly got quicker mid-corner would
+        /// be harder to hold, not easier.
+        /// </summary>
+        public float CounterSteerLock = 1.6f;
+
+        /// <summary>
         /// How far sideways counts as a slide, in degrees.
         ///
         /// The angle between where the car points and where it is actually travelling, which is
@@ -692,6 +715,8 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
+                s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
+                s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);

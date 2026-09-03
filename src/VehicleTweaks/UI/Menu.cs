@@ -463,11 +463,21 @@ namespace VehicleTweaks.UI
                                   "At full slide. 1.00 is none at all.",
                                   () => _cfg.DriftPower));
 
+            grip.Items.Add(Toggle("More lock to catch it", () => _cfg.CounterSteer,
+                                  v => _cfg.CounterSteer = v, "Driving", "CounterSteer",
+                                  "Running out of steering is why GTA slides end by themselves."));
+
+            grip.Items.Add(Number("How much more lock", () => _cfg.CounterSteerLock,
+                                  v => _cfg.CounterSteerLock = v, 0.05f, 1f, 3f, "0.00", null,
+                                  "Driving", "CounterSteerLock",
+                                  "At full slide. 1.00 is the car as it came.",
+                                  () => _cfg.CounterSteer));
+
             grip.Items.Add(Number("Counts as a slide past", () => _cfg.DriftAngle,
                                   v => _cfg.DriftAngle = v, 1f, 3f, 60f, "0", "deg",
                                   "Driving", "DriftAngle",
-                                  "Between where it points and where it is going.",
-                                  () => _cfg.DriftPower));
+                                  "Between where it points and where it is going. Governs both.",
+                                  () => _cfg.DriftPower || _cfg.CounterSteer));
 
             var leave = Add("LEAVING");
 

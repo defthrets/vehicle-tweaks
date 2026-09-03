@@ -170,8 +170,15 @@ actually travelling is what a drift **is**. The compensation ramps in as that an
 rather than switching on at a line, because a car that suddenly found more power at twelve
 degrees would be harder to hold than one that never found any.
 
-Done with `EnginePowerMultiplier`, which is per *car* and per moment — not handling data, which
-is per *model* and would change every other example of that car in the world for the session.
+**And more steering lock to catch it with**, on the same ramp. Catching a slide means winding on
+more opposite lock than the car came with, and once you run out there is nothing to do but wait
+and see where it goes — which is most of why GTA slides feel like they end of their own accord
+rather than because you saved them. Extended steering angle is the single most common
+modification made to a real drift car, for exactly this reason.
+
+Both are per *car* and per moment — `EnginePowerMultiplier` and `SteeringLimitMultiplier` — not
+handling data, which is per *model* and would change every other example of that car in the world
+for the session. And it asks the game which wheels steer rather than assuming the front two.
 
 ## Drift mode
 
