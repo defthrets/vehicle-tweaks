@@ -39,6 +39,15 @@ param(
     # wanted, and it says plainly what it is about to destroy.
     [switch]$FreshIni,
 
+    # Deletes settings the mod no longer reads out of the installed ini, with the comment block
+    # that explains them.
+    #
+    # OPT IN, BECAUSE IT DELETES. Deploy reports stale keys on every run and that is usually
+    # enough -- a key nothing reads is inert, not harmful. This is for after a rename or a
+    # feature that has been taken out, where the alternative is hand-editing two installed files
+    # and getting the line ranges right, which has already gone wrong more than once.
+    [switch]$Prune,
+
     [string]$GtaDir = 'C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V',
     [string]$EnhancedDir = 'C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V Enhanced'
 )
@@ -264,6 +273,45 @@ function Get-IniEntries {
     return $entries
 }
 
+function Remove-IniEntry {
+    <#
+        Takes one setting out of an ini, with the comment block that belongs to it.
+
+        THE COMMENT BLOCK IS THE POINT. Deleting the line alone leaves ten lines of prose
+        explaining a setting that is no longer there, attached to whichever setting happens to
+        follow it -- which is worse than the stale key was.
+
+        WALKS BACK AND STOPS AT A RULE. Comments and blanks above the key are its own; a line of
+        dashes is a section banner and belongs to the section, not to the key underneath it.
+        Every line ending is left exactly as it was found.
+    #>
+    param([string[]]$Lines, [string]$Key)
+
+    $at = -1
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        if ($Lines[$i] -match "^\s*$([regex]::Escape($Key))\s*=") { $at = $i; break }
+    }
+    if ($at -lt 0) { return $Lines }
+
+    $from = $at
+    while ($from -gt 0) {
+        $above = $Lines[$from - 1].Trim()
+        if ($above -match '^;\s*-{5,}') { break }
+        if ($above -eq '' -or $above.StartsWith(';')) { $from-- } else { break }
+    }
+
+    # One blank line after it as well, or removing the middle of a file leaves a double gap.
+    $to = $at
+    if ($to + 1 -lt $Lines.Count -and $Lines[$to + 1].Trim() -eq '') { $to++ }
+
+    $kept = New-Object System.Collections.Generic.List[string]
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        if ($i -ge $from -and $i -le $to) { continue }
+        $kept.Add($Lines[$i])
+    }
+    return $kept.ToArray()
+}
+
 function Merge-Ini {
     <#
         Adds settings the installed ini has never heard of, and CHANGES NOTHING ELSE.
@@ -438,8 +486,25 @@ function Deploy-To([string]$gameDir, [string]$label) {
         Write-Host "         Everything already in the file was left alone." -ForegroundColor DarkGray
     }
     if ($extra) {
-        Write-Host "  STALE  VehicleTweaks.ini has $($extra.Count) setting(s) nothing reads:" -ForegroundColor Yellow
-        Write-Host "         $($extra -join ', ')" -ForegroundColor DarkGray
+        if ($Prune) {
+            $raw = [IO.File]::ReadAllText($iniDst)
+            $eol = if ($raw -match "`r`n") { "`r`n" } else { "`n" }
+            $lines = $raw -split "`r`n|`n"
+
+            foreach ($stale in $extra) {
+                $lines = Remove-IniEntry $lines ($stale -replace '^.*\.', '')
+            }
+
+            [IO.File]::WriteAllText($iniDst, ($lines -join $eol))
+
+            Write-Host "  PRUNED $($extra.Count) setting(s) nothing reads out of VehicleTweaks.ini:" -ForegroundColor Green
+            Write-Host "         $($extra -join ', ')" -ForegroundColor DarkGray
+            Write-Host "         Their comment blocks went with them." -ForegroundColor DarkGray
+        } else {
+            Write-Host "  STALE  VehicleTweaks.ini has $($extra.Count) setting(s) nothing reads:" -ForegroundColor Yellow
+            Write-Host "         $($extra -join ', ')" -ForegroundColor DarkGray
+            Write-Host "         Run with -Prune to take them out." -ForegroundColor DarkGray
+        }
     }
     if (-not $absent -and -not $extra) {
         Write-Host "  keep   VehicleTweaks.ini ($($srcKeys.Count) settings, all current)" -ForegroundColor DarkGray

@@ -160,49 +160,29 @@ can ask about.
 
 ## The drivetrain
 
-**Every drivetrain complaint in this game comes from one fact: GTA's automatic box shifts on
-road speed.** Every symptom follows from it, and they are all the same bug.
+**The shifting is the game's.** An earlier version held the gear through a slide and through a
+wheelspin, in both directions, on the argument that GTA shifts on road speed and a real box
+shifts on revs. The argument was sound and the result was still wrong: a gearbox that refuses
+shifts is a gearbox you are *aware* of, and being aware of the gearbox is the thing nobody wants.
+Up, down, sideways, lit up — the box decides.
 
-- **Sideways**, the road speed still climbs, so it upshifts. The torque at the wheels drops with
-  the shift, the tyres hook up, and the slide ends — at the exact moment it was working, because
-  of a decision that had nothing to do with the engine.
-- **Scrubbing speed sideways**, the road speed falls, so it drops to first. That is a torque
-  spike into a car that is already loose.
-- **Spinning the tyres**, the road speed never moved, so the revs do not rise at all. The one
-  moment the engine is working hardest is the one moment nothing says so.
+**What is left is one small thing.** First and second are held very slightly longer under power.
+GTA's low gears are short and it leaves them early, so pulling away is two flat little shifts and
+then you are in third at walking pace with nothing to hear. Half a second more in each lets the
+engine come up before it changes, and is not enough to be a feature you would name if asked what
+the car was doing.
 
-A real box shifts on **engine revs**, and a real rev counter reads the **engine**. So both are
-moved off road speed and onto what the wheels are actually doing.
-
-**This is not a drift mode.** Wheel speed and road speed are the same number when the tyres are
-gripping, and the slide angle is nought when the car points where it is going — so on an ordinary
-drive every condition reads false and the gearbox is the game's, untouched, with not one field
-written. There is nothing to switch on before a corner and nothing to switch off after it. It is
-the same rule; ordinary driving simply never meets it.
-
-**It blocks shifts, it does not schedule them.** Refusing the two shifts that ruin things is a
-small claim that can be made safely — the box re-decides every frame and gets its own answer back
-the moment the condition clears. Owning the whole shift schedule would mean inventing a torque
-curve per model for six hundred vehicles and getting it wrong for most of them.
-
-Three fields do three jobs. `HighGear` is the top gear the transmission *has*, so capping it
-removes everything above as an option rather than arguing with each shift as it comes.
-`CurrentGear` is the only thing that stops a drop, because there is no floor to set — the gear
-itself has to be written. `NextGear` closes the gap. The gear is taken at the *start* of the hold
-and kept, not read fresh each frame, or a shift that slipped between two frames becomes the new
-held gear and the box walks out of the hold one escape at a time. The original top gear goes back
-on every path out, **by handle**.
+It caps `HighGear`, the top gear the transmission *has*, so the box never decides to shift and
+then gets overruled — it simply has nowhere to go. Nothing is written to the current gear at all,
+so a **downshift is never blocked**. The clock runs from the throttle going down rather than from
+the gear arriving, so pulling away from a standstill gets the whole window instead of having
+spent it idling at the lights. The original top gear goes back on every path out, **by handle**.
 
 **The revs are told about the tyres.** `CurrentRPM` runs nought to one — not an assumption, the
-tacho has been clamping and drawing it since it was built. Wheelspin adds to it, ramped, capped
-at the limiter. Only ever *upwards*, and never held: the instant the tyres grip it stops writing
-and the engine is the game's again on the next frame, so there is nothing to restore. The engine
-note comes off the same value, so a lit tyre is now something you **hear**.
-
-**And it reports whether it took.** Whether writing these fields moves the real gearbox had never
-been established — the previous attempt was deployed but never once ran, because the script was
-not reloaded before it was judged. So the hold reads the gear back eight frames in and says, once,
-in the log, whether the car did what it was asked. The question gets settled by a drive.
+tacho has been clamping and drawing it since it was built. Wheelspin adds to it, ramped, capped at
+the limiter. Only ever *upwards*, and never held: the instant the tyres grip it stops writing and
+the engine is the game's again on the next frame, so there is nothing to restore. The engine note
+comes off the same value, so a lit tyre is something you **hear**.
 
 ## Holding a slide
 

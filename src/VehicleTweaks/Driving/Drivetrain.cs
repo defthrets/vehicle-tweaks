@@ -2,57 +2,41 @@ using System;
 using GTA;
 using VehicleTweaks.Core;
 
+// Both namespaces have a Control and only one of them is a game control.
+using Control = GTA.Control;
+
 namespace VehicleTweaks.Driving
 {
     /// <summary>
-    /// The gearbox and the rev counter, rewritten around what the car is doing rather than how
-    /// fast it happens to be going.
+    /// The gearbox, which is the game's, and the rev counter, which is not quite.
     ///
-    /// THE ROOT CAUSE OF EVERY DRIVETRAIN COMPLAINT IN THIS GAME IS ONE FACT: GTA's automatic
-    /// box shifts on ROAD SPEED. Every symptom follows from it and they are all the same bug --
+    /// STOCK SHIFTING. The version before this one held the gear through a slide and through a
+    /// wheelspin, in both directions, on the argument that GTA shifts on road speed and a real
+    /// box shifts on revs. The argument was sound and the result was still wrong: a gearbox that
+    /// refuses shifts is a gearbox you are aware of, and being aware of the gearbox is the thing
+    /// nobody wants. It is gone. Up, down, sideways, lit up -- the box decides, exactly as it
+    /// always did.
     ///
-    ///   Sideways, the road speed still climbs, so it upshifts. The torque at the wheels drops
-    ///   with the shift, the tyres hook up, and the slide ends -- at the exact moment it was
-    ///   working, because of a decision that had nothing to do with the engine.
+    /// WHAT IS LEFT IS ONE SMALL THING: first and second are held very slightly longer under
+    /// power. GTA's low gears are short and it leaves them early, so pulling away is two flat
+    /// little shifts and then you are in third at walking pace with nothing to hear. Half a
+    /// second more in each is enough to let the engine actually come up before it changes, and
+    /// not enough to be a feature you would name if asked what the car was doing.
     ///
-    ///   Scrubbing speed sideways, the road speed falls, so it drops to first. That is a torque
-    ///   spike into a car that is already loose, which either snaps it round or bogs it flat.
+    /// ONLY FIRST AND SECOND, AND ONLY UNDER POWER. Third and above are the ones you spend real
+    /// time in, where a held gear is a car that will not get out of its own way. Off the
+    /// throttle the box is not upshifting anyway, so there is nothing there to hold and the
+    /// clock simply resets -- which also means coming to a stop, sitting at a light and pulling
+    /// away gets the hold from the start rather than having quietly spent it while stationary.
     ///
-    ///   Spinning the tyres, the road speed does not rise at all, so the revs do not either.
-    ///   The one moment the engine is doing the most work is the one moment nothing on the
-    ///   dashboard or in the exhaust note says so.
-    ///
-    /// A REAL BOX SHIFTS ON ENGINE REVS, and a real rev counter reads the ENGINE. So both are
-    /// moved off road speed and onto what the wheels are actually doing.
-    ///
-    /// AND THAT IS WHY THIS IS NOT A DRIFT MODE. Wheel speed and road speed are the same number
-    /// when the tyres are gripping, and the slide angle is nought when the car is pointing where
-    /// it is going -- so on a normal drive every condition in here reads false and the gearbox
-    /// is the game's, untouched, with not one field written. There is nothing to switch on
-    /// before a corner and nothing to switch off afterwards. It is the same rule; ordinary
-    /// driving simply never meets it.
-    ///
-    /// IT BLOCKS SHIFTS, IT DOES NOT SCHEDULE THEM. Refusing the two shifts that ruin things is
-    /// a small claim that can be made safely -- the box re-decides every frame and gets its own
-    /// answer back the moment the condition clears. Owning the whole shift schedule would mean
-    /// inventing a torque curve per model for six hundred vehicles and getting it wrong for most
-    /// of them. This does the half that is worth having.
-    ///
-    /// WHAT IT REPLACES was a hold on second gear against a stopwatch: the right instinct
-    /// pointed at the wrong trigger. Second was never the thing that mattered -- being sideways
-    /// was -- and a stopwatch cannot tell the difference between a drift and a traffic light.
+    /// THE REV COUNTER IS THE OTHER HALF and it stays. It is not a shift, it is a readout: GTA's
+    /// revs follow road speed, so the one moment the engine is working hardest -- tyres
+    /// spinning, car going nowhere -- is the one moment the needle says nothing at all.
     /// </summary>
     internal sealed class Drivetrain
     {
-        /// <summary>
-        /// Below this, in metres a second, the gear is left entirely alone.
-        ///
-        /// A HELD GEAR THROUGH A STOP IS A CAR THAT WILL NOT PULL AWAY. Coming to rest is the
-        /// one time the box genuinely has to be allowed down to first, and a burnout from a
-        /// standstill -- which is stationary and lit at the same time -- would otherwise hold
-        /// whatever gear it started in for as long as the tyres were spinning.
-        /// </summary>
-        private const float Crawl = 2.0f;
+        /// <summary>The highest gear worth holding. Above this you are driving, not pulling away.</summary>
+        private const int Low = 2;
 
         /// <summary>Below this much slip the tyres are gripping and the engine is the game's.</summary>
         private const float Gripping = 0.25f;
@@ -64,13 +48,16 @@ namespace VehicleTweaks.Driving
 
         private int _car;
 
-        /// <summary>The gear being held, or nought when the box is the game's.</summary>
+        /// <summary>The gear being watched, so a change of gear restarts the clock.</summary>
         private int _gear;
 
-        /// <summary>The top gear the box had before it was capped, so it can be given back.</summary>
+        /// <summary>When the throttle went down in this gear, or nought for not yet.</summary>
+        private int _since;
+
+        /// <summary>The top gear the box had before it was capped, or nought for not capped.</summary>
         private int _top;
 
-        /// <summary>How many frames the hold has been asked for, to report whether it took.</summary>
+        /// <summary>How many frames the cap has been asked for, to report whether it took.</summary>
         private int _frames;
 
         public Drivetrain(Settings cfg)
@@ -82,12 +69,6 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                if (!_cfg.SmartGearbox)
-                {
-                    Release();
-                    return;
-                }
-
                 var car = me == null ? null : me.CurrentVehicle;
 
                 if (car == null || !car.Exists() || !AtTheWheel(car, me) || !Geared(car))
@@ -102,12 +83,10 @@ namespace VehicleTweaks.Driving
                     _car = car.Handle;
                 }
 
-                var sideways = Attitude.Sideways(car);
-                var spin = Attitude.Wheelspin(car);
+                if (_cfg.RevsFollowWheels) Rev(car, Attitude.Wheelspin(car));
 
-                if (_cfg.RevsFollowWheels) Rev(car, spin);
-
-                Box(car, sideways, spin);
+                if (_cfg.HoldLowGears) Hold(car);
+                else Uncap(car);
             }
             catch (Exception ex)
             {
@@ -115,6 +94,102 @@ namespace VehicleTweaks.Driving
                 Release();
                 Log.Once("drivetrain", "The gearbox fell over: " + ex.Message);
             }
+        }
+
+        // ==================================================================
+        // The low gears
+        // ==================================================================
+
+        /// <summary>
+        /// First and second, kept a moment longer than the game would.
+        ///
+        /// CAPPING HighGear RATHER THAN REFUSING EACH SHIFT. HighGear is the top gear the
+        /// transmission HAS, so setting it to the gear you are in removes everything above as an
+        /// option -- the box never decides to shift and then gets overruled, it simply has
+        /// nowhere to go. Nothing is written to CurrentGear at all, which is the difference
+        /// between this and the version it replaces: a downshift is never blocked, so the car
+        /// still drops a gear whenever it wants one.
+        ///
+        /// THE CLOCK RESETS OFF THE THROTTLE, which matters more than it sounds. It means the
+        /// window is measured from the moment you actually ask for drive, so pulling away from a
+        /// standstill gets the whole of it -- rather than having spent it idling at the lights in
+        /// first with your foot on the brake.
+        /// </summary>
+        private void Hold(Vehicle car)
+        {
+            var gear = Read(car);
+
+            // Reverse, neutral and everything from third up are the game's, untouched.
+            if (gear < 1 || gear > Low)
+            {
+                Uncap(car);
+                _gear = gear;
+                _since = 0;
+                return;
+            }
+
+            if (gear != _gear)
+            {
+                Uncap(car);
+                _gear = gear;
+                _since = 0;
+            }
+
+            if (!OnPower())
+            {
+                Uncap(car);
+                _since = 0;
+                return;
+            }
+
+            if (_since == 0) _since = Game.GameTime;
+
+            if (Game.GameTime - _since >= (int)(_cfg.HoldLowGearsSeconds * 1000f))
+            {
+                Uncap(car);
+                return;
+            }
+
+            if (_top == 0)
+            {
+                _top = Top(car);
+                _frames = 0;
+                Log.Debug("Gearbox: holding " + gear + " a moment, top gear was " + _top + ".");
+            }
+
+            // THE PROOF, and the reason this counts frames. Whether writing this field moves the
+            // real gearbox has never been established -- the first attempt at it was deployed but
+            // never once ran, because the script was not reloaded before it was judged. So the
+            // cap reads the gear back and says, once, whether the car did what it was asked.
+            if (_frames == Proof)
+            {
+                Log.Once("gearbox-proof", gear == _gear
+                             ? "Gearbox: the cap TAKES - asked to stay in " + _gear +
+                               " and the car is still in " + _gear + " eight frames later."
+                             : "Gearbox: the cap DOES NOT TAKE - asked to stay in " + _gear +
+                               " and the car is in " + gear + " eight frames later. Writing " +
+                               "HighGear does not move this gearbox, and no amount of tuning " +
+                               "the numbers will change that.");
+            }
+
+            _frames++;
+
+            try { car.HighGear = _gear; }
+            catch { /* the next frame will try again */ }
+        }
+
+        /// <summary>Gives the top gear back, if it was ever taken.</summary>
+        private void Uncap(Vehicle car)
+        {
+            if (_top == 0) return;
+
+            var top = _top;
+
+            _top = 0;
+            _frames = 0;
+
+            try { car.HighGear = top; }
+            catch { /* the release by handle is the other chance */ }
         }
 
         // ==================================================================
@@ -135,7 +210,7 @@ namespace VehicleTweaks.Driving
         /// write a field this central.
         ///
         /// THE POINT IS THE NOISE AS MUCH AS THE NEEDLE. The engine note is generated from this
-        /// same value, so a lit tyre should now be something you HEAR rather than something you
+        /// same value, so a lit tyre should be something you HEAR rather than something you
         /// deduce from the car not going anywhere.
         /// </summary>
         private void Rev(Vehicle car, float spin)
@@ -163,100 +238,8 @@ namespace VehicleTweaks.Driving
         }
 
         // ==================================================================
-        // The gearbox
+        // Letting go
         // ==================================================================
-
-        /// <summary>
-        /// The gear it is in is the gear it keeps, while the car is sideways or lit up.
-        ///
-        /// TAKEN AT THE START AND HELD THERE, not read fresh every frame. A shift that slipped
-        /// through between two frames would otherwise become the new held gear, and the box
-        /// walks up or down through the range one escape at a time -- which looks exactly like
-        /// the hold not working at all.
-        ///
-        /// THREE FIELDS, THREE JOBS. HighGear is the top gear the transmission HAS, so capping
-        /// it removes everything above as an option rather than arguing with each shift as it
-        /// comes. CurrentGear is the only thing that stops a drop, because there is no floor to
-        /// set -- the gear itself has to be written. NextGear closes the gap between them.
-        /// </summary>
-        private void Box(Vehicle car, float sideways, float spin)
-        {
-            var drifting = _cfg.HoldGearSideways && sideways >= _cfg.DriftAngle;
-            var lit = _cfg.HoldGearWheelspin && spin >= _cfg.WheelspinSlip;
-
-            var gear = Read(car);
-            var moving = Math.Abs(Speed(car)) >= Crawl;
-
-            // Reverse and neutral are not gears worth arguing about, and a car at walking pace
-            // has to be allowed down to first or it will not pull away from the stop it is
-            // in the middle of making.
-            if ((!drifting && !lit) || gear < 1 || !moving)
-            {
-                Handback(car);
-                return;
-            }
-
-            if (_gear == 0)
-            {
-                _gear = gear;
-                _top = Top(car);
-                _frames = 0;
-
-                Log.Debug("Gearbox: holding " + _gear + " (" +
-                          (drifting ? "sideways " + sideways.ToString("0") + " deg" : "tyres lit") +
-                          "), top gear was " + _top + ".");
-            }
-
-            // THE PROOF, and the reason this counts frames at all. Whether writing these fields
-            // moves the real gearbox has never actually been established: the version that
-            // capped HighGear was deployed but never once ran, because the script was not
-            // reloaded before it was judged. So the hold reports whether it took, once, from the
-            // car's own read-back -- and the question gets answered by a drive rather than by an
-            // opinion.
-            if (_frames == Proof)
-            {
-                Log.Once("gearbox-proof", gear == _gear
-                             ? "Gearbox: the hold TAKES - asked for " + _gear +
-                               " and the car is still in " + _gear + " eight frames later."
-                             : "Gearbox: the hold DOES NOT TAKE - asked for " + _gear +
-                               " and the car is in " + gear + " eight frames later. Writing " +
-                               "these fields does not move this gearbox, and no amount of " +
-                               "tuning the numbers will change that.");
-            }
-
-            _frames++;
-
-            try
-            {
-                car.HighGear = _gear;
-                if (gear != _gear) car.NextGear = _gear;
-                car.CurrentGear = _gear;
-            }
-            catch
-            {
-                // The next frame will try again.
-            }
-        }
-
-        /// <summary>Gives the box back, wherever it was capped, and stops holding a gear.</summary>
-        private void Handback(Vehicle car)
-        {
-            if (_gear == 0) return;
-
-            var top = _top;
-
-            _gear = 0;
-            _top = 0;
-            _frames = 0;
-
-            if (top > 0)
-            {
-                try { car.HighGear = top; }
-                catch { /* the release by handle is the other chance */ }
-            }
-
-            Log.Debug("Gearbox: let go.");
-        }
 
         /// <summary>
         /// Uncaps the box wherever it was capped, and forgets the car.
@@ -273,6 +256,7 @@ namespace VehicleTweaks.Driving
 
             _car = 0;
             _gear = 0;
+            _since = 0;
             _top = 0;
             _frames = 0;
 
@@ -294,11 +278,11 @@ namespace VehicleTweaks.Driving
         // ==================================================================
 
         /// <summary>
-        /// Whether this thing has a gearbox worth arguing with.
+        /// Whether this thing has a gearbox worth holding.
         ///
         /// Aircraft and boats are excluded because they have nothing of the sort. Electric cars
         /// are excluded because they genuinely have one gear, and holding a car in the only gear
-        /// it has is a no-op that would still be writing three fields a frame to achieve it.
+        /// it has is a no-op that would still be writing a field every frame to achieve it.
         /// </summary>
         private static bool Geared(Vehicle car)
         {
@@ -311,6 +295,13 @@ namespace VehicleTweaks.Driving
             {
                 return false;
             }
+        }
+
+        /// <summary>Whether he is asking for drive. Coasting has no shift to hold.</summary>
+        private static bool OnPower()
+        {
+            try { return Game.IsControlPressed(Control.VehicleAccelerate); }
+            catch { return false; }
         }
 
         private static int Read(Vehicle car)
@@ -330,12 +321,6 @@ namespace VehicleTweaks.Driving
             {
                 return 0;
             }
-        }
-
-        private static float Speed(Vehicle car)
-        {
-            try { return car.Speed; }
-            catch { return 0f; }
         }
 
         private static bool AtTheWheel(Vehicle car, Ped me)

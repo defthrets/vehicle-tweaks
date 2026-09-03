@@ -427,41 +427,35 @@ namespace VehicleTweaks.UI
 
             train.Items.Add(Header("THE GEARBOX"));
 
-            train.Items.Add(Toggle("Stop shifting on speed", () => _cfg.SmartGearbox,
-                                   v => _cfg.SmartGearbox = v, "Driving", "SmartGearbox",
-                                   "GTA shifts on how fast you are going, not on the engine."));
+            train.Items.Add(Toggle("Hold first and second", () => _cfg.HoldLowGears,
+                                   v => _cfg.HoldLowGears = v, "Driving", "HoldLowGears",
+                                   "GTA's low gears are short and it leaves them early."));
 
-            train.Items.Add(Toggle("Hold the gear sideways", () => _cfg.HoldGearSideways,
-                                   v => _cfg.HoldGearSideways = v, "Driving", "HoldGearSideways",
-                                   "The upshift kills the slide. So does the drop to first.",
-                                   () => _cfg.SmartGearbox));
-
-            train.Items.Add(Toggle("Hold it through a wheelspin", () => _cfg.HoldGearWheelspin,
-                                   v => _cfg.HoldGearWheelspin = v, "Driving", "HoldGearWheelspin",
-                                   "An upshift ends a burnout right when it starts working.",
-                                   () => _cfg.SmartGearbox));
+            train.Items.Add(Number("For how much longer", () => _cfg.HoldLowGearsSeconds,
+                                   v => _cfg.HoldLowGearsSeconds = v, 0.05f, 0.1f, 2f, "0.00", "s",
+                                   "Driving", "HoldLowGearsSeconds",
+                                   "From the throttle going down. Meant to be felt, not noticed.",
+                                   () => _cfg.HoldLowGears));
 
             train.Items.Add(Header("THE REV COUNTER"));
 
             train.Items.Add(Toggle("Revs read the wheels", () => _cfg.RevsFollowWheels,
                                    v => _cfg.RevsFollowWheels = v, "Driving", "RevsFollowWheels",
-                                   "So a lit tyre shows on the tacho, and can be heard.",
-                                   () => _cfg.SmartGearbox));
+                                   "So a lit tyre shows on the tacho, and can be heard."));
 
             train.Items.Add(Number("How far they climb", () => _cfg.RevsWheelspinGain,
                                    v => _cfg.RevsWheelspinGain = v, 0.05f, 0f, 1f, "0.00", null,
                                    "Driving", "RevsWheelspinGain",
                                    "Of the whole rev range, added on top, at a full spin.",
-                                   () => _cfg.SmartGearbox && _cfg.RevsFollowWheels));
+                                   () => _cfg.RevsFollowWheels));
 
             train.Items.Add(Header("WHAT COUNTS AS SPINNING"));
 
             train.Items.Add(Number("Wheels outrun the road by", () => _cfg.WheelspinSlip,
                                    v => _cfg.WheelspinSlip = v, 0.5f, 0.5f, 20f, "0.0", "m/s",
                                    "Driving", "WheelspinSlip",
-                                   "One number for both: where the gear holds and the revs peak.",
-                                   () => _cfg.SmartGearbox &&
-                                         (_cfg.HoldGearWheelspin || _cfg.RevsFollowWheels)));
+                                   "How far the wheels outrun the road before it counts.",
+                                   () => _cfg.RevsFollowWheels));
 
             var grip = Add("GRIP");
 
@@ -516,9 +510,8 @@ namespace VehicleTweaks.UI
             grip.Items.Add(Number("Counts as a slide past", () => _cfg.DriftAngle,
                                   v => _cfg.DriftAngle = v, 1f, 3f, 60f, "0", "deg",
                                   "Driving", "DriftAngle",
-                                  "Between where it points and where it goes. Governs the gearbox too.",
-                                  () => _cfg.DriftPower || _cfg.CounterSteer ||
-                                        (_cfg.SmartGearbox && _cfg.HoldGearSideways)));
+                                  "Between where it points and where it is going. Governs both.",
+                                  () => _cfg.DriftPower || _cfg.CounterSteer));
 
             var leave = Add("LEAVING");
 
