@@ -293,6 +293,7 @@ namespace VehicleTweaks
             try { _chauffeur.Stop(Game.Player.Character); } catch (Exception ex) { Log.Error("Self driving", ex); }
             try { _cruise.Release(); } catch (Exception ex) { Log.Error("Cruise", ex); }
             try { _slides.Release(); } catch (Exception ex) { Log.Error("Slide power", ex); }
+            try { _gearing.Release(); } catch (Exception ex) { Log.Error("Gear hold", ex); }
             try { _myCar.Release(); } catch (Exception ex) { Log.Error("Parked car", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 

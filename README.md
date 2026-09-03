@@ -172,6 +172,11 @@ The gear is taken at the *start* of the spin and held there, not read fresh each
 otherwise a shift that slipped through between two frames becomes the new floor and the box walks
 up through the gears one escape at a time.
 
+It works by **capping the top gear** rather than asking the box not to shift. `NextGear` is a
+statement of intent and the gearbox is the one making it — set it back and the box simply chooses
+again next frame. `HighGear` is the top gear the transmission *has*: cap it and there is nothing
+above to shift into. The original is written down first and put back on every path out.
+
 ## Holding a slide
 
 **The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops

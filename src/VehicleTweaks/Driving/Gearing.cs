@@ -23,6 +23,19 @@ namespace VehicleTweaks.Driving
     /// current each frame. Holding "the current one" would let a shift that happened between two
     /// frames become the new floor, and the box would walk up through the gears one escape at a
     /// time -- slower than doing nothing, and much harder to explain.
+    ///
+    /// IT CAPS THE TOP GEAR, WHICH IS THE PART THAT ACTUALLY WORKS. The first version set
+    /// NextGear -- the gear the box is shifting towards -- on the reasoning that setting it back
+    /// is the instruction not to go up. It fired correctly, held for whole seconds at a time,
+    /// said so in the log, and did nothing you could feel: the box simply chose again on the
+    /// next frame. NextGear is a statement of intent and the gearbox is the one making it.
+    ///
+    /// HighGear is the top gear the box HAS. Cap it and there is nothing above to shift into,
+    /// which is a fact about the transmission rather than a request to it. That makes this a
+    /// real override -- a car left capped at first is a car stuck in first -- so the original is
+    /// written down before it is touched and put back on every path out, including the one where
+    /// the script is shutting down. This class had no Release before, and the comment saying it
+    /// did not need one was right about NextGear and is wrong now.
     /// </summary>
     internal sealed class Gearing
     {
@@ -33,6 +46,9 @@ namespace VehicleTweaks.Driving
 
         private int _car;
         private int _held;
+
+        /// <summary>The top gear the box had before it was capped, so it can be given back.</summary>
+        private int _top;
 
         public Gearing(Settings cfg)
         {
@@ -45,8 +61,7 @@ namespace VehicleTweaks.Driving
             {
                 if (!_cfg.HoldGear)
                 {
-                    _car = 0;
-                    _held = 0;
+                    Release();
                     return;
                 }
 
@@ -54,34 +69,43 @@ namespace VehicleTweaks.Driving
 
                 if (car == null || !car.Exists() || !AtTheWheel(car, me))
                 {
-                    Forget();
+                    Release();
                     return;
                 }
 
                 if (car.Handle != _car)
                 {
-                    Forget();
+                    Release();
                     _car = car.Handle;
                 }
 
                 if (!Spinning(car))
                 {
-                    if (_held != 0) Log.Debug("Gear hold: released, tyres hooked up.");
-                    _held = 0;
+                    if (_held != 0)
+                    {
+                        Restore(car);
+                        Log.Debug("Gear hold: released, tyres hooked up.");
+                    }
+
                     return;
                 }
 
                 if (_held == 0)
                 {
                     _held = Gear(car);
-                    Log.Debug("Gear hold: holding " + _held + " while the tyres spin.");
+                    _top = Top(car);
+
+                    Log.Debug("Gear hold: holding " + _held + " while the tyres spin, top gear " +
+                              _top + " capped to " + _held + ".");
                 }
 
                 Hold(car);
             }
             catch (Exception ex)
             {
-                Forget();
+                // A throw in here must not leave a gearbox capped. Release rather than merely
+                // forgetting, which is what this used to do back when there was nothing to undo.
+                Release();
                 Log.Once("gearing", "Holding the gear fell over: " + ex.Message);
             }
         }
@@ -114,17 +138,21 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Keeps the box where it was.
+        /// Keeps the box where it was, by leaving it nowhere to go.
         ///
-        /// NextGear is what it is shifting TOWARDS, so setting it back is the instruction not to
-        /// go up. CurrentGear is only touched when the box has already climbed past the held
-        /// one -- pushing it back down is the heavier hand of the two and it is not needed
-        /// unless a shift has already got through.
+        /// THE CAP IS THE ONE THAT BITES. HighGear is the top gear the transmission has, so
+        /// setting it to the held gear removes the option rather than arguing against it -- and
+        /// arguing was what the first version did, setting NextGear every frame while the box
+        /// cheerfully chose again on the next one.
+        ///
+        /// The other two stay as belt and braces. They cost a native call each and they close
+        /// the gap between the cap being set and the box noticing.
         /// </summary>
         private void Hold(Vehicle car)
         {
             try
             {
+                car.HighGear = _held;
                 car.NextGear = _held;
 
                 if (car.CurrentGear > _held) car.CurrentGear = _held;
@@ -135,13 +163,62 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        private void Forget()
+        /// <summary>Gives the box its gears back. Safe when nothing was ever taken.</summary>
+        private void Restore(Vehicle car)
         {
-            // Nothing to hand back: this only ever asks for a gear while the tyres are spinning,
-            // and the moment it stops asking the box is the game's again. That is the whole
-            // reason this one has no Release for the shutdown handler to call.
+            var top = _top;
+
+            _held = 0;
+            _top = 0;
+
+            if (top <= 0) return;
+
+            try { car.HighGear = top; }
+            catch { /* the release by handle below is the other chance */ }
+        }
+
+        /// <summary>
+        /// Uncaps the box wherever it was capped, and forgets the car.
+        ///
+        /// BY HANDLE, like every other override in here. Stepping straight out of one car and
+        /// into another has to give the first one its gears back, and that car is no longer
+        /// anybody's CurrentVehicle -- a car left capped at first is a car stuck in first, with
+        /// nothing on screen to say why.
+        /// </summary>
+        public void Release()
+        {
+            var handle = _car;
+            var top = _top;
+
             _car = 0;
             _held = 0;
+            _top = 0;
+
+            if (handle == 0 || top <= 0) return;
+
+            try
+            {
+                var car = (Vehicle)Entity.FromHandle(handle);
+                if (car != null && car.Exists()) car.HighGear = top;
+            }
+            catch
+            {
+                // The car is gone, and its gearbox went with it.
+            }
+        }
+
+        /// <summary>The top gear the box has, or nothing if it will not say.</summary>
+        private static int Top(Vehicle car)
+        {
+            try
+            {
+                var top = car.HighGear;
+                return top > 0 ? top : 0;
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private static int Gear(Vehicle car)
