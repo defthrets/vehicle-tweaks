@@ -158,6 +158,20 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## Wheelspin
+
+**The gear it is in is the gear it stays in.** An upshift ends a wheelspin — the revs climb, the
+box takes the next gear, the torque at the wheels drops with it and the tyres hook up. The game
+stops the thing you were deliberately doing at the exact moment it was working.
+
+The spin is *measured*: wheel speed against road speed is the tyres turning faster than the
+ground is going by, which is what wheelspin **is**. A throttle position says nothing about
+whether they have actually let go.
+
+The gear is taken at the *start* of the spin and held there, not read fresh each frame —
+otherwise a shift that slipped through between two frames becomes the new floor and the box walks
+up through the gears one escape at a time.
+
 ## Holding a slide
 
 **The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops
