@@ -94,7 +94,7 @@ namespace VehicleTweaks
             // point is to find out.
             KeyDown += OnKeyDown;
 
-            Log.Info(Build.Name + " " + Build.Version + " loaded. Ignition " +
+            Log.Info(Build.Name + " " + Build.Version + " (built " + Built.At + ") loaded. Ignition " +
                      (_cfg.ManualIgnition ? "on" : "off") + ", indicators " +
                      (_cfg.Blinkers ? "on" : "off") + ", settings on " +
                      _cfg.BindingText() + ".");
