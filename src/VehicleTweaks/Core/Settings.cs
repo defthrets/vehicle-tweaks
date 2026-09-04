@@ -468,12 +468,17 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// A moment of slow motion when you hit something hard enough.
         ///
-        /// THE ONE SETTING HERE THAT REACHES OUTSIDE YOUR CAR. Time scale is global and it is
-        /// persistent -- it is the speed of the whole world and nothing puts it back on its own.
-        /// See Driving.Crashes for how many different ways it is put back, and why there are
-        /// that many.
+        /// OFF, AND IT IS THE ONE SETTING HERE THAT REACHES OUTSIDE YOUR CAR. Time scale is
+        /// global and it is persistent -- it is the speed of the whole world, and nothing puts
+        /// it back on its own. See Driving.Crashes for how many different ways it is put back
+        /// and why there are that many.
+        ///
+        /// The rest of this mod is corrections to a car. This one takes the game away from you
+        /// for six tenths of a second at the moment you were most likely trying to catch
+        /// something, which is a taste, not a fix -- and a taste that reaches the whole world
+        /// should be asked for rather than assumed.
         /// </summary>
-        public bool CrashSlowMo = true;
+        public bool CrashSlowMo = false;
 
         /// <summary>How fast you have to be going, in kilometres an hour, for it to count.</summary>
         public float CrashSlowMoSpeed = 100f;
