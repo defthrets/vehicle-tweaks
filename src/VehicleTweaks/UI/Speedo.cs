@@ -56,6 +56,15 @@ namespace VehicleTweaks.UI
         private const float DigitH = 0.0300f;
         private const float Thick = 0.0042f;
         private const float Gap = 0.0060f;
+
+        // THE SPACE EITHER SIDE OF THE UNIT, which is not the same space as the one between two
+        // digits and was using it. Digits in a cluster sit close together ON PURPOSE -- that
+        // tight spacing is most of what makes three of them read as one number rather than as
+        // three separate figures. Setting KPH one digit-gap away from the last digit therefore
+        // put it INSIDE the number: same spacing, same apparent group, so the eye read "0KPH" as
+        // one object. A label beside a number has to be further off than the number's own parts
+        // are from each other, or it is not beside it at all.
+        private const float UnitGap = 0.0130f;
         private const float RevHeight = 0.0060f;
         private const float LampH = 0.0190f;
         private const float LampW = 0.0230f;
@@ -286,6 +295,7 @@ namespace VehicleTweaks.UI
             var tx = Across(Thick * scale);
 
             var gap = Across(Gap * scale);
+            var unitGap = Across(UnitGap * scale);
 
             var digits = dw * 3f + gap * 2f;
 
@@ -306,7 +316,7 @@ namespace VehicleTweaks.UI
             var gty = Thick * gearScale;
             var gtx = Across(Thick * gearScale);
 
-            var block = digits + gap + unitWidth + (_cfg.SpeedoGear ? gap * 2f + gw : 0f);
+            var block = digits + unitGap + unitWidth + (_cfg.SpeedoGear ? unitGap + gw : 0f);
 
             var revH = RevHeight * scale;
             var revGap = 0.0040f * scale;
@@ -341,7 +351,7 @@ namespace VehicleTweaks.UI
                 Digit(dx, y, dw, dh, tx, ty, on, lit);
             }
 
-            Draw.Text(unitText, x + digits + gap, y + dh * 0.5f - unitScale * 0.028f,
+            Draw.Text(unitText, x + digits + unitGap, y + dh * 0.5f - unitScale * 0.028f,
                       unitScale, lit, 4);
 
             if (_cfg.SpeedoGear)
@@ -351,7 +361,7 @@ namespace VehicleTweaks.UI
                 // and every dashboard that has ever shown one has shown this shape.
                 var shape = gear == 0 ? 0x50 : Numerals[gear];
 
-                Digit(x + digits + gap + unitWidth + gap * 2f, y + (dh - gh) * 0.5f,
+                Digit(x + digits + unitGap + unitWidth + unitGap, y + (dh - gh) * 0.5f,
                       gw, gh, gtx, gty, shape, lit);
             }
 
