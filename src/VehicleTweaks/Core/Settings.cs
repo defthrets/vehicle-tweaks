@@ -454,14 +454,34 @@ namespace VehicleTweaks.Core
         public float DriftAngle = 12f;
 
         /// <summary>
-        /// The cabin lights up when the headlights are on.
+        /// The cabin light, on a switch of its own.
         ///
-        /// Tied to the headlights rather than to the clock, which is both simpler and more
-        /// faithful: a real dashboard lights with the side lights, which is why a tunnel at noon
-        /// lights your instruments. The game already turns a player's headlights on when it gets
-        /// dark, so this follows a decision that has already been made properly.
+        /// IT USED TO FOLLOW THE HEADLIGHTS, on the argument that a real dashboard lights with
+        /// the side lights. That is true of the instruments and it is not true of the cabin
+        /// light, which is the one thing in a car that is explicitly NOT automatic -- every car
+        /// ever built has it on its own switch, because the point of it is that you decide when
+        /// the inside of the car is lit. Following the headlights meant it came on for every
+        /// tunnel and every dusk, which is exactly when you can see fine and do not want the
+        /// glare on the glass.
+        ///
+        /// This is the feature, not the state: off here means the key does nothing.
         /// </summary>
         public bool DashLight = true;
+
+        /// <summary>
+        /// The switch, on a keyboard and on a pad.
+        ///
+        /// K BECAUSE L IS TAKEN, and taken by the headlights, which is the thing this was just
+        /// separated from. The letters around it are spoken for -- H is the horn, R is the
+        /// radio, E and Q are looking about -- and a function key would put a light switch
+        /// somewhere no thumb goes while driving.
+        ///
+        /// The pad shares the panel's modifier and takes D-pad LEFT: up opens the settings, down
+        /// is the hazards, and left and right change the radio station, which is why this one
+        /// needs the modifier held to mean anything.
+        /// </summary>
+        public Keys DashLightKey = Keys.K;
+        public string PadDashLight = "PhoneLeft";
 
         // ---- crashes ----------------------------------------------------------
 
@@ -741,6 +761,8 @@ namespace VehicleTweaks.Core
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
                 s.CounterSteerFull = ini.GetFloat("Driving", "CounterSteerFull", s.CounterSteerFull, 5f, 90f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
+                s.DashLightKey = ini.GetKey("Driving", "DashLightKey", s.DashLightKey);
+                s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
                 s.CrashSlowMoSpeed = ini.GetFloat("General", "CrashSlowMoSpeed", s.CrashSlowMoSpeed, 10f, 400f);

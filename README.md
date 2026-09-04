@@ -280,8 +280,16 @@ anything throws, and when the script shuts down. A crash is detected as *speed t
 rather than as a collision: GTA will happily report a kerb, and 8 m/s lost in one frame is about
 50 g, which braking cannot do and a scrape cannot do.
 
-The cabin lights with the headlights, so a tunnel at noon lights your instruments the way a real
-dash does — and it goes out again when you get out.
+**The cabin light is on `K`**, or the panel modifier and D-pad left on a pad. It used to follow
+the headlights, on the argument that a real dashboard lights with the side lights — true of the
+*instruments*, and not true of the cabin light, which is the one thing in a car that is
+explicitly not automatic. Every car ever built has it on its own switch, because the point of it
+is that you decide when the inside is lit; following the headlights meant it came on for every
+tunnel and every dusk, which is exactly when you can see fine and don't want glare on the glass.
+
+The switch is a preference and follows you, so leaving it on and getting into something else
+lights that one too. The light itself goes out when you get out — a parked car glowing from the
+inside forever would be this script's litter.
 
 ## Parking a car
 

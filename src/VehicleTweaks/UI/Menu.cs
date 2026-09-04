@@ -392,9 +392,14 @@ namespace VehicleTweaks.UI
 
             drive.Items.Add(Header("THE DASH"));
 
-            drive.Items.Add(Toggle("Cabin lights with the headlights", () => _cfg.DashLight,
+            drive.Items.Add(Toggle("Cabin light", () => _cfg.DashLight,
                                    v => _cfg.DashLight = v, "Driving", "DashLight",
-                                   "So a tunnel at noon lights it too, the way a real one does."));
+                                   "On its own switch, like every car ever built."));
+
+            drive.Items.Add(Bind("Cabin light key", () => _cfg.DashLightKey,
+                                 v => _cfg.DashLightKey = v, "Driving", "DashLightKey",
+                                 "ENTER, then press the key you want. On a pad, modifier + left.",
+                                 () => _cfg.DashLight));
 
             drive.Items.Add(Header("THE SEATBELT"));
 
