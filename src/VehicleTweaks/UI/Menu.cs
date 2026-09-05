@@ -390,6 +390,12 @@ namespace VehicleTweaks.UI
                                    "The engine turns over before it catches, instead of just being on.",
                                    () => _cfg.ManualIgnition));
 
+            drive.Items.Add(Toggle("Lights off with it", () => _cfg.LightsOffWithEngine,
+                                   v => _cfg.LightsOffWithEngine = v,
+                                   "Driving", "LightsOffWithEngine",
+                                   "Holding the key kills the lights too. A tap leaves them.",
+                                   () => _cfg.ManualIgnition));
+
             drive.Items.Add(Header("THE DASH"));
 
             drive.Items.Add(Toggle("Cabin light", () => _cfg.DashLight,

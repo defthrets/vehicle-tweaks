@@ -189,6 +189,25 @@ namespace VehicleTweaks.Core
         public bool StarterCranks = true;
 
         /// <summary>
+        /// Killing the ignition takes the lights with it, and they stay off when you get out.
+        ///
+        /// BECAUSE THAT IS WHAT TURNING A CAR OFF IS. Nobody has ever switched off an engine and
+        /// left the headlights burning -- the key going round is one gesture that stops the
+        /// whole car, and a car sitting there dead with its lights still on is not a car
+        /// somebody has parked, it is a car somebody has abandoned mid-thought.
+        ///
+        /// It only applies to stopping the engine DELIBERATELY, by holding the exit key. A tap
+        /// leaves the car exactly as it stands, lights included, which is the other half of the
+        /// same idea: what you did not switch off stays on.
+        ///
+        /// The lights come back the moment the engine does. It is a scripted override while it
+        /// lasts -- the one kind of state that outlives us if it is left -- so it is handed to
+        /// the same bookkeeping that already looks after abandoned cars, and lifted when you get
+        /// back in.
+        /// </summary>
+        public bool LightsOffWithEngine = true;
+
+        /// <summary>
         /// A car left running keeps its radio on, loud enough to hear from outside.
         ///
         /// Off leaves the radio to the game, which stops it the moment you are not in the seat.
@@ -706,6 +725,7 @@ namespace VehicleTweaks.Core
                 s.ManualIgnitionMaxSpeed = ini.GetFloat("Driving", "ManualIgnitionMaxSpeed", s.ManualIgnitionMaxSpeed, 0f, 60f);
                 s.ManualIgnitionAircraft = ini.GetBool("Driving", "ManualIgnitionAircraft", s.ManualIgnitionAircraft);
                 s.StarterCranks = ini.GetBool("Driving", "StarterCranks", s.StarterCranks);
+                s.LightsOffWithEngine = ini.GetBool("Driving", "LightsOffWithEngine", s.LightsOffWithEngine);
                 s.RadioKeepsPlaying = ini.GetBool("Leaving", "RadioKeepsPlaying", s.RadioKeepsPlaying);
                 s.LightsStayAsLeft = ini.GetBool("Leaving", "LightsStayAsLeft", s.LightsStayAsLeft);
                 s.LeaveDoorOpen = ini.GetBool("Leaving", "LeaveDoorOpen", s.LeaveDoorOpen);

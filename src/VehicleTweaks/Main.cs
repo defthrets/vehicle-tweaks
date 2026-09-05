@@ -284,6 +284,7 @@ namespace VehicleTweaks
             // reload landing in the middle of a crash would otherwise leave the world running
             // at four tenths speed with nothing to explain it.
             try { _crashes.Restore(); } catch (Exception ex) { Log.Error("Time scale", ex); }
+            try { _ignition.Release(); } catch (Exception ex) { Log.Error("Ignition", ex); }
             try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
             try { _drift.ReleaseAll(); } catch (Exception ex) { Log.Error("Drift tyres", ex); }
             try { _frontWheels.Release(); } catch (Exception ex) { Log.Error("Front wheels", ex); }

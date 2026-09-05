@@ -295,6 +295,16 @@ inside forever would be this script's litter.
 
 The small print of leaving one behind, all of it silent.
 
+- **The lights go out with the ignition.** Holding the key kills the whole car, which is what
+  turning one off *is* — nobody has ever switched off an engine and left the headlights burning.
+  A *tap* leaves them exactly as they were, which is the other half of the same idea: what you
+  did not switch off stays on. They come back the moment the engine does.
+
+  Underneath it is a scripted light **override** rather than a switch — there is no "turn the
+  headlights off" in this game, only a setting that overrules the driver's own key for as long as
+  it stands. So it is handed to the same bookkeeping that looks after abandoned cars and lifted
+  when you get back in. Left in place it would be a car whose headlight key does nothing for the
+  rest of the session, with nothing anywhere to say why.
 - **The handbrake goes on** behind you, and comes off when you get back in — otherwise a car
   parked on any of this city's hills is at the bottom of it when you return.
 - **`L` locks it**, and the horn answers the way a real one does. Your car only: the one you are

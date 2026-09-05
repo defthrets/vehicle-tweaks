@@ -49,6 +49,13 @@ namespace VehicleTweaks.Driving
             public bool Handbrake;
             public bool Door;
 
+            /// <summary>
+            /// Its lights were put out with its engine, and that is an OVERRIDE rather than a
+            /// switch -- so somebody has to lift it, or the headlight key is dead on this car
+            /// for the rest of the session with nothing anywhere to say why.
+            /// </summary>
+            public bool Dark;
+
             /// <summary>Whether its engine stopping has already been dealt with. See Update.</summary>
             public bool Quiet;
         }
@@ -65,10 +72,10 @@ namespace VehicleTweaks.Driving
         /// registered here, which meant it was never released either. The car was locked in
         /// place permanently, and turning off an unrelated setting about music is what did it.
         /// </summary>
-        public void Keep(Vehicle car, bool radio, bool lights, bool handbrake, bool door)
+        public void Keep(Vehicle car, bool radio, bool lights, bool handbrake, bool door, bool dark)
         {
             if (car == null) return;
-            if (!radio && !lights && !handbrake && !door) return;
+            if (!radio && !lights && !handbrake && !door && !dark) return;
 
             try
             {
@@ -83,6 +90,7 @@ namespace VehicleTweaks.Driving
                     held.Lights |= lights;
                     held.Handbrake |= handbrake;
                     held.Door |= door;
+                    held.Dark |= dark;
                     return;
                 }
 
@@ -103,10 +111,12 @@ namespace VehicleTweaks.Driving
                 _cars.Add(new Held
                 {
                     Car = car, Radio = radio, Lights = lights, Handbrake = handbrake, Door = door,
+                    Dark = dark,
                 });
 
                 Log.Debug("Left running: keeping " + Name(car) +
                           (radio ? " playing" : "") + (lights ? " lit" : "") +
+                          (dark ? " dark" : "") +
                           (handbrake ? " braked" : "") + (door ? " open" : "") +
                           " (" + _cars.Count + " car(s) held).");
             }
@@ -207,7 +217,7 @@ namespace VehicleTweaks.Driving
                         held.Radio = false;
                         held.Lights = false;
 
-                        if (!held.Handbrake && !held.Door) _cars.RemoveAt(i);
+                        if (!held.Handbrake && !held.Door && !held.Dark) _cars.RemoveAt(i);
 
                         Log.Debug("Left running: " + Name(car) + " stopped; radio and lights off" +
                                   (held.Handbrake || held.Door ? ", still braked or open." : "."));
@@ -291,6 +301,14 @@ namespace VehicleTweaks.Driving
                     Override(car, returning
                                       ? ScriptedVehicleLightSetting.NoVehicleLightOverride
                                       : ScriptedVehicleLightSetting.SetVehicleLightsOff);
+                }
+                else if (held.Dark && returning)
+                {
+                    // ONLY ON THE WAY BACK IN. The car was deliberately put out, so it stays put
+                    // out for as long as it is parked -- but a driver in the seat has to be able
+                    // to work his own headlights, and this override is the thing that would stop
+                    // him. Lifting it does not turn them on; it hands the switch back.
+                    Override(car, ScriptedVehicleLightSetting.NoVehicleLightOverride);
                 }
 
                 if (!returning) return;

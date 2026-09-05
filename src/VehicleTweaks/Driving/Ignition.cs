@@ -46,6 +46,17 @@ namespace VehicleTweaks.Driving
         private bool _stopped;
 
         /// <summary>
+        /// Whether this car's lights are being forced out because its ignition was switched off.
+        ///
+        /// TRUE ONLY WHILE HE IS SITTING IN IT. The moment he gets out, the override is handed
+        /// to LeftRunning along with the handbrake and the door -- it is the same kind of thing,
+        /// a state left on somebody else's car, and it needs the same somebody to take it off
+        /// again when he comes back. Two owners for one override is one of them lifting it while
+        /// the other still thinks it is holding it.
+        /// </summary>
+        private bool _darkened;
+
+        /// <summary>
         /// A car just stepped out of, and the state it is to be left in.
         ///
         /// Held for a few seconds because the game turns the engine off ITSELF as the driver
@@ -55,6 +66,7 @@ namespace VehicleTweaks.Driving
         /// </summary>
         private Vehicle _leaving;
         private bool _leavingRunning;
+        private bool _leavingDark;
         private int _leavingUntil;
 
         /// <summary>Set once the exit control has been seen through the disable. See ExitKey.</summary>
@@ -158,6 +170,11 @@ namespace VehicleTweaks.Driving
 
                 if (!Same(car, _car))
                 {
+                    // Straight out of one and into another, without the first one ever being
+                    // walked away from. Nobody else has been told about that override, so it
+                    // goes back here or it does not go back at all.
+                    if (_darkened) Undarken(_car);
+
                     _car = car;
                     _downAt = 0;
                     _stopped = false;
@@ -315,6 +332,12 @@ namespace VehicleTweaks.Driving
             {
                 _waitingForThrottle = false;
 
+                // THE LIGHTS COME BACK WITH THE ENGINE, before it has even caught. The key going
+                // round is one gesture in both directions, and a driver who has just restarted
+                // his car and finds his headlight switch dead has been given a puzzle rather
+                // than a feature.
+                Undarken(car);
+
                 // THE GAME'S OWN CRANK. The third argument is "instantly", and false hands the
                 // whole start over to it: its starter sound, its own length, correct for the
                 // engine in this particular car. A delay we invented would be the same delay in
@@ -434,6 +457,7 @@ namespace VehicleTweaks.Driving
                 _waitingForThrottle = true;
 
                 Engine(car, false);
+                Darken(car);
                 return;
             }
 
@@ -455,6 +479,7 @@ namespace VehicleTweaks.Driving
                 _leaving = car;
                 _leavingRunning = Running(car);
                 _leavingLights = Lit(car);
+                _leavingDark = _darkened;
 
                 // SIX SECONDS, NOT FOUR, and the radio extends it again when it lands.
                 //
@@ -565,7 +590,14 @@ namespace VehicleTweaks.Driving
                        _radioSet && _leavingRunning && !string.IsNullOrEmpty(_station) && _station != "OFF",
                        _cfg.LightsStayAsLeft && _leavingLights,
                        _cfg.HandbrakeOnExit,
-                       _cfg.LeaveDoorOpen);
+                       _cfg.LeaveDoorOpen,
+                       _leavingDark);
+
+            // HANDED OVER, NOT SHARED. From here the override belongs to LeftRunning, which
+            // lifts it when he gets back in. Holding on to it as well would mean two owners for
+            // one piece of state, and the first one to let go wins.
+            _darkened = false;
+            _leavingDark = false;
         }
 
         /// <summary>
@@ -812,6 +844,60 @@ namespace VehicleTweaks.Driving
         {
             try { return v.IsEngineRunning; }
             catch { return false; }
+        }
+
+        /// <summary>
+        /// The lights out, because the ignition is off.
+        ///
+        /// AN OVERRIDE, NOT A SWITCH, which is why it is tracked at all. There is no "turn the
+        /// headlights off" -- the setter for that has been obsolete since SHVDN 3 -- and what
+        /// there is instead OVERRULES the driver's own switch for as long as it stands. Left in
+        /// place it is a car whose headlight key does nothing for the rest of the session.
+        /// </summary>
+        private void Darken(Vehicle car)
+        {
+            if (!_cfg.LightsOffWithEngine || _darkened) return;
+
+            _darkened = true;
+
+            try { car.SetScriptedLightSetting(ScriptedVehicleLightSetting.SetVehicleLightsOff); }
+            catch { /* it is a light */ }
+
+            Log.Debug("Ignition: " + Name(car) + " switched off, lights out with it.");
+        }
+
+        /// <summary>Hands the headlight switch back, wherever we took it.</summary>
+        private void Undarken(Vehicle car)
+        {
+            if (!_darkened) return;
+
+            _darkened = false;
+
+            try
+            {
+                if (car != null && car.Exists())
+                {
+                    car.SetScriptedLightSetting(ScriptedVehicleLightSetting.NoVehicleLightOverride);
+                }
+            }
+            catch { /* the car is gone, and the override went with it */ }
+        }
+
+        /// <summary>
+        /// Gives back the one thing this holds, on the way out.
+        ///
+        /// EVERYTHING ELSE IN HERE IS PER FRAME and needs no teardown -- that is stated at
+        /// length above, and it stayed true until the lights started going out with the
+        /// ignition. A scripted light setting is not per frame. A reload landing while he is sat
+        /// in a car he has switched off would otherwise leave that car unable to put its own
+        /// headlights on, with the script that did it no longer running to be blamed.
+        ///
+        /// Only the car he is IN. One he has already walked away from is deliberately dark, and
+        /// LeftRunning is holding that on purpose.
+        /// </summary>
+        public void Release()
+        {
+            Undarken(_car);
         }
 
         private static bool Lit(Vehicle v)
