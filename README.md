@@ -291,6 +291,28 @@ The switch is a preference and follows you, so leaving it on and getting into so
 lights that one too. The light itself goes out when you get out — a parked car glowing from the
 inside forever would be this script's litter.
 
+## Repairing as you drive
+
+**Off by default**, like everything here that removes a consequence rather than adding one. The
+rest of this mod corrects a car that still behaves the way you expect; this undoes the last few
+minutes of your driving.
+
+**The clock restarts whether or not anything was repaired**, and that is the whole difference
+between a repair every few minutes and invincibility. Left to run on, an undamaged car would sit
+with its timer already expired and fix the next scrape a frame after it happened — the same code,
+a completely different game. Damage is meant to last up to the interval; that *is* the interval.
+
+**A wreck is left as a wreck.** Repairing a dead car does not repair it, it resurrects it — engine
+running, flames out, upright again — and nobody asking for their scratches buffed out is asking
+for that.
+
+It looks before it acts, so an undamaged car never gets the small visible jolt of having its
+bodywork snapped straight for nothing. Three questions, because the game answers them separately:
+damage decals are the bullet holes and scrapes and say nothing about a dead engine; the healths
+cover the dents and the mechanicals and say nothing about a flat tyre. `IsDamaged` looks like a
+fourth and is not — it is obsolete and means `HasDamageDecals`, the same question dressed as the
+general one.
+
 ## Parking a car
 
 The small print of leaving one behind, all of it silent.
