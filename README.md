@@ -237,6 +237,40 @@ tyres another mod had deliberately disarmed. Only what this turned off gets turn
 There is no top-speed slider, deliberately: `MaxSpeed` is a cap rather than a raise, and cruise
 control already owns that field. A second writer is the exact thing this page exists to avoid.
 
+## Stance
+
+Camber, track width and ride height, per axle. Six sliders on the TUNING page.
+
+**Not by writing memory, which is the whole point.** VStancer finds each wheel's structure in the
+game's memory and writes floats at fixed byte offsets. That works — it is also why it must be
+rebuilt for every game update and needed its own Enhanced version. An offset is only correct for
+the executable it was measured against, and a wrong one writes a float into whatever happens to be
+at that address. That is the one kind of change whose failure is a crash rather than a setting that
+does nothing.
+
+**So it goes through the bones.** Camber *is* the Y rotation of a wheel bone in the car's local
+space and track width *is* its X offset — not approximations of them — and `EntityBone.PoseRotation`
+and `EntityBone.Pose` are both settable through the ordinary API. Verified by reflection like
+everything else here, and version-independent by construction: a property is not an address.
+
+**Read, change one axis, write back.** The bone's pose is also where the wheel's *spin* lives.
+A pose built from camber alone, written sixty times a second, is a car whose wheels never turn
+again — so the rotation is read first, only Y is replaced, and the rest goes back untouched. Same
+for the translation: X and Z are ours, Y is left alone.
+
+**Every frame**, because the game poses the skeleton every frame and would undo it otherwise. That
+is the same problem VStancer solves by patching the game's height-reset code, which is not
+something a script should be doing; writing it again is.
+
+**Per axle rather than per wheel** — which is both what stance actually is and what VStancer's own
+menu offers. The two sides are mirrored, because one slider has to become two opposite numbers or
+a wider track is one wheel out and one wheel in.
+
+The one thing that could not be checked from outside the game is which sign counts as leaning *in*.
+If it goes the wrong way, use the other sign — it is a slider. The log reports the bone's pose
+rotation before and after, once per car, which is the only way to tell a pose the game accepted
+from one it overwrote a frame later.
+
 ## Holding a slide
 
 **The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops

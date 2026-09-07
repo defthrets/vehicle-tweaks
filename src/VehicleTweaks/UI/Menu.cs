@@ -155,7 +155,7 @@ namespace VehicleTweaks.UI
         /// scrolling below is what happens when it runs out: it is not dead weight, it is what
         /// stops a page silently losing its last row the day somebody adds one more setting.
         /// </summary>
-        private const int Rows = 18;
+        private const int Rows = 20;
 
         private const int Plain = 4;   // Chalet Comprime Cologne
 
@@ -568,6 +568,38 @@ namespace VehicleTweaks.UI
                                   v => _cfg.HydraulicRaise = v, 0.05f, 0f, 1f, "0.00", null,
                                   "Driving", "HydraulicRaise",
                                   "0.00 leaves them alone. Only does anything on Benny's cars."));
+
+            tune.Items.Add(Header("STANCE"));
+
+            tune.Items.Add(Number("Camber front", () => _cfg.CamberFront,
+                                  v => _cfg.CamberFront = v, 0.5f, -20f, 20f, "0.0", "deg",
+                                  "Driving", "CamberFront",
+                                  "How far the tops of the wheels lean. 0 is standard."));
+
+            tune.Items.Add(Number("Camber rear", () => _cfg.CamberRear,
+                                  v => _cfg.CamberRear = v, 0.5f, -20f, 20f, "0.0", "deg",
+                                  "Driving", "CamberRear",
+                                  "If it leans the wrong way, use the other sign."));
+
+            tune.Items.Add(Number("Track front", () => _cfg.TrackFront,
+                                  v => _cfg.TrackFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  "Driving", "TrackFront",
+                                  "How much further apart the front wheels sit."));
+
+            tune.Items.Add(Number("Track rear", () => _cfg.TrackRear,
+                                  v => _cfg.TrackRear = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  "Driving", "TrackRear",
+                                  "Mirrored across the axle, so both go the same way."));
+
+            tune.Items.Add(Number("Height front", () => _cfg.HeightFront,
+                                  v => _cfg.HeightFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  "Driving", "HeightFront",
+                                  "Where the wheel sits in the arch, not how soft it is."));
+
+            tune.Items.Add(Number("Height rear", () => _cfg.HeightRear,
+                                  v => _cfg.HeightRear = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  "Driving", "HeightRear",
+                                  "Applied every frame, because the game poses wheels every frame."));
 
             var grip = Add("GRIP");
 

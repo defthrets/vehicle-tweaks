@@ -494,6 +494,44 @@ namespace VehicleTweaks.Core
         /// </summary>
         public float HydraulicRaise = 0f;
 
+        // ---- stance -----------------------------------------------------------
+
+        /// <summary>
+        /// How far the tops of the wheels lean, in degrees, front and rear.
+        ///
+        /// THROUGH THE BONES, NOT THROUGH MEMORY, which is the whole reason this exists here at
+        /// all. Camber IS the Y rotation of a wheel bone in the car's local space -- not an
+        /// approximation of it -- and that rotation is settable through the ordinary API. The
+        /// other way to do it is what VStancer does: find each wheel's structure in memory and
+        /// write floats at fixed byte offsets, which is why that mod needs rebuilding for every
+        /// game update and needed its own Enhanced version. An offset is only correct for the
+        /// executable it was measured against; a property is not an address.
+        ///
+        /// NOUGHT IS THE CAR AS IT CAME. Which direction counts as leaning IN depends on a sign
+        /// convention I have not been able to check from outside the game -- if it leans the
+        /// wrong way, use the other sign. It is a slider.
+        /// </summary>
+        public float CamberFront = 0f;
+        public float CamberRear = 0f;
+
+        /// <summary>
+        /// How much further apart the wheels sit, in metres, front and rear.
+        ///
+        /// The X offset of the wheel bones, mirrored across the axle -- one slider has to become
+        /// two opposite numbers, or a wider track is one wheel out and one wheel in.
+        /// </summary>
+        public float TrackFront = 0f;
+        public float TrackRear = 0f;
+
+        /// <summary>
+        /// How far the wheels move up or down in the arches, in metres, front and rear.
+        ///
+        /// Not the same thing as softer springs further up: that changes how the car behaves over
+        /// a bump, and this changes where the wheel sits. A car can want either, or both.
+        /// </summary>
+        public float HeightFront = 0f;
+        public float HeightRear = 0f;
+
         /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
@@ -943,6 +981,13 @@ namespace VehicleTweaks.Core
                 s.SoftSuspension = ini.GetBool("Driving", "SoftSuspension", s.SoftSuspension);
                 s.WheelsNeverDeform = ini.GetBool("Driving", "WheelsNeverDeform", s.WheelsNeverDeform);
                 s.HydraulicRaise = ini.GetFloat("Driving", "HydraulicRaise", s.HydraulicRaise, 0f, 1f);
+
+                s.CamberFront = ini.GetFloat("Driving", "CamberFront", s.CamberFront, -20f, 20f);
+                s.CamberRear = ini.GetFloat("Driving", "CamberRear", s.CamberRear, -20f, 20f);
+                s.TrackFront = ini.GetFloat("Driving", "TrackFront", s.TrackFront, -0.3f, 0.3f);
+                s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
+                s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -0.3f, 0.3f);
+                s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -0.3f, 0.3f);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
