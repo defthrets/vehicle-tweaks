@@ -17,6 +17,12 @@ namespace VehicleTweaks.Driving
     /// all. That is the whole reason the pose looks right in a lowrider and wrong everywhere
     /// else: those cars are driven with the window down.
     ///
+    /// AND HE WINDS IT UP AS HE GETS OUT, rather than the car doing it once he has gone. Both
+    /// versions put the window back; only one of them looks like a person doing it. The signal is
+    /// IsSittingInVehicle going false while CurrentVehicle still names the car, which is exactly
+    /// the climb-out -- the same pair that has to be told apart for the radio, and for the pose
+    /// itself on the way in.
+    ///
     /// EVERY VEHICLE, WHICH IS THE POINT. There is no lowrider check and no convertible check --
     /// there was a cars-only filter here and it was MINE, not the game's. A vehicle whose seat
     /// layout has no such clipset simply ignores the context and sits him normally, so the filter
@@ -65,6 +71,15 @@ namespace VehicleTweaks.Driving
         /// <summary>Whether WE put the window down, so only our own is wound back up.</summary>
         private bool _wound;
 
+        /// <summary>
+        /// Whether he has actually been sat in this car yet.
+        ///
+        /// WITHOUT IT THERE IS NO WAY TO TELL THE TWO ANIMATIONS APART. Climbing in and climbing
+        /// out look identical from outside: CurrentVehicle names the car and IsSittingInVehicle
+        /// says no, in both. What separates them is which came first, and this is that.
+        /// </summary>
+        private bool _sat;
+
         /// <summary>Said once per context, not once per car.</summary>
         private string _said;
 
@@ -112,6 +127,26 @@ namespace VehicleTweaks.Driving
                     _since = Game.GameTime;
                     _step = 0;
                     _was = Clipset(car);
+                }
+
+                // HE WINDS IT UP ON HIS WAY OUT. Sat in the car a moment ago, not sat in it
+                // now, still attached to it: that is the climb-out, and it is the moment a person
+                // would reach for the handle -- not two seconds later once he is stood beside it,
+                // which is when the release below would otherwise get to it.
+                if (_sat && !Seated(me))
+                {
+                    _sat = false;
+
+                    if (_wound)
+                    {
+                        _wound = false;
+                        Wind(car, down: false);
+                        Log.Debug("Lowrider pose: window up on the way out.");
+                    }
+                }
+                else if (Seated(me))
+                {
+                    _sat = true;
                 }
 
                 if (_step >= Attempts.Length) return;
@@ -197,6 +232,7 @@ namespace VehicleTweaks.Driving
             _since = 0;
             _step = 0;
             _was = 0;
+            _sat = false;
 
             if (posed && me != null)
             {
@@ -257,6 +293,19 @@ namespace VehicleTweaks.Driving
             {
                 return 0;
             }
+        }
+
+        /// <summary>
+        /// Actually IN the seat, rather than part way through a door in either direction.
+        ///
+        /// CurrentVehicle answers yes for the whole climb-in AND the whole climb-out. This is the
+        /// half of the pair that says which of those is happening, once you know whether he has
+        /// been sat down yet.
+        /// </summary>
+        private static bool Seated(Ped me)
+        {
+            try { return me != null && me.IsSittingInVehicle(); }
+            catch { return false; }
         }
 
         /// <summary>

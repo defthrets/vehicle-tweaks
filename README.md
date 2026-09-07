@@ -327,6 +327,13 @@ that already exists, applied to the car you are actually in.
 is most of why the pose reads right in a lowrider and wrong everywhere else: those cars are driven
 with the window down. Only the window *this* put down is wound back up.
 
+**And he winds it up as he gets out**, rather than the car doing it once he has gone. Both versions
+put the window back; only one of them looks like a person doing it. The signal is
+`IsSittingInVehicle` going false while `CurrentVehicle` still names the car — which is the
+climb-out, and is the same pair of properties that has to be told apart for the radio and for the
+pose itself on the way in. Climbing in and climbing out look identical from outside; what separates
+them is which came first.
+
 **Every vehicle.** No lowrider check, no convertible check, no cars-only filter — one whose seat
 layout has no such clipset simply ignores the context and sits him normally, so a filter would not
 be preventing a broken pose, it would be preventing an attempt.
