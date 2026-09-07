@@ -401,6 +401,64 @@ namespace VehicleTweaks.Core
         /// </summary>
         public float DriftAmount = 0.20f;
 
+        // ---- tuning -----------------------------------------------------------
+
+        /// <summary>
+        /// The top end, as a multiplier on what the car came with.
+        ///
+        /// PER CAR AND PER MOMENT, not handling data. HandlingData is per MODEL and permanent for
+        /// the session: write to it and every other example of that car in the world changes and
+        /// stays changed until the game restarts. EnginePowerMultiplier is a small safe
+        /// instrument aimed at the car you are in, and it is given back when you get out.
+        ///
+        /// POWER IS THE TOP END. It is what the engine can do once it is already spinning, so
+        /// this is the number that moves the far end of the speedo rather than what happens when
+        /// the lights go green.
+        ///
+        /// The slide compensation on the GRIP page MULTIPLIES this rather than replacing it: 1.5
+        /// here and another 1.4 while sideways is 2.1, which is what both settings said.
+        /// </summary>
+        public float PowerMultiplier = 1.0f;
+
+        /// <summary>
+        /// The low end, as a multiplier on what the car came with.
+        ///
+        /// TORQUE IS WHAT YOU FEEL, and it is the half most people mean when they say a car needs
+        /// more power. It is what is available down low -- pulling away, coming out of a corner,
+        /// getting the back out on purpose -- where the engine is not spinning fast enough for
+        /// power to be the answer.
+        ///
+        /// Separate from the one above because the game keeps them separate, and because they do
+        /// genuinely different things: torque without power is a car that leaps off the line and
+        /// runs out of legs, and power without torque is one that does nothing until it is
+        /// already moving.
+        /// </summary>
+        public float TorqueMultiplier = 1.0f;
+
+        /// <summary>
+        /// How far the front wheels turn, as a multiplier on what the car came with.
+        ///
+        /// THE BASELINE, WHICH THE COUNTER-STEER SETTING MULTIPLIES. That one gives extra lock as
+        /// the car goes sideways and takes it away again as it straightens; this one is there all
+        /// the time, in the car park and on the motorway alike. A drift car is built with both:
+        /// more lock at rest, and it does not run out when the angle opens up.
+        ///
+        /// It asks the game which wheels steer rather than assuming the front two.
+        /// </summary>
+        public float SteeringLock = 1.0f;
+
+        /// <summary>
+        /// The tyres cannot be burst, and the wheels cannot be knocked off.
+        ///
+        /// FLAGS, NOT MULTIPLIERS, and that difference matters when they are given back. A
+        /// multiplier of one IS the standard value, so writing it costs nothing. These are
+        /// normally TRUE, so anything that set them back to true on every car it touched would be
+        /// re-arming tyres some other mod had deliberately disarmed. Only what this turned off
+        /// gets turned back on.
+        /// </summary>
+        public bool TyresNeverBurst = false;
+        public bool WheelsNeverBreak = false;
+
         /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
@@ -841,6 +899,12 @@ namespace VehicleTweaks.Core
                 // resetting a setting somebody had chosen. So every spelling it has ever had is
                 // still understood, and the new name is looked for first.
                 s.DriftAmount = Drift(ini, s.DriftAmount);
+
+                s.PowerMultiplier = ini.GetFloat("Driving", "PowerMultiplier", s.PowerMultiplier, 0.25f, 3f);
+                s.TorqueMultiplier = ini.GetFloat("Driving", "TorqueMultiplier", s.TorqueMultiplier, 0.25f, 3f);
+                s.SteeringLock = ini.GetFloat("Driving", "SteeringLock", s.SteeringLock, 1f, 2.5f);
+                s.TyresNeverBurst = ini.GetBool("Driving", "TyresNeverBurst", s.TyresNeverBurst);
+                s.WheelsNeverBreak = ini.GetBool("Driving", "WheelsNeverBreak", s.WheelsNeverBreak);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);

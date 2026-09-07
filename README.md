@@ -199,6 +199,44 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## Tuning
+
+Sliders for what the car is, before anything happens to it.
+
+| | range | what it is |
+|---|---|---|
+| **Power** | 0.25 – 3.00 | the top end — what the engine does once it is already spinning |
+| **Torque** | 0.25 – 3.00 | the low end — pulling away, out of a corner, getting the back out |
+| **Steering lock** | 1.00 – 2.50 | how far the front wheels turn, all the time |
+| Tyres never burst | on / off | kerbs, spikes and gunfire stop mattering |
+| Wheels never break off | on / off | a hard kerb strike leaves the wheel where it was |
+
+**Torque is the half you actually feel**, and it is what most people mean when they say a car
+needs more power. Torque without power is a car that leaps off the line and runs out of legs;
+power without torque is one that does nothing until it is already moving. The game keeps them
+separate, so this does too.
+
+**None of it is handling data.** Every field here is per *car* and per moment. `HandlingData` is
+per *model* and permanent for the session — write to it and every other example of that car in the
+world changes, and stays changed until the game restarts. These are small instruments aimed at the
+car you are in, and they are all given back when you get out, **by handle**.
+
+**They compose with the slide settings rather than competing with them.** That is the whole reason
+the slide compensation and these sliders live in one class: two features writing
+`EnginePowerMultiplier` is not a merge conflict, it is a car that flickers between two numbers
+depending on which ran last, and the symptom is a car that feels inconsistent rather than an error
+anybody can find. So the sliders are the baseline and the slide compensation **multiplies** it —
+1.5 power that finds another 1.4 while sideways is 2.1, which is what both settings said they
+would do.
+
+The two tyre flags are tracked differently from the multipliers, and the difference matters on the
+way out. A multiplier of 1.00 *is* the standard value, so writing it costs nothing; those flags are
+normally **true**, so anything setting them back to true on every car it touched would be re-arming
+tyres another mod had deliberately disarmed. Only what this turned off gets turned back on.
+
+There is no top-speed slider, deliberately: `MaxSpeed` is a cap rather than a raise, and cruise
+control already owns that field. A second writer is the exact thing this page exists to avoid.
+
 ## Holding a slide
 
 **The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops

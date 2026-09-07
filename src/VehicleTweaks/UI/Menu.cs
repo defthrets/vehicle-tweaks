@@ -523,6 +523,37 @@ namespace VehicleTweaks.UI
             // adding fresh defaults under a new heading while somebody's real values sat under
             // the old one, and the new copy would win. A page is a way to find a setting; the
             // section is where the value has always lived.
+            var tune = Add("TUNING");
+
+            tune.Items.Add(Header("THE ENGINE"));
+
+            tune.Items.Add(Number("Power", () => _cfg.PowerMultiplier,
+                                  v => _cfg.PowerMultiplier = v, 0.05f, 0.25f, 3f, "0.00", null,
+                                  "Driving", "PowerMultiplier",
+                                  "The top end. 1.00 is the car as it came."));
+
+            tune.Items.Add(Number("Torque", () => _cfg.TorqueMultiplier,
+                                  v => _cfg.TorqueMultiplier = v, 0.05f, 0.25f, 3f, "0.00", null,
+                                  "Driving", "TorqueMultiplier",
+                                  "The low end, which is the half you actually feel."));
+
+            tune.Items.Add(Header("THE STEERING"));
+
+            tune.Items.Add(Number("Steering lock", () => _cfg.SteeringLock,
+                                  v => _cfg.SteeringLock = v, 0.05f, 1f, 2.5f, "0.00", null,
+                                  "Driving", "SteeringLock",
+                                  "All the time. Counter-steer multiplies this while sideways."));
+
+            tune.Items.Add(Header("THE TYRES"));
+
+            tune.Items.Add(Toggle("Tyres never burst", () => _cfg.TyresNeverBurst,
+                                  v => _cfg.TyresNeverBurst = v, "Driving", "TyresNeverBurst",
+                                  "Kerbs, spikes and gunfire stop mattering."));
+
+            tune.Items.Add(Toggle("Wheels never break off", () => _cfg.WheelsNeverBreak,
+                                  v => _cfg.WheelsNeverBreak = v, "Driving", "WheelsNeverBreak",
+                                  "A hard kerb strike leaves the wheel where it was."));
+
             var grip = Add("GRIP");
 
             grip.Items.Add(Header("THE HANDBRAKE"));
@@ -560,7 +591,7 @@ namespace VehicleTweaks.UI
             grip.Items.Add(Number("How much it finds", () => _cfg.DriftPowerBoost,
                                   v => _cfg.DriftPowerBoost = v, 0.05f, 1f, 3f, "0.00", null,
                                   "Driving", "DriftPowerBoost",
-                                  "At full slide. 1.00 is none at all.",
+                                  "At full slide, on top of the TUNING power. 1.00 is none.",
                                   () => _cfg.DriftPower));
 
             grip.Items.Add(Toggle("More lock to catch it", () => _cfg.CounterSteer,
@@ -570,7 +601,7 @@ namespace VehicleTweaks.UI
             grip.Items.Add(Number("How much more lock", () => _cfg.CounterSteerLock,
                                   v => _cfg.CounterSteerLock = v, 0.05f, 1f, 3f, "0.00", null,
                                   "Driving", "CounterSteerLock",
-                                  "At full slide. 1.00 is the car as it came.",
+                                  "At full slide, on top of the TUNING lock. 1.00 is none.",
                                   () => _cfg.CounterSteer));
 
             grip.Items.Add(Number("All of it by", () => _cfg.CounterSteerFull,
