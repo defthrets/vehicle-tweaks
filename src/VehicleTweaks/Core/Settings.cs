@@ -488,6 +488,44 @@ namespace VehicleTweaks.Core
         public bool DashLight = true;
 
         /// <summary>
+        /// He drives everything the way he drives a lowrider: sat back, arm through the window.
+        ///
+        /// THE GAME ALREADY HAS THIS POSE and only ever gives it to you in the cars Benny built.
+        /// It is a seat context, chosen per vehicle in the game's own layout data, and a script
+        /// can ask for a different one -- so this is not a new animation bolted on, it is the one
+        /// that already exists applied to the car you are actually in.
+        ///
+        /// OFF, because it changes how the character looks in every car rather than how any car
+        /// behaves. That is a taste, and tastes get asked for.
+        /// </summary>
+        public bool LowriderPose = false;
+
+        /// <summary>
+        /// The seat context to ask for, by name.
+        ///
+        /// A SETTING RATHER THAN A CONSTANT, AND DELIBERATELY SO. Everything else in this mod was
+        /// checked against SHVDN by reflection before it was relied on. A context cannot be: it is
+        /// a NAME that gets hashed at runtime, and there is no list to check it against from
+        /// outside the running game. Baking a guess into the build would mean a rebuild to try the
+        /// next candidate; here it is one line and a reload.
+        ///
+        /// MINI_LOWRIDER is the first candidate. If the pose does not change, the others worth
+        /// trying are LOWRIDER, MINI_LOWRIDER_ARM and MINI. The log prints the name AND the hash
+        /// it generated, because a context the game does not have looks exactly like one that was
+        /// never applied.
+        /// </summary>
+        public string LowriderContext = "MINI_LOWRIDER";
+
+        /// <summary>
+        /// The driver's window goes down with the pose.
+        ///
+        /// AN ARM HANGING THROUGH GLASS IS WORSE THAN NO ARM. It is most of why the pose looks
+        /// right in a lowrider and wrong everywhere else -- those cars are driven with the window
+        /// down. Only our own window is wound back up when the pose comes off.
+        /// </summary>
+        public bool LowriderWindow = true;
+
+        /// <summary>
         /// The switch, on a keyboard and on a pad.
         ///
         /// K BECAUSE L IS TAKEN, and taken by the headlights, which is the thing this was just
@@ -806,6 +844,10 @@ namespace VehicleTweaks.Core
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);
                 s.CounterSteerFull = ini.GetFloat("Driving", "CounterSteerFull", s.CounterSteerFull, 5f, 90f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
+
+                s.LowriderPose = ini.GetBool("Driving", "LowriderPose", s.LowriderPose);
+                s.LowriderContext = ini.GetString("Driving", "LowriderContext", s.LowriderContext);
+                s.LowriderWindow = ini.GetBool("Driving", "LowriderWindow", s.LowriderWindow);
                 s.DashLightKey = ini.GetKey("Driving", "DashLightKey", s.DashLightKey);
                 s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
 

@@ -312,6 +312,34 @@ They were originally bolted onto the end of the speed readout, which was wrong. 
 object you glance at continuously; a warning lamp is meant to catch your eye precisely by *not*
 being part of what you were already looking at.
 
+## The lowrider pose
+
+**He drives everything the way he drives a lowrider** — sat back, one arm through the window.
+Off by default, because it changes how the character *looks* in every car rather than how any car
+behaves.
+
+The game already **has** this pose and only ever gives it to you in the cars Benny built. It is
+not an animation anybody has to author: it is a seat context, chosen per vehicle in the game's own
+layout data, and a script can ask for a different one. So nothing is bolted on — it is the pose
+that already exists, applied to the car you are actually in.
+
+**The window goes down with it**, because an arm hanging through glass is worse than no arm. That
+is most of why the pose reads right in a lowrider and wrong everywhere else: those cars are driven
+with the window down. Only the window *this* put down is wound back up.
+
+Applied **once**, not every frame — a seat context is a state, and re-asserting a state that is
+already set is how you get an animation that restarts sixty times a second and never plays. And it
+waits for `IsSittingInVehicle` rather than `CurrentVehicle`, because asked for during the climb-in
+it is competing with the entry animation and loses. Same distinction that caught the radio.
+
+**The context name is a setting, and that is the honest part.** Everything else in this mod was
+checked against SHVDN by reflection before it was relied on. A context cannot be — it is a *name*,
+hashed at runtime, with no list to check against from outside the running game. Baking a guess into
+the build would mean a rebuild to try the next candidate; in the ini it is one line and a reload.
+`MINI_LOWRIDER` is the first candidate; `LOWRIDER`, `MINI_LOWRIDER_ARM` and `MINI` are the others
+worth trying. The log prints the name **and the hash**, because a context the game does not have
+looks exactly like one that was never applied.
+
 ## Crashes, and the dash
 
 Hit something above 100 km/h and the world drops into slow motion for a moment. **This is the

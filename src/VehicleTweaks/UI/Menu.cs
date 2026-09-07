@@ -485,6 +485,17 @@ namespace VehicleTweaks.UI
                                  "ENTER, then press the key you want. On a pad, modifier + left.",
                                  () => _cfg.DashLight));
 
+            drive.Items.Add(Header("HOW HE SITS"));
+
+            drive.Items.Add(Toggle("Lowrider pose", () => _cfg.LowriderPose,
+                                   v => _cfg.LowriderPose = v, "Driving", "LowriderPose",
+                                   "Sat back, arm out the window, in every car."));
+
+            drive.Items.Add(Toggle("Window down with it", () => _cfg.LowriderWindow,
+                                   v => _cfg.LowriderWindow = v, "Driving", "LowriderWindow",
+                                   "An arm hanging through glass is worse than no arm.",
+                                   () => _cfg.LowriderPose));
+
             drive.Items.Add(Header("THE SEATBELT"));
 
             drive.Items.Add(Toggle("Seatbelt", () => _cfg.Seatbelt, v => _cfg.Seatbelt = v,
