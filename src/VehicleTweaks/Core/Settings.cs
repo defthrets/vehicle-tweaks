@@ -460,6 +460,41 @@ namespace VehicleTweaks.Core
         public bool WheelsNeverBreak = false;
 
         /// <summary>
+        /// Softer springs, using the game's own reduced suspension force.
+        ///
+        /// THE GAME'S SWITCH, NOT A NUMBER OF MINE. There is no suspension stiffness to turn
+        /// down through any interface a script can reach; there is one flag that says "use the
+        /// reduced force", and this is it. It is what the game itself puts on a car it wants
+        /// sitting closer to the road.
+        /// </summary>
+        public bool SoftSuspension = false;
+
+        /// <summary>
+        /// The wheels keep their shape, however hard they are hit.
+        ///
+        /// A BENT WHEEL IS PERMANENT AND IT STEERS. Once a kerb has folded one over, the car
+        /// pulls for the rest of its life and there is no repair short of a full one -- which
+        /// is a lot of consequence for a mistake that lasted a tenth of a second. Separate from
+        /// the wheel breaking off, which is the same event several stages further on.
+        /// </summary>
+        public bool WheelsNeverDeform = false;
+
+        /// <summary>
+        /// How high the hydraulics sit, on the cars that have them.
+        ///
+        /// NOUGHT MEANS LEAVE IT ALONE, which is why the range starts there rather than at a
+        /// height. Anything above it is a height being held, and the value the car already had
+        /// is read once and put back afterwards -- a car whose hydraulics were parked high and
+        /// came back sitting on the floor would be this mod deciding something nobody asked it
+        /// to.
+        ///
+        /// Applied to everything, and it only does anything on a car with hydraulics fitted.
+        /// Filtering for Benny's cars would mean keeping a list of them, and the game already
+        /// knows which is which.
+        /// </summary>
+        public float HydraulicRaise = 0f;
+
+        /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
         /// GTA bogs a car down the moment it stops pointing where it is going, which is what
@@ -905,6 +940,9 @@ namespace VehicleTweaks.Core
                 s.SteeringLock = ini.GetFloat("Driving", "SteeringLock", s.SteeringLock, 1f, 2.5f);
                 s.TyresNeverBurst = ini.GetBool("Driving", "TyresNeverBurst", s.TyresNeverBurst);
                 s.WheelsNeverBreak = ini.GetBool("Driving", "WheelsNeverBreak", s.WheelsNeverBreak);
+                s.SoftSuspension = ini.GetBool("Driving", "SoftSuspension", s.SoftSuspension);
+                s.WheelsNeverDeform = ini.GetBool("Driving", "WheelsNeverDeform", s.WheelsNeverDeform);
+                s.HydraulicRaise = ini.GetFloat("Driving", "HydraulicRaise", s.HydraulicRaise, 0f, 1f);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);

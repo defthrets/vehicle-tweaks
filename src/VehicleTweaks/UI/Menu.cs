@@ -554,6 +554,21 @@ namespace VehicleTweaks.UI
                                   v => _cfg.WheelsNeverBreak = v, "Driving", "WheelsNeverBreak",
                                   "A hard kerb strike leaves the wheel where it was."));
 
+            tune.Items.Add(Toggle("Wheels never bend", () => _cfg.WheelsNeverDeform,
+                                  v => _cfg.WheelsNeverDeform = v, "Driving", "WheelsNeverDeform",
+                                  "A bent wheel is permanent, and it steers."));
+
+            tune.Items.Add(Header("THE SUSPENSION"));
+
+            tune.Items.Add(Toggle("Softer springs", () => _cfg.SoftSuspension,
+                                  v => _cfg.SoftSuspension = v, "Driving", "SoftSuspension",
+                                  "The game's own reduced suspension force."));
+
+            tune.Items.Add(Number("Hydraulics sit at", () => _cfg.HydraulicRaise,
+                                  v => _cfg.HydraulicRaise = v, 0.05f, 0f, 1f, "0.00", null,
+                                  "Driving", "HydraulicRaise",
+                                  "0.00 leaves them alone. Only does anything on Benny's cars."));
+
             var grip = Add("GRIP");
 
             grip.Items.Add(Header("THE HANDBRAKE"));

@@ -1,6 +1,7 @@
 using System;
 using GTA;
 using GTA.Math;
+using GTA.Native;
 using VehicleTweaks.Core;
 
 namespace VehicleTweaks.Driving
@@ -53,6 +54,13 @@ namespace VehicleTweaks.Driving
         /// <summary>Whether WE took the burst out of the tyres, so only our own is given back.</summary>
         private bool _tyres;
         private bool _wheels;
+
+        /// <summary>Same, for the two suspension flags, which are also normally true.</summary>
+        private bool _soft;
+        private bool _rigid;
+
+        /// <summary>The hydraulic raise this car had before we touched it, or less than nought for untouched.</summary>
+        private float _hydraulics = -1f;
 
         public Tuning(Settings cfg)
         {
@@ -112,7 +120,8 @@ namespace VehicleTweaks.Driving
                 // this has no opinion about the car, and a class with no opinion should not be
                 // writing five fields a frame to express it.
                 if (Standard(power) && Standard(torque) && Standard(steering) &&
-                    !_cfg.TyresNeverBurst && !_cfg.WheelsNeverBreak)
+                    !_cfg.TyresNeverBurst && !_cfg.WheelsNeverBreak &&
+                    !_cfg.SoftSuspension && !_cfg.WheelsNeverDeform && _cfg.HydraulicRaise <= 0f)
                 {
                     if (_applied) Restore(car);
                     return;
@@ -123,6 +132,7 @@ namespace VehicleTweaks.Driving
 
                 Lock(car, steering);
                 Tyres(car);
+                Suspension(car);
 
                 _applied = true;
             }
@@ -259,6 +269,72 @@ namespace VehicleTweaks.Driving
             }
         }
 
+        /// <summary>
+        /// The suspension, and the hydraulics on the cars that have them.
+        ///
+        /// THE SAME SHAPE AS THE TYRE FLAGS, and given back the same way: their standard value is
+        /// true, so only what this turned off is turned back on.
+        ///
+        /// THE HYDRAULIC RAISE IS NOT A FLAG THOUGH, it is a number the car already had -- so the
+        /// original is read once and put back, rather than assumed to be nought. A car whose
+        /// hydraulics were parked high and came back sitting on the floor would be this mod
+        /// deciding something it was never asked about.
+        ///
+        /// It is applied to everything and only does anything on a car with hydraulics fitted.
+        /// Filtering for Benny's cars would mean keeping a list of them, and the game already
+        /// knows which is which.
+        /// </summary>
+        private void Suspension(Vehicle car)
+        {
+            try
+            {
+                if (_cfg.SoftSuspension)
+                {
+                    Function.Call(Hash.SET_REDUCED_SUSPENSION_FORCE, car.Handle, true);
+                    _soft = true;
+                }
+                else if (_soft)
+                {
+                    Function.Call(Hash.SET_REDUCED_SUSPENSION_FORCE, car.Handle, false);
+                    _soft = false;
+                }
+
+                if (_cfg.WheelsNeverDeform)
+                {
+                    Function.Call(Hash.SET_VEHICLE_CAN_DEFORM_WHEELS, car.Handle, false);
+                    _rigid = true;
+                }
+                else if (_rigid)
+                {
+                    Function.Call(Hash.SET_VEHICLE_CAN_DEFORM_WHEELS, car.Handle, true);
+                    _rigid = false;
+                }
+
+                if (_cfg.HydraulicRaise > 0f)
+                {
+                    if (_hydraulics < 0f)
+                    {
+                        _hydraulics = Function.Call<float>(
+                            Hash.GET_HYDRAULIC_SUSPENSION_RAISE_FACTOR, car.Handle);
+
+                        if (_hydraulics < 0f) _hydraulics = 0f;
+                    }
+
+                    Function.Call(Hash.SET_HYDRAULIC_SUSPENSION_RAISE_FACTOR, car.Handle,
+                                  _cfg.HydraulicRaise);
+                }
+                else if (_hydraulics >= 0f)
+                {
+                    Function.Call(Hash.SET_HYDRAULIC_SUSPENSION_RAISE_FACTOR, car.Handle, _hydraulics);
+                    _hydraulics = -1f;
+                }
+            }
+            catch
+            {
+                // The next frame will try again.
+            }
+        }
+
         private void Restore(Vehicle car)
         {
             _applied = false;
@@ -270,6 +346,15 @@ namespace VehicleTweaks.Driving
 
                 if (_tyres) { car.CanTiresBurst = true; _tyres = false; }
                 if (_wheels) { car.CanWheelsBreak = true; _wheels = false; }
+
+                if (_soft) { Function.Call(Hash.SET_REDUCED_SUSPENSION_FORCE, car.Handle, false); _soft = false; }
+                if (_rigid) { Function.Call(Hash.SET_VEHICLE_CAN_DEFORM_WHEELS, car.Handle, true); _rigid = false; }
+
+                if (_hydraulics >= 0f)
+                {
+                    Function.Call(Hash.SET_HYDRAULIC_SUSPENSION_RAISE_FACTOR, car.Handle, _hydraulics);
+                    _hydraulics = -1f;
+                }
             }
             catch
             {
