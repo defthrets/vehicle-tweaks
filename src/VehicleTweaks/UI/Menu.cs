@@ -775,6 +775,18 @@ namespace VehicleTweaks.UI
                                  "Measured in game time, so it lasts longer than it reads.",
                                  () => _cfg.CrashSlowMo));
 
+            gen.Items.Add(Header("REPAIRS"));
+
+            gen.Items.Add(Toggle("Repair as you drive", () => _cfg.Repairs,
+                                 v => _cfg.Repairs = v, "General", "Repairs",
+                                 "Every few minutes, if there is anything to put right."));
+
+            gen.Items.Add(Number("Every", () => _cfg.RepairMinutes,
+                                 v => _cfg.RepairMinutes = v, 0.5f, 0.5f, 60f, "0.0", "min",
+                                 "General", "RepairMinutes",
+                                 "The clock restarts either way. A wreck is left as a wreck.",
+                                 () => _cfg.Repairs));
+
             gen.Items.Add(Header("THIS PANEL"));
 
             gen.Items.Add(Choice("Modifier", () => _cfg.MenuModifier,

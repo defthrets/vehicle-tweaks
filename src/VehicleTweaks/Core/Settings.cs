@@ -519,6 +519,31 @@ namespace VehicleTweaks.Core
         /// </summary>
         public bool CrashSlowMo = false;
 
+        // ---- repairs -----------------------------------------------------------
+
+        /// <summary>
+        /// The car you are driving puts itself back together every few minutes.
+        ///
+        /// OFF, LIKE EVERYTHING HERE THAT REMOVES A CONSEQUENCE rather than adding one. The rest
+        /// of this mod corrects a car that still behaves the way you expect; this undoes the
+        /// last few minutes of your driving. That is a choice about how the game should treat
+        /// you, and it should be made deliberately rather than found.
+        ///
+        /// A wreck is left as a wreck: repairing a dead car does not repair it, it resurrects
+        /// it, and nobody asking for their scratches buffed out is asking for that.
+        /// </summary>
+        public bool Repairs = false;
+
+        /// <summary>
+        /// How often, in minutes.
+        ///
+        /// THE CLOCK RESTARTS WHETHER OR NOT ANYTHING WAS REPAIRED, which is the whole difference
+        /// between this and invincibility. Left to run on, an undamaged car would sit with its
+        /// timer already expired and fix the next scrape a frame after it happened. Damage is
+        /// meant to last up to the interval -- that IS the interval.
+        /// </summary>
+        public float RepairMinutes = 5f;
+
         /// <summary>How fast you have to be going, in kilometres an hour, for it to count.</summary>
         public float CrashSlowMoSpeed = 100f;
 
@@ -785,6 +810,9 @@ namespace VehicleTweaks.Core
                 s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
+
+                s.Repairs = ini.GetBool("General", "Repairs", s.Repairs);
+                s.RepairMinutes = ini.GetFloat("General", "RepairMinutes", s.RepairMinutes, 0.5f, 60f);
                 s.CrashSlowMoSpeed = ini.GetFloat("General", "CrashSlowMoSpeed", s.CrashSlowMoSpeed, 10f, 400f);
                 s.CrashSlowMoDrop = ini.GetFloat("General", "CrashSlowMoDrop", s.CrashSlowMoDrop, 1f, 40f);
                 s.CrashSlowMoScale = ini.GetFloat("General", "CrashSlowMoScale", s.CrashSlowMoScale, 0.05f, 1f);

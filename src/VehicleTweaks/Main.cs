@@ -49,6 +49,7 @@ namespace VehicleTweaks
         private readonly Speedo _speedo;
         private readonly DashLight _dash;
         private readonly Crashes _crashes;
+        private readonly Repairs _repairs;
         private readonly DriftTyres _drift;
         private readonly Parked _myCar;
         private readonly Stations _stations;
@@ -72,6 +73,7 @@ namespace VehicleTweaks
             _speedo = new Speedo(_cfg);
             _dash = new DashLight(_cfg);
             _crashes = new Crashes(_cfg);
+            _repairs = new Repairs(_cfg);
             _drift = new DriftTyres(_cfg);
             _myCar = new Parked(_cfg);
             _stations = new Stations(_cfg);
@@ -149,6 +151,7 @@ namespace VehicleTweaks
                     _locks.Update(me);
                     _dash.Update(me);
                     _crashes.Update(me);
+                    _repairs.Update(me);
                     _drift.Update(me);
                     _myCar.Update(me);
                     _stations.Update(me);
