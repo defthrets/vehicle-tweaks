@@ -495,6 +495,11 @@ namespace VehicleTweaks.Core
         /// can ask for a different one -- so this is not a new animation bolted on, it is the one
         /// that already exists applied to the car you are actually in.
         ///
+        /// EVERY VEHICLE. No lowrider check, no convertible check, no cars-only filter -- one
+        /// whose seat layout has no such clipset simply ignores the context and sits him
+        /// normally, so a filter would not be preventing a broken pose, it would be preventing
+        /// an attempt.
+        ///
         /// OFF, because it changes how the character looks in every car rather than how any car
         /// behaves. That is a taste, and tastes get asked for.
         /// </summary>

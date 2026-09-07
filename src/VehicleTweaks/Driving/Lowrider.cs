@@ -17,13 +17,23 @@ namespace VehicleTweaks.Driving
     /// all. That is the whole reason the pose looks right in a lowrider and wrong everywhere
     /// else: those cars are driven with the window down.
     ///
-    /// APPLIED ONCE, NOT EVERY FRAME. A seat context is a state, and re-asserting a state that is
-    /// already set is how you get an animation that restarts sixty times a second and never
-    /// actually plays. It goes on when he is settled in the seat and comes off when he leaves.
+    /// EVERY VEHICLE, WHICH IS THE POINT. There is no lowrider check and no convertible check --
+    /// there was a cars-only filter here and it was MINE, not the game's. A vehicle whose seat
+    /// layout has no such clipset simply ignores the context and sits him normally, so the filter
+    /// was not preventing a broken pose, it was preventing an attempt.
     ///
-    /// AND HE HAS TO BE SETTLED. Asked for during the climb-in, it is competing with the entry
-    /// animation and loses -- so it waits for IsSittingInVehicle rather than taking CurrentVehicle
-    /// as the answer, which is the distinction that has already caught the radio in this mod once.
+    /// ASKED FOR EARLY, AND AGAIN A FEW TIMES. The seat clipset is resolved as he gets in, so a
+    /// context set after he has landed in the seat can be a context set too late -- which looks
+    /// exactly like a context the game does not have. So it starts the moment the car becomes his
+    /// rather than waiting for IsSittingInVehicle, and is re-asserted at a few points across the
+    /// first second and a half. Four times, not every frame: this is a state, and hammering a
+    /// state is how you get an animation that restarts sixty times a second and never plays.
+    ///
+    /// AND IT SAYS WHETHER IT WORKED. GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT is the game's own
+    /// answer to "which seat animation is this ped actually using", read before the context goes
+    /// on and again after the last attempt. A context that does nothing is otherwise
+    /// indistinguishable from one that was never applied, and this mod has already lost a day to
+    /// a feature that was deployed, never ran, and got judged anyway.
     ///
     /// THE CONTEXT IS A SETTING, and that is deliberate rather than lazy. Everything else here was
     /// verified against SHVDN before it was relied on; a context is a NAME, hashed at runtime, and
@@ -33,18 +43,40 @@ namespace VehicleTweaks.Driving
     /// </summary>
     internal sealed class Lowrider
     {
+        /// <summary>The driver's seat, which the game numbers as minus one rather than nought.</summary>
+        private const int Driver = -1;
+
         private readonly Settings _cfg;
 
         private int _car;
 
-        /// <summary>Whether the pose is on, so it is asked for once rather than every frame.</summary>
+        /// <summary>Whether the pose is on, so there is something to put back.</summary>
         private bool _posed;
+
+        /// <summary>When the car became his, which is when the seat animation is being decided.</summary>
+        private int _since;
+
+        /// <summary>How many of the attempts below have been made for this car.</summary>
+        private int _step;
+
+        /// <summary>The seat clipset the game had chosen before we asked for anything.</summary>
+        private uint _was;
 
         /// <summary>Whether WE put the window down, so only our own is wound back up.</summary>
         private bool _wound;
 
         /// <summary>Said once per context, not once per car.</summary>
         private string _said;
+
+        /// <summary>
+        /// When the context is asked for, in milliseconds from the car becoming his.
+        ///
+        /// SPREAD ACROSS THE WAY IN rather than fired once at a moment picked by guesswork. The
+        /// seat clipset is chosen somewhere inside the entry animation and nothing tells a script
+        /// when; one attempt means picking that moment correctly first time, and being silently
+        /// wrong if not. Four cost nothing and cover the whole climb-in.
+        /// </summary>
+        private static readonly int[] Attempts = { 0, 300, 800, 1600 };
 
         public Lowrider(Settings cfg)
         {
@@ -63,7 +95,10 @@ namespace VehicleTweaks.Driving
 
                 var car = me == null ? null : me.CurrentVehicle;
 
-                if (car == null || !car.Exists() || !Seated(me) || !AtTheWheel(car, me) || !Suits(car))
+                // HIS SEAT, WHICH DURING THE CLIMB-IN IS A SEAT NOBODY IS IN YET. Waiting for a
+                // driver to exist would be waiting until after the seat animation has been
+                // decided, and that is the one thing this must not be late for.
+                if (car == null || !car.Exists() || !Mine(car, me))
                 {
                     Release(me);
                     return;
@@ -72,16 +107,26 @@ namespace VehicleTweaks.Driving
                 if (car.Handle != _car)
                 {
                     Release(me);
+
                     _car = car.Handle;
+                    _since = Game.GameTime;
+                    _step = 0;
+                    _was = Clipset(car);
                 }
 
-                if (_posed) return;
-
-                _posed = true;
+                if (_step >= Attempts.Length) return;
 
                 var context = (_cfg.LowriderContext ?? string.Empty).Trim();
 
-                if (context.Length == 0) return;
+                if (context.Length == 0)
+                {
+                    _step = Attempts.Length;
+                    return;
+                }
+
+                if (Game.GameTime - _since < Attempts[_step]) return;
+
+                _step++;
 
                 // StringHash.AtStringHash, not Game.GenerateHash: the latter is obsolete, and
                 // this is the fifth time on this mod that SHVDN's own deprecation warning has
@@ -91,13 +136,14 @@ namespace VehicleTweaks.Driving
                 try
                 {
                     Function.Call(Hash.SET_PED_IN_VEHICLE_CONTEXT, me.Handle, hash);
+                    _posed = true;
                 }
                 catch
                 {
                     // Nothing to put back: it either took or it did not.
                 }
 
-                if (_cfg.LowriderWindow) _wound = Wind(car, down: true);
+                if (_cfg.LowriderWindow && !_wound) _wound = Wind(car, down: true);
 
                 if (_said != context)
                 {
@@ -106,7 +152,20 @@ namespace VehicleTweaks.Driving
                     // THE HASH AS WELL AS THE NAME. A context that does nothing looks identical
                     // to a context that was never applied, and the number is the only way to tell
                     // a typo from a name the game simply does not have.
-                    Log.Info("Lowrider pose: asked for '" + context + "' (" + hash + ").");
+                    Log.Info("Lowrider pose: asking for '" + context + "' (" + hash + ").");
+                }
+
+                // AFTER THE LAST ATTEMPT, THE VERDICT. The game's own answer to which seat
+                // animation he is using, before and after -- so "it did nothing" and "it was
+                // never applied" stop looking like each other.
+                if (_step >= Attempts.Length)
+                {
+                    var now = Clipset(car);
+
+                    Log.Debug("Lowrider pose: seat clipset " + _was +
+                              (now == _was ? " unchanged - this vehicle's layout has no '" +
+                                             context + "'."
+                                           : " became " + now + " - the context took."));
                 }
             }
             catch (Exception ex)
@@ -135,6 +194,9 @@ namespace VehicleTweaks.Driving
             _car = 0;
             _posed = false;
             _wound = false;
+            _since = 0;
+            _step = 0;
+            _was = 0;
 
             if (posed && me != null)
             {
@@ -177,37 +239,39 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Whether this is a thing you can hang an arm out of.
+        /// Which seat animation the game has actually put him in.
         ///
-        /// CARS ONLY. A bike has no window and no door to rest on, a boat's seat context is its
-        /// own, and asking a helicopter pilot to sit like he is cruising Vespucci is a pose that
-        /// would be applied to somebody holding a collective.
+        /// THE ONLY HONEST TEST THERE IS. There is no native that reads back a ped's vehicle
+        /// context, so the way to find out whether asking for one changed anything is to look at
+        /// what it was supposed to change. Nought comes back for anything that has no such
+        /// answer, which compares equal to itself and reports as unchanged -- which is correct.
         /// </summary>
-        private static bool Suits(Vehicle car)
+        private static uint Clipset(Vehicle car)
         {
-            try { return car.Model.IsCar; }
-            catch { return false; }
+            try
+            {
+                return Function.Call<uint>(Hash.GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT,
+                                           car.Handle, Driver);
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         /// <summary>
-        /// Actually IN the seat, rather than most of the way through the door.
+        /// Whether that car is his to sit in, INCLUDING while he is still climbing into it.
         ///
-        /// CurrentVehicle answers yes for the whole climb-in, and a seat context asked for during
-        /// the entry animation is competing with it. This is the same distinction that had the
-        /// radio being set on a ped who had not left the seat yet.
+        /// An empty driver's seat counts, because during the entry animation that is exactly what
+        /// it is: CurrentVehicle already names the car and Driver is still nobody. Asking only
+        /// whether he IS the driver would mean never asking until the way in was over.
         /// </summary>
-        private static bool Seated(Ped me)
-        {
-            try { return me.IsSittingInVehicle(); }
-            catch { return false; }
-        }
-
-        private static bool AtTheWheel(Vehicle car, Ped me)
+        private static bool Mine(Vehicle car, Ped me)
         {
             try
             {
                 var driver = car.Driver;
-                return driver != null && driver.Exists() && driver.Handle == me.Handle;
+                return driver == null || !driver.Exists() || driver.Handle == me.Handle;
             }
             catch
             {

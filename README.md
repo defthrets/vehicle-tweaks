@@ -327,10 +327,22 @@ that already exists, applied to the car you are actually in.
 is most of why the pose reads right in a lowrider and wrong everywhere else: those cars are driven
 with the window down. Only the window *this* put down is wound back up.
 
-Applied **once**, not every frame — a seat context is a state, and re-asserting a state that is
-already set is how you get an animation that restarts sixty times a second and never plays. And it
-waits for `IsSittingInVehicle` rather than `CurrentVehicle`, because asked for during the climb-in
-it is competing with the entry animation and loses. Same distinction that caught the radio.
+**Every vehicle.** No lowrider check, no convertible check, no cars-only filter — one whose seat
+layout has no such clipset simply ignores the context and sits him normally, so a filter would not
+be preventing a broken pose, it would be preventing an attempt.
+
+**Asked for early, and again a few times.** The seat clipset is resolved as he gets in, so a
+context set after he has landed in the seat can be a context set *too late* — which looks exactly
+like a context the game does not have. It starts the moment the car becomes his, before there is
+even a driver in the seat, and is re-asserted at four points across the first second and a half.
+Four, not every frame: this is a state, and hammering a state gives you an animation that restarts
+sixty times a second and never plays.
+
+**And it says whether it worked.** `GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT` is the game's own answer
+to which seat animation he is actually using, read before the context goes on and again after the
+last attempt. There is no native that reads a ped's context back, so this is the only honest test
+there is — and without it, "the context did nothing" and "the context was never applied" look
+identical.
 
 **The context name is a setting, and that is the honest part.** Everything else in this mod was
 checked against SHVDN by reflection before it was relied on. A context cannot be — it is a *name*,
