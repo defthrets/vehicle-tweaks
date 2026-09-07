@@ -57,16 +57,94 @@ namespace VehicleTweaks.UI
         /// </summary>
         private int _captureAt;
 
-        /// <summary>True whenever the panel is taking input, so the rest of the mod can stand off.</summary>
+        /// <summary>
+        /// True whenever the panel is taking input, so the rest of the mod can stand off.
+        ///
+        /// THE INPUT GATE, NOT THE PICTURE. It goes false the instant the panel is dismissed,
+        /// while the panel itself is still sliding out -- which is the right way round: the car
+        /// should have its controls back on the frame you close the menu, not a tenth of a
+        /// second later because something is still being drawn.
+        /// </summary>
         public bool IsOpen => _open;
 
-        // Where it sits and how big, as fractions of the screen.
+        /// <summary>How present the panel is, nought to one. Drawn whenever it is not nought.</summary>
+        private float _show;
+
+        /// <summary>Where the highlight actually is, which is not always the row it belongs to.</summary>
+        private float _rowAt;
+
+        /// <summary>Where the lit tab underline actually is, and how wide.</summary>
+        private float _tabAt;
+        private float _tabWide;
+
+        /// <summary>Set when something has to arrive where it belongs rather than travel there.</summary>
+        private bool _snap = true;
+
+        /// <summary>When a value was last nudged, so it can be lit for a moment afterwards.</summary>
+        private int _touchedAt;
+
+        /// <summary>Where the panel is being drawn this frame, which is left of home while it arrives.</summary>
+        private float _drawX = PanelX;
+
+        /// <summary>
+        /// How big the whole panel is. One number, and everything below is a fraction of it.
+        ///
+        /// THE POINT IS THAT THERE IS ONLY ONE. Every size in here used to be its own literal,
+        /// most of them written inline in the drawing code -- so making the panel smaller meant
+        /// finding thirty numbers and getting the ratios between them right by hand, which is
+        /// how a menu ends up with a title that no longer fits its bar. Now the panel has a
+        /// size, and the parts have proportions.
+        ///
+        /// Turned down from 1.0 because it was a big panel for what it says: eighteen short
+        /// rows of two words and a number, taking up a quarter of the screen in a game you are
+        /// meant to still be driving.
+        /// </summary>
+        private const float Zoom = 0.78f;
+
+        // Where it sits. NOT scaled -- these are the corner it is pinned to, not its size.
         private const float PanelX = 0.030f;
-        private const float PanelW = 0.262f;
         private const float PanelTop = 0.155f;
-        private const float TitleH = 0.052f;
-        private const float RowH = 0.0280f;
-        private const float FootH = 0.044f;
+
+        // How big, as fractions of the screen.
+        private const float PanelW = 0.262f * Zoom;
+        private const float TitleH = 0.052f * Zoom;
+        private const float RowH = 0.0280f * Zoom;
+        private const float FootH = 0.044f * Zoom;
+
+        // The margins inside it.
+        private const float PadX = 0.012f * Zoom;
+        private const float LabelX = 0.017f * Zoom;
+        private const float ValueX = 0.010f * Zoom;
+        private const float Hair = 0.0016f * Zoom;
+
+        // And the type. Text does not scale with a rectangle on its own.
+        private const float TitleText = 0.46f * Zoom;
+        private const float TabText = 0.26f * Zoom;
+        private const float HeadText = 0.235f * Zoom;
+        private const float RowText = 0.295f * Zoom;
+        private const float HintText = 0.255f * Zoom;
+        private const float FootText = 0.235f * Zoom;
+
+        /// <summary>
+        /// How far the panel comes in from, and how quickly everything settles.
+        ///
+        /// TIME CONSTANTS, NOT DURATIONS. Each of these is the time an eased value takes to
+        /// cover about two thirds of the distance left, so nothing has a moment where it stops
+        /// dead -- and, more usefully, an animation interrupted half way simply changes where it
+        /// is heading rather than having to be cancelled and restarted. Pressing DOWN four times
+        /// quickly is one continuous movement, not four that fight each other.
+        ///
+        /// Small numbers on purpose. A settings panel is a thing you use, not a thing you watch:
+        /// past about a tenth of a second the movement stops being feedback and starts being a
+        /// wait.
+        /// </summary>
+        private const float ShowTau = 0.055f;
+        private const float RowTau = 0.045f;
+        private const float TabTau = 0.060f;
+        private const float SlideIn = 0.022f;
+
+        /// <summary>How long a nudged value stays lit after it changes.</summary>
+        private const int FlashMs = 220;
 
         /// <summary>
         /// How many rows fit before it scrolls.
@@ -827,6 +905,7 @@ namespace VehicleTweaks.UI
 
             private readonly Keys _key;
             private readonly Control _pad;
+            private readonly bool _hasKey;
             private readonly bool _hasPad;
             private readonly bool _repeats;
 
@@ -840,6 +919,7 @@ namespace VehicleTweaks.UI
             {
                 _key = key;
                 _pad = pad;
+                _hasKey = true;
                 _hasPad = true;
                 _repeats = repeats;
             }
@@ -847,13 +927,29 @@ namespace VehicleTweaks.UI
             public Button(Keys key, bool repeats)
             {
                 _key = key;
-                _hasPad = false;
+                _hasKey = true;
+                _repeats = repeats;
+            }
+
+            /// <summary>
+            /// A button with no key behind it at all.
+            ///
+            /// FOR THE SHOULDERS, which have no keyboard equivalent worth inventing -- TAB
+            /// already turns the page and there is nothing to gain from giving it a second key.
+            /// Written as its own constructor rather than passed Keys.None, because Keys.None
+            /// would still be handed to IsKeyPressed every frame and what that answers for a
+            /// key that does not exist is not something worth finding out at sixty hertz.
+            /// </summary>
+            public Button(Control pad, bool repeats)
+            {
+                _pad = pad;
+                _hasPad = true;
                 _repeats = repeats;
             }
 
             public void Poll()
             {
-                var down = Held(_key) || (_hasPad && Pad.Held(_pad));
+                var down = (_hasKey && Held(_key)) || (_hasPad && Pad.Held(_pad));
 
                 if (!down)
                 {
@@ -897,6 +993,26 @@ namespace VehicleTweaks.UI
         /// <summary>Keyboard only, and it does not need to be anything else. See Navigate.</summary>
         private readonly Button _tab = new Button(Keys.Tab, false);
 
+        /// <summary>
+        /// The shoulders, which turn the page on a pad the way TAB does on a keyboard.
+        ///
+        /// THE SCRIPT GROUP, NOT THE FRONTEND ONE. Both have an LB and an RB in the enum and
+        /// only one of them is meant for us: the frontend group belongs to the game's own
+        /// menus, which is the same reason everything else in here is driven off the phone's
+        /// buttons rather than the frontend's.
+        ///
+        /// SAFE BECAUSE THE PANEL IS DEAF. Whatever LB and RB otherwise do in a car, they are
+        /// disabled for as long as this is open, so there is no collision to reason about --
+        /// which is not true of the chord that OPENS the panel, and is why that one is a chord.
+        ///
+        /// Not load-bearing. Up and down already run continuously through every page, which was
+        /// the deliberate answer to a pad having no spare buttons; this is a shortcut on top of
+        /// that. If it turns out these do not read during gameplay, nothing is lost but a
+        /// shortcut, and nothing anywhere depends on them firing.
+        /// </summary>
+        private readonly Button _padPrev = new Button(Control.ScriptLB, false);
+        private readonly Button _padNext = new Button(Control.ScriptRB, false);
+
         private bool _openKey;
 
         /// <summary>Set on the frame the panel opens, so that frame's input is primed, not obeyed.</summary>
@@ -920,10 +1036,17 @@ namespace VehicleTweaks.UI
             _accept.Poll();
             _back.Poll();
             _tab.Poll();
+            _padPrev.Poll();
+            _padNext.Poll();
         }
 
         public void Update()
         {
+            // FIRST, AND WHETHER OR NOT IT IS OPEN. Closing is a movement too, and a panel that
+            // only advanced its animation while it was open would freeze half way out and stay
+            // there until the next time it was opened.
+            Animate();
+
             // BOTH HALVES READ, and Edge FIRST, because Edge is what updates the remembered
             // key state -- short-circuiting past it leaves the key recorded as up while it is
             // held, and it registers a fresh press the next time anything looks.
@@ -942,6 +1065,10 @@ namespace VehicleTweaks.UI
                 {
                     _open = true;
                     _justOpened = true;
+
+                    // The highlight belongs on the row it is on, not wherever it was left when
+                    // the panel last shut.
+                    _snap = true;
                 }
             }
 
@@ -959,6 +1086,13 @@ namespace VehicleTweaks.UI
                 // that rebinds this is exactly what stops that staying true, and the failure it
                 // would produce is a close that also does whatever the new key does.
                 if (toggled) Deafen();
+
+                // STILL DRAWN WHILE IT LEAVES, and taking no input while it does. This is the
+                // half of the animation nobody writes: a panel that vanishes the frame you
+                // dismiss it has an opening animation and no closing one, which reads as the
+                // menu being interrupted rather than put away.
+                if (_show > 0f) Render();
+
                 return;
             }
 
@@ -1074,6 +1208,8 @@ namespace VehicleTweaks.UI
                 Game.DisableControlThisFrame(Control.PhoneRight);
                 Game.DisableControlThisFrame(Control.PhoneSelect);
                 Game.DisableControlThisFrame(Control.PhoneCancel);
+                Game.DisableControlThisFrame(Control.ScriptLB);
+                Game.DisableControlThisFrame(Control.ScriptRB);
 
                 // And whatever the chord is made of, so opening the panel does not also do
                 // whatever those two buttons do in the world.
@@ -1087,9 +1223,16 @@ namespace VehicleTweaks.UI
 
         private void Navigate()
         {
-            if (_tab.Fired)
+            if (_tab.Fired || _padNext.Fired)
             {
                 TurnPage(1, true);
+                Settle(1);
+                return;
+            }
+
+            if (_padPrev.Fired)
+            {
+                TurnPage(-1, true);
                 Settle(1);
                 return;
             }
@@ -1167,6 +1310,8 @@ namespace VehicleTweaks.UI
 
         private void Touch(Item item, int direction)
         {
+            _touchedAt = Game.GameTime;
+
             item.Nudge(direction);
             if (item.Section != null) _changed.Add(item);
         }
@@ -1234,6 +1379,106 @@ namespace VehicleTweaks.UI
         // Drawing
         // ==================================================================
 
+        /// <summary>
+        /// Moves everything that is between where it is and where it belongs.
+        ///
+        /// RUN EVERY FRAME, INCLUDING WHILE THE PANEL IS SHUT, because closing is a movement
+        /// too. The panel stops taking input the instant it is dismissed and keeps being drawn
+        /// until it has finished leaving, which is why IsOpen and _show are two different
+        /// things rather than one.
+        ///
+        /// EXPONENTIAL, NOT A TIMELINE. Each value moves a fraction of the distance still left
+        /// every frame, so there is no start time to remember, no end to detect, and an
+        /// animation interrupted half way just changes where it is going. Four quick presses of
+        /// DOWN are one continuous movement instead of four that cancel each other -- which is
+        /// the failure the obvious version has, and it looks like the menu skipping rows.
+        ///
+        /// The frame time is sanity-checked because it is not always one. A loading screen, an
+        /// alt-tab or a hitch hands back a delta of a second or more, and an eased value given
+        /// that arrives instantly -- so the whole animation is simply missed on exactly the
+        /// frames where the game was busy.
+        /// </summary>
+        private void Animate()
+        {
+            var dt = Delta();
+
+            // THE HIGHLIGHT SNAPS, THE PANEL AND THE UNDERLINE DO NOT, and each for its own
+            // reason. Opening on a row three pages from the last one would otherwise be the
+            // highlight sweeping the length of the panel to get there. The panel itself is
+            // MEANT to travel -- that is the animation. And the underline travelling is the
+            // whole point of a page change, so it is never snapped at all.
+            if (_snap)
+            {
+                _snap = false;
+                _rowAt = _row;
+            }
+            else
+            {
+                _rowAt = Toward(_rowAt, _row, RowTau, dt);
+            }
+
+            _show = Toward(_show, _open ? 1f : 0f, ShowTau, dt);
+
+            if (_show < 0.002f) _show = 0f;
+            if (_show > 0.998f) _show = 1f;
+
+            // IT ARRIVES FROM THE LEFT, which is the edge it is pinned to. Coming in from
+            // anywhere else would be the panel travelling across the picture rather than out of
+            // the side of it, and the eye reads that as something being thrown at it.
+            _drawX = PanelX - (1f - _show) * SlideIn;
+        }
+
+        private static float Delta()
+        {
+            try
+            {
+                var dt = Game.LastFrameTime;
+
+                // A tenth of a second is four frames at twenty-five. Anything longer than that
+                // was not a frame, it was the game being somewhere else.
+                if (dt <= 0f || dt > 0.1f) return 1f / 60f;
+
+                return dt;
+            }
+            catch
+            {
+                return 1f / 60f;
+            }
+        }
+
+        /// <summary>A step of the way from here to there, at a rate that does not depend on the frame rate.</summary>
+        private static float Toward(float now, float want, float tau, float dt)
+        {
+            if (tau <= 0f) return want;
+
+            var k = 1f - (float)Math.Exp(-dt / tau);
+            return now + (want - now) * k;
+        }
+
+        /// <summary>The same colour, as present as the panel is.</summary>
+        private Color Fade(Color c)
+        {
+            var a = (int)(c.A * _show);
+
+            if (a < 0) a = 0;
+            if (a > 255) a = 255;
+
+            return Color.FromArgb(a, c.R, c.G, c.B);
+        }
+
+        /// <summary>Part of the way from one colour to another.</summary>
+        private static Color Mix(Color from, Color to, float by)
+        {
+            if (by <= 0f) return from;
+            if (by >= 1f) return to;
+
+            return Color.FromArgb(
+                from.A + (int)((to.A - from.A) * by),
+                from.R + (int)((to.R - from.R) * by),
+                from.G + (int)((to.G - from.G) * by),
+                from.B + (int)((to.B - from.B) * by));
+        }
+
         private void Render()
         {
             var page = _pages[_page];
@@ -1242,21 +1487,50 @@ namespace VehicleTweaks.UI
             var bodyH = shown * RowH;
             var totalH = TitleH + bodyH + FootH;
 
-            Draw.Bar(PanelX, PanelTop, PanelW, totalH, Panel);
-            Draw.Bar(PanelX, PanelTop, PanelW, TitleH, Head);
-            Draw.Bar(PanelX, PanelTop + TitleH - 0.0022f, PanelW, 0.0022f, Amber);
+            var x = _drawX;
+
+            Draw.Bar(x, PanelTop, PanelW, totalH, Fade(Panel));
+            Draw.Bar(x, PanelTop, PanelW, TitleH, Fade(Head));
+            Draw.Bar(x, PanelTop + TitleH - Hair, PanelW, Hair, Fade(Amber));
 
             // MEASURED, NOT GUESSED. "Vehicle Tweaks" is a long title for a narrow panel and
-            // the width it takes depends on the aspect ratio it is read at.
-            const float titleWanted = 0.46f;
-            var titleScale = Draw.FitScale("VEHICLE TWEAKS", titleWanted, PanelW - 0.026f, Plain);
+            // the width it takes depends on the aspect ratio it is read at -- and the panel got
+            // narrower the day it got a size of its own, which is exactly the change that turns
+            // a title that just fitted into one that does not.
+            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW - PadX * 2f, Plain);
 
-            Draw.Text("VEHICLE TWEAKS", PanelX + 0.012f, PanelTop + 0.005f, titleScale, Amber, Plain);
+            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.005f * Zoom, titleScale,
+                      Fade(Amber), Plain);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
-            // to the row underneath it; all three names with the current one lit says the same
+            // to the row underneath it; all the names with the current one lit says the same
             // thing and needs no explaining.
             Tabs();
+
+            // THE HIGHLIGHT, DRAWN ONCE AND WHEREVER IT HAS GOT TO, rather than on whichever row
+            // owns it. Drawing it inside the loop is what ties it to a row, and a thing tied to
+            // a row cannot be between two of them.
+            var at = _rowAt - _scroll;
+
+            if (_show > 0f && at > -1f && at < shown && !page.Items[_row].IsHeader)
+            {
+                var hy = PanelTop + TitleH + at * RowH;
+
+                Draw.Bar(x, hy, PanelW, RowH, Fade(Color.FromArgb(38, 245, 196, 60)));
+                Draw.Bar(x, hy, 0.0022f * Zoom, RowH, Fade(Amber));
+
+                // AN ASCII CARET, because the pretty one does not exist.
+                //
+                // This was U+25B6 BLACK RIGHT-POINTING TRIANGLE, chosen on the house rule of
+                // text symbols over emoji. GTA's Chalet Comprime has no glyph for it and drew
+                // the missing-character box instead -- a small hollow rectangle, which on the
+                // selected row of a settings panel reads as a checkbox. It was decoration and it
+                // survived being wrong, which is exactly why it was made decoration; but a box
+                // that looks like a control is worse than no caret, and ">" is in every font
+                // there has ever been.
+                Draw.Text(">", x + 0.0055f * Zoom, hy + 0.0052f * Zoom, RowText * 0.88f,
+                          Fade(Amber), Plain);
+            }
 
             for (var i = 0; i < shown; i++)
             {
@@ -1271,9 +1545,9 @@ namespace VehicleTweaks.UI
                     // A heading sits low in its row with a hairline under it, so the group it
                     // opens reads as hanging off it rather than as another setting that happens
                     // to be in capitals.
-                    Draw.Text(item.Label, PanelX + 0.012f, y + 0.0090f, 0.235f, Amber, Plain);
-                    Draw.Bar(PanelX + 0.012f, y + RowH - 0.0035f, PanelW - 0.024f, 0.0011f,
-                             Color.FromArgb(45, 245, 196, 60));
+                    Draw.Text(item.Label, x + PadX, y + 0.0090f * Zoom, HeadText, Fade(Amber), Plain);
+                    Draw.Bar(x + PadX, y + RowH - 0.0035f * Zoom, PanelW - PadX * 2f, 0.0011f * Zoom,
+                             Fade(Color.FromArgb(45, 245, 196, 60)));
                     continue;
                 }
 
@@ -1284,23 +1558,6 @@ namespace VehicleTweaks.UI
                 // nothing. They stay reachable, because you may be about to turn the thing on.
                 var live = item.Live == null || item.Live();
 
-                if (selected)
-                {
-                    Draw.Bar(PanelX, y, PanelW, RowH, Color.FromArgb(38, 245, 196, 60));
-                    Draw.Bar(PanelX, y, 0.0022f, RowH, Amber);
-
-                    // AN ASCII CARET, because the pretty one does not exist.
-                    //
-                    // This was U+25B6 BLACK RIGHT-POINTING TRIANGLE, chosen on the house rule
-                    // of text symbols over emoji. GTA's Chalet Comprime has no glyph for it and
-                    // drew the missing-character box instead -- a small hollow rectangle, which
-                    // on the selected row of a settings panel reads as a checkbox. It was
-                    // decoration and it survived being wrong, which is exactly why it was made
-                    // decoration; but a box that looks like a control is worse than no caret,
-                    // and ">" is in every font there has ever been.
-                    Draw.Text(">", PanelX + 0.0055f, y + 0.0052f, 0.26f, Amber, Plain);
-                }
-
                 var label = selected ? Ink : Color.FromArgb(200, 205, 205, 208);
                 var value = selected ? Amber : Dim;
 
@@ -1310,31 +1567,36 @@ namespace VehicleTweaks.UI
                     value = Faint;
                 }
 
-                Draw.Text(item.Label, PanelX + 0.017f, y + 0.0044f, 0.295f, label, Plain);
+                // A VALUE LIT FOR A MOMENT AFTER IT CHANGES. On a row whose number moves in
+                // hundredths, held down on a D-pad, the only thing that says the press landed is
+                // the digit itself -- and a digit going from 0.34 to 0.35 is not a signal at
+                // that size. The flash is.
+                if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                Draw.Text(item.Show(), PanelX + PanelW - 0.010f, y + 0.0044f, 0.295f,
-                          value, Plain, false, true);
+                Draw.Text(item.Label, x + LabelX, y + 0.0044f * Zoom, RowText, Fade(label), Plain);
+
+                Draw.Text(item.Show(), x + PanelW - ValueX, y + 0.0044f * Zoom, RowText,
+                          Fade(value), Plain, false, true);
             }
 
-            // The scroll bar, only when there is something to scroll. Nothing scrolls today;
-            // see the note on Rows.
+            // The scroll bar, only when there is something to scroll.
             if (page.Items.Count > Rows)
             {
                 var track = bodyH;
                 var thumb = track * Rows / page.Items.Count;
-                var at = track * _scroll / page.Items.Count;
+                var down = track * _scroll / page.Items.Count;
 
-                Draw.Bar(PanelX + PanelW - 0.0018f, PanelTop + TitleH, 0.0018f, track,
-                         Color.FromArgb(60, 255, 255, 255));
-                Draw.Bar(PanelX + PanelW - 0.0018f, PanelTop + TitleH + at, 0.0018f, thumb, Amber);
+                Draw.Bar(x + PanelW - 0.0018f, PanelTop + TitleH, 0.0018f, track,
+                         Fade(Color.FromArgb(60, 255, 255, 255)));
+                Draw.Bar(x + PanelW - 0.0018f, PanelTop + TitleH + down, 0.0018f, thumb, Fade(Amber));
             }
 
             var foot = PanelTop + TitleH + bodyH;
 
-            Draw.Bar(PanelX, foot, PanelW, 0.0016f, Color.FromArgb(70, 255, 255, 255));
+            Draw.Bar(x, foot, PanelW, Hair, Fade(Color.FromArgb(70, 255, 255, 255)));
 
             // The hint for the selected row, cut to the panel rather than run out across the
-            // game. Falls back to the keys when a row has nothing to say for itself.
+            // game. Falls back to the controls when a row has nothing to say for itself.
             var pad = Pad.InUse();
 
             var hint = _capturing
@@ -1347,16 +1609,27 @@ namespace VehicleTweaks.UI
 
             if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
-            Draw.Text(Draw.Ellipsis(hint, 0.255f, PanelW - 0.024f, Plain),
-                      PanelX + 0.012f, foot + 0.008f, 0.255f, Dim, Plain);
+            Draw.Text(Draw.Ellipsis(hint, HintText, PanelW - PadX * 2f, Plain),
+                      x + PadX, foot + 0.008f * Zoom, HintText, Fade(Dim), Plain);
 
-            // THE KEYS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and BACKSPACE
-            // to somebody holding a pad is worse than no footer: they are the two instructions
-            // on screen and neither of them can be followed.
+            // THE CONTROLS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and
+            // BACKSPACE to somebody holding a pad is worse than no footer: they are the two
+            // instructions on screen and neither of them can be followed.
             Draw.Text(pad
-                          ? "D-PAD move & change   A works a row   B saves & closes"
+                          ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
-                      PanelX + 0.012f, foot + 0.026f, 0.235f, Faint, Plain);
+                      x + PadX, foot + 0.026f * Zoom, FootText, Fade(Faint), Plain);
+        }
+
+        /// <summary>How lit a just-changed value should be, one down to nought.</summary>
+        private float Flash()
+        {
+            if (_touchedAt == 0) return 0f;
+
+            var since = Game.GameTime - _touchedAt;
+            if (since < 0 || since >= FlashMs) return 0f;
+
+            return 1f - (float)since / FlashMs;
         }
 
         /// <summary>
@@ -1373,35 +1646,39 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// The page names across the head of the panel, current one lit.
+        /// The page names across the head of the panel, current one lit and underlined.
         ///
         /// LAID OUT BY MEASUREMENT rather than by fixed columns: the names are different
-        /// lengths, so evenly spaced columns would either crowd BLINKERS or strand GENERAL.
+        /// lengths, so evenly spaced columns would either crowd INDICATORS or strand GENERAL.
         /// Each is measured, and they are spread across whatever room is left.
+        ///
+        /// THE UNDERLINE TRAVELS. It is the one part of this panel that says which way you just
+        /// went -- the names cannot, because they do not move -- and on a strip of seven it is
+        /// the difference between reading where you are and watching yourself get there.
         /// </summary>
         private void Tabs()
         {
-            const float wanted = 0.26f;
-            const float minGap = 0.006f;
+            var minGap = 0.006f * Zoom;
 
-            var left = PanelX + 0.012f;
-            var right = PanelX + PanelW - 0.012f;
-            var y = PanelTop + 0.030f;
+            var left = _drawX + PadX;
+            var right = _drawX + PanelW - PadX;
+            var y = PanelTop + 0.030f * Zoom;
 
             var room = right - left;
             var gaps = _pages.Count > 1 ? minGap * (_pages.Count - 1) : 0f;
 
-            // SHRUNK TO FIT, not trusted to fit. Three names very nearly filled this strip, and
-            // a fourth added later cannot be assumed to go in beside them -- the failure is not
-            // a tidy clip, it is the last name running out of the panel and across the game.
-            // Measuring costs a couple of native calls on a menu only drawn while it is open.
-            var scale = wanted;
+            // SHRUNK TO FIT, not trusted to fit. The names very nearly filled this strip at the
+            // old size and the panel is smaller now, so an eighth page added later cannot be
+            // assumed to go in beside them -- the failure is not a tidy clip, it is the last
+            // name running out of the panel and across the game. Measuring costs a couple of
+            // native calls on a menu only drawn while it is open.
+            var scale = TabText;
             var total = Measure(scale);
 
             if (total > 0f && total > room - gaps)
             {
-                scale = wanted * ((room - gaps) / total);
-                if (scale < 0.16f) scale = 0.16f;
+                scale = TabText * ((room - gaps) / total);
+                if (scale < 0.16f * Zoom) scale = 0.16f * Zoom;
             }
 
             var widths = new float[_pages.Count];
@@ -1417,17 +1694,41 @@ namespace VehicleTweaks.UI
             if (gap < minGap) gap = minGap;
 
             var x = left;
+            var wantX = left;
+            var wantW = widths.Length > 0 ? widths[0] : 0f;
 
             for (var i = 0; i < _pages.Count; i++)
             {
                 var on = i == _page;
 
-                Draw.Text(_pages[i].Title, x, y, scale, on ? Amber : Faint, Plain);
+                if (on)
+                {
+                    wantX = x;
+                    wantW = widths[i];
+                }
 
-                if (on) Draw.Bar(x, y + 0.0165f, widths[i], 0.0016f, Amber);
+                Draw.Text(_pages[i].Title, x, y, scale, Fade(on ? Amber : Faint), Plain);
 
                 x += widths[i] + gap;
             }
+
+            // MEASURED HERE AND EASED HERE, because the widths only exist inside this method.
+            // Working them out a second time in Animate would be the same measurement kept in
+            // two places, which is the shape of every layout bug this panel has had.
+            var dt = Delta();
+
+            if (_tabWide <= 0f)
+            {
+                _tabAt = wantX;
+                _tabWide = wantW;
+            }
+            else
+            {
+                _tabAt = Toward(_tabAt, wantX, TabTau, dt);
+                _tabWide = Toward(_tabWide, wantW, TabTau, dt);
+            }
+
+            Draw.Bar(_tabAt, y + 0.0165f * Zoom, _tabWide, Hair, Fade(Amber));
         }
 
         /// <summary>The width of every tab name laid end to end, at a given scale.</summary>

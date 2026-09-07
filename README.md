@@ -67,34 +67,75 @@ Everything is on one panel, in the game, drawn out of rectangles with no UI libr
 | change a setting | `LEFT` `RIGHT` | **D-pad left / right** |
 | work a row | `ENTER` | **A** |
 | save and close | `BACKSPACE` or `F8` | **B** |
-| jump to a page | `TAB` | — |
+| jump to a page | `TAB` | **LB** / **RB** |
 
-Four pages, grouped by **when a setting applies** rather than by which feature owns it:
-**DRIVING** (the ignition, the seatbelt), **LEAVING** (what the car keeps, and the locks),
-**INDICATORS**, **GENERAL**. Headings group each page, and a row that hangs off a toggle that is
-currently off is drawn faint — so a page says at a glance which of it is live.
+**Seven pages**, grouped by *when* a setting applies rather than by which feature owns it:
+**DRIVING**, **GRIP**, **LEAVING**, **AUTOPILOT**, **INDICATORS**, **SPEEDO**, **GENERAL**.
+Headings group each page, and a row hanging off a toggle that is currently off is drawn faint —
+so a page says at a glance which of it is live.
 
 Directions repeat when held, which matters on a deadzone that steps in hundredths.
 
-**On a controller there is no page button, and none is needed:** UP and DOWN run off the end
-of one page onto the next, so the three pages are one continuous list of seventeen rows and
-the D-pad alone reaches everything. `TAB` stays as a keyboard shortcut for jumping straight to
-a page. The footer shows whichever set of controls you are actually holding.
+**The whole panel has one size.** Every dimension in it — margins, row height, each of six text
+scales — is a fraction of a single `Zoom` constant, so it can be made bigger or smaller without
+anyone having to get thirty ratios right by hand. That is how a menu ends up with a title that no
+longer fits its own bar.
+
+### It moves
+
+Four things are eased rather than switched, all of them **exponentially** — each moves a fraction
+of the distance still left, every frame. That means no timeline to remember, no end to detect, and
+an animation interrupted half way simply changes where it is heading. Four quick presses of `DOWN`
+are one continuous movement instead of four that cancel each other, which is the failure the
+obvious version has and it reads as the menu skipping rows.
+
+- **The panel** slides in from the left edge it is pinned to, and fades. It keeps being drawn
+  while it leaves — the half nobody writes. A panel that vanishes on the frame you dismiss it has
+  an opening animation and no closing one, which reads as being interrupted rather than put away.
+  Input stops immediately either way: `IsOpen` is the gate, not the picture.
+- **The highlight** travels between rows, and is drawn once wherever it has got to rather than by
+  whichever row owns it — a thing drawn inside the row loop is tied to a row, and a thing tied to
+  a row cannot be between two of them. It *snaps* on opening and on a page change, because
+  sweeping the length of the panel to reach the row you were already on is not feedback.
+- **The tab underline** travels on a page change. It is the one part of the panel that can say
+  which way you just went; the names cannot, because they do not move.
+- **A nudged value** lights up for a fifth of a second. On a number moving in hundredths, held
+  down on a D-pad, a digit going from 0.34 to 0.35 is not a signal at that size. The flash is.
+
+Frame time is sanity-checked before any of it: a loading screen or an alt-tab hands back a delta
+of a second or more, and an eased value given that arrives instantly — so the animation would be
+missed on exactly the frames where the game was busy.
+
+### On a controller
+
+**The D-pad alone reaches everything.** `UP` and `DOWN` run off the end of one page onto the next,
+so the seven pages are one continuous list. That was the deliberate answer to a pad having no
+spare buttons, and it is still what the panel is built on.
+
+**LB and RB jump a page** on top of that. They are the *script* control group, not the frontend
+one — both have an LB and an RB in the enum and only one of them is meant for scripts, which is
+the same reason everything else here is driven off the phone's buttons. They are safe because the
+panel is deaf: whatever those buttons otherwise do in a car, they are disabled for as long as it
+is open. Nothing depends on them firing, so if it turns out they do not read during gameplay, all
+that is lost is a shortcut.
+
+The footer shows whichever set of controls you are actually holding.
+
+### Saving
 
 A change applies the instant you make it, so you can try it on the next corner rather than
 alt-tabbing to a text file and reloading. When the panel closes, only the settings you actually
 touched are written back — **in place, keeping every comment in the ini**.
 
-Twenty-eight of the thirty-three settings are on the panel across four pages, including every
-keyboard binding — the panel, the hazards, the seatbelt, the locks. Each is a rebind row that
-waits for you to press the key you want (`ESC`, or **B** on a pad, cancels). "Both features on"
-is here too, and the panel deliberately keeps working when it is off — a switch you can only
-flip one way is a trap.
+**73 of the 81 settings are on the panel**, including every keyboard binding — the panel, the
+hazards, the seatbelt, the locks, the cabin light. Each is a rebind row that waits for you to
+press the key you want (`ESC`, or **B** on a pad, cancels). "Everything on" is here too, and the
+panel deliberately keeps working when it is off — a switch you can only flip one way is a trap.
 
-The five that are not on it are the controller chords. Those are names out of GTA's own control
-list, and a row that cycled through three hundred and sixty of them would not be a menu. They
-live in the ini, and the log says what each resolved to at start-up — including, loudly, when it
-could not.
+The **8** that are not on it are the controller chords. Those are names out of GTA's own control
+list, and a row cycling through three hundred and sixty of them would not be a menu. They live in
+the ini, and the log says what each resolved to at start-up — including, loudly, when it could
+not.
 
 ## Tests
 
