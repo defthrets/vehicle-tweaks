@@ -73,7 +73,7 @@ namespace VehicleTweaks.Driving
                 // fed a straight wheel at the real speed: that starts nothing the steering would,
                 // cancels any steering blinker the way straightening up does, and puts out nothing
                 // the hazards hold. The rules are the same tested rules either way.
-                _rules.Step(Game.GameTime, _cfg.Blinkers ? Wheel() : 0f, Speed(car));
+                _rules.Step(Game.GameTime, _cfg.Blinkers ? Wheel() : 0, Speed(car));
 
                 Apply(car);
             }
