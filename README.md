@@ -273,7 +273,18 @@ from one it overwrote a frame later.
 
 ## Holding a slide
 
-**The engine keeps pulling while the car is sideways.** GTA bogs a car down the moment it stops
+**The engine keeps pulling while the car is sideways.**
+
+**Power *and* torque**, on the same ramp. Torque is the half that actually holds a slide: power is
+the top end, what the engine does once it is already spinning, and a car that has just been thrown
+sideways is not there — the revs have dropped into the middle of the range and what it needs is
+pull, not speed. Boosting power alone was asking the engine for help in the one place a drifting
+car never is.
+
+One ramp for both, unlike the steering lock below. These are not two questions — the game bogs a
+sideways car and takes both away at once — so separate arrival angles would invent a distinction
+the problem does not have. Each multiplies its TUNING baseline rather than replacing it: 1.20
+torque set there and another 1.40 found while sideways is 1.68. GTA bogs a car down the moment it stops
 pointing where it is going, which is what makes long drifts collapse — the back comes out, the
 power falls away underneath you, and the slide dies of its own accord rather than because you
 ended it.

@@ -105,8 +105,17 @@ namespace VehicleTweaks.Driving
                 {
                     if (_cfg.DriftPower)
                     {
-                        power *= 1f + (_cfg.DriftPowerBoost - 1f) *
-                                 Ramp(angle, _cfg.DriftAngle, _cfg.DriftAngle * 3f);
+                        // ONE RAMP FOR BOTH, unlike the steering below. Power and torque are not
+                        // two questions here, they are two halves of the same one: the game bogs a
+                        // sideways car down, and it takes both away at once. Giving them separate
+                        // arrival angles would be inventing a distinction the problem does not
+                        // have -- and TORQUE is the half that matters most in a slide, where the
+                        // revs have fallen into the middle of the range and power is not what is
+                        // missing.
+                        var over = Ramp(angle, _cfg.DriftAngle, _cfg.DriftAngle * 3f);
+
+                        power *= 1f + (_cfg.DriftPowerBoost - 1f) * over;
+                        torque *= 1f + (_cfg.DriftTorqueBoost - 1f) * over;
                     }
 
                     if (_cfg.CounterSteer)

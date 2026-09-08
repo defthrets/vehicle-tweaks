@@ -555,6 +555,25 @@ namespace VehicleTweaks.Core
         public float DriftPowerBoost = 1.4f;
 
         /// <summary>
+        /// And how much torque it finds, at full slide.
+        ///
+        /// THE HALF THAT ACTUALLY HOLDS A SLIDE. Power is the top end -- what the engine does once
+        /// it is already spinning -- and a car that has just been thrown sideways is not there:
+        /// the revs have dropped into the middle of the range and what it needs is pull, not
+        /// speed. Boosting power alone was asking the engine for help in the one place a drifting
+        /// car never is.
+        ///
+        /// ON THE SAME RAMP AS THE POWER, deliberately. They are not two questions -- the game
+        /// bogs a sideways car and takes both away at once -- so giving them separate arrival
+        /// angles would invent a distinction the problem does not have.
+        ///
+        /// It multiplies the TorqueMultiplier baseline rather than replacing it, the same way the
+        /// power boost does: 1.2 set on the TUNING page and another 1.4 found while sideways is
+        /// 1.68, which is what both settings said.
+        /// </summary>
+        public float DriftTorqueBoost = 1.4f;
+
+        /// <summary>
         /// More steering lock while the car is sideways, so a slide can be caught.
         ///
         /// THIS IS HOW A REAL DRIFT CAR IS BUILT. The single most common modification on one is
@@ -1020,6 +1039,7 @@ namespace VehicleTweaks.Core
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
+                s.DriftTorqueBoost = ini.GetFloat("Driving", "DriftTorqueBoost", s.DriftTorqueBoost, 1f, 3f);
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
                 s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);

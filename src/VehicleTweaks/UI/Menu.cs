@@ -641,6 +641,12 @@ namespace VehicleTweaks.UI
                                   "At full slide, on top of the TUNING power. 1.00 is none.",
                                   () => _cfg.DriftPower));
 
+            grip.Items.Add(Number("And how much torque", () => _cfg.DriftTorqueBoost,
+                                  v => _cfg.DriftTorqueBoost = v, 0.05f, 1f, 3f, "0.00", null,
+                                  "Driving", "DriftTorqueBoost",
+                                  "The half that holds a slide. Same ramp as the power.",
+                                  () => _cfg.DriftPower));
+
             grip.Items.Add(Toggle("More lock to catch it", () => _cfg.CounterSteer,
                                   v => _cfg.CounterSteer = v, "Driving", "CounterSteer",
                                   "Running out of steering is why GTA slides end by themselves."));
