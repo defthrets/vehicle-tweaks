@@ -111,16 +111,33 @@ namespace VehicleTweaks.Core
         /// runs for a type that reads slightly better. The panel resolves these by name and
         /// says so in the log, including when it cannot.
         ///
-        /// A CHORD, because there is no spare pad button. Every face button, shoulder and stick
-        /// is a gameplay action and the D-pad changes the radio station; holding one and
-        /// pressing another is not something a thumb does by accident. The default holds the
-        /// View / Select / touchpad button and presses D-pad up.
+        /// A CHORD, because there is no spare pad button -- and SHARED BY ALL SEVEN of the mod's
+        /// pad chords, so one button held is the way into the panel, the hazards, the locks, the
+        /// seatbelt, cruise, the autopilot and the cabin light. One thing to learn, one place to
+        /// change it.
+        ///
+        /// R3, BECAUSE NOTHING IS FREE AND THIS COSTS LEAST. There is no unbound button on a pad
+        /// in this game. LB is the weapon wheel, RB is the handbrake, L3 is the horn, VIEW changes
+        /// the camera, and every D-pad direction is the phone, the character wheel, the radio
+        /// wheel or a detonator. So the modifier is not chosen by being free, it is chosen by what
+        /// it costs to HOLD:
+        ///
+        ///   LB   summons the weapon wheel, which is then worked with the D-pad -- the chord and
+        ///        the wheel are the same gesture, and the chord fires while you pick a gun.
+        ///   RB   pulls the handbrake at speed. Not a menu button.
+        ///   L3   sounds the horn in a car and toggles stealth on foot, which STAYS toggled.
+        ///   VIEW cycles the camera on every open, and a menu that moves the camera under itself
+        ///        is worse than one that is awkward to reach.
+        ///   R3   looks behind. The camera swings while it is held and comes back when it is let
+        ///        go: no wheel, no HUD, no sound, nothing left changed, nothing taken away.
+        ///
+        /// It is also the only one your other thumb can hold while the D-pad is being pressed.
         ///
         /// "Off" on PadOpen means the pad cannot open the panel. "None" on PadModifier means the
         /// single button does it on its own.
         /// </summary>
         public string PadOpen = "PhoneLeft";
-        public string PadModifier = "ScriptLB";
+        public string PadModifier = "ScriptRS";
 
         /// <summary>
         /// The combination, written the way a person would say it.

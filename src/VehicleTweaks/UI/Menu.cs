@@ -1717,6 +1717,14 @@ namespace VehicleTweaks.UI
                 Game.DisableControlThisFrame(Control.VehicleHandbrake);
                 Game.DisableControlThisFrame(Control.VehicleRadioWheel);
 
+                // R3, BOTH HALVES OF IT. The chord modifier is R3, and R3 is also look-behind --
+                // a different control id on the same physical button, so disabling the modifier
+                // does nothing to it. Without this the camera swings round behind the car every
+                // time the panel is closed. It swings on the way IN and that is left alone: the
+                // panel is not up yet to be read past, and it comes back with the button.
+                Game.DisableControlThisFrame(Control.LookBehind);
+                Game.DisableControlThisFrame(Control.VehicleLookBehind);
+
                 // THE PANEL'S OWN CONTROLS. These are the pad's way in and out of every row,
                 // and they are the phone's buttons -- so without this, navigating the panel on
                 // a pad rings the phone up behind it and the D-pad changes the radio station

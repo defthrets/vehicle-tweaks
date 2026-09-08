@@ -50,7 +50,7 @@ Turning the same way again does not put it out either, and that needs saying bec
 straightening between two turns the same way is itself a turn the other way. Only a *held*
 turn the other way cancels; a flick to line the car up does not.
 
-**Hazards are on `J`** (or the pad's modifier + D-pad down) — both sides at once. They get a key
+**Hazards are on `J`** (or the pad's modifier + D-pad down — hold **R3**) — both sides at once. They get a key
 of their own because there is no gesture left: you cannot hold the wheel left and right at the
 same time, which is exactly why a real car puts hazards on a separate switch rather than the
 stalk. They belong to the car, not to you — leave one on its hazards and it is still on them
@@ -62,7 +62,7 @@ Everything is on one panel, in the game, drawn out of rectangles with no UI libr
 
 | | keyboard | controller |
 |---|---|---|
-| open / close | `F8` | hold **View / Select / touchpad**, press **D-pad up** |
+| open / close | `F8` | hold **R3**, press **D-pad left** |
 | move | `UP` `DOWN` | **D-pad up / down** |
 | change a setting | `LEFT` `RIGHT` | **D-pad left / right** |
 | work a row | `ENTER` | **A** |
@@ -177,6 +177,38 @@ is open. Nothing depends on them firing, so if it turns out they do not read dur
 that is lost is a shortcut.
 
 The footer shows whichever set of controls you are actually holding.
+
+### The modifier is R3, because nothing on a pad is free
+
+Not "few buttons are free" — **none**. Every button on an Xbox pad is bound in single player: LB is
+the weapon wheel, RB is the handbrake, L3 is the horn in a car and stealth on foot, R3 looks behind,
+VIEW cycles the camera, START pauses, and each D-pad direction is the phone, the character wheel,
+the radio wheel or a detonator. So the modifier cannot be picked by being unbound. It is picked by
+**what it costs to hold**:
+
+| | held | cost |
+|---|---|---|
+| `LB` | weapon wheel | the wheel is *worked with the D-pad* — the chord and choosing a gun are the same gesture |
+| `RB` | handbrake | pulls the handbrake at speed |
+| `L3` | horn / stealth | sounds the horn, and stealth **stays** toggled |
+| `VIEW` | camera | cycles the camera under a menu you are about to read |
+| `R3` | look behind | camera swings, and comes back when you let go |
+
+R3 is the only one that leaves nothing changed behind it: no wheel, no HUD, no sound, and nothing
+taken away from the player, because look-behind is a *hold* action that undoes itself. It is also
+the only candidate the **other** thumb can hold while the D-pad is being pressed.
+
+**This shared modifier is all seven chords**, so the panel, the hazards, the locks, the seatbelt,
+cruise, the autopilot and the cabin light all moved together. The panel had been on LB, which meant
+that holding LB to pick a weapon and touching the D-pad opened the panel over the weapon wheel,
+toggled the hazards, or locked the doors — the hazards being the one that looked like a bug of its
+own. A gate was tried (`IS_HUD_COMPONENT_ACTIVE(19)`) and it silenced every chord instead, because
+that native appears to answer "is the component enabled", not "is it on screen". Moving off LB
+removes the question rather than answering it, so the gate is gone and a start-up warning takes its
+place if anyone sets `PadModifier` back to LB.
+
+Moving off LB also **gives the shoulders back**: `LB` and `RB` turn the page again, which they had
+stood down from while the chord was using LB.
 
 ### Saving
 
@@ -621,7 +653,7 @@ anything throws, and when the script shuts down. A crash is detected as *speed t
 rather than as a collision: GTA will happily report a kerb, and 8 m/s lost in one frame is about
 50 g, which braking cannot do and a scrape cannot do.
 
-**The cabin light is on `K`**, or the panel modifier and D-pad left on a pad. It used to follow
+**The cabin light is on `I`**, for interior, and on nothing at all on a pad. It used to follow
 the headlights, on the argument that a real dashboard lights with the side lights — true of the
 *instruments*, and not true of the cabin light, which is the one thing in a car that is
 explicitly not automatic. Every car ever built has it on its own switch, because the point of it

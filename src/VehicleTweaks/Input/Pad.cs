@@ -76,64 +76,70 @@ namespace VehicleTweaks.Input
             catch { return false; }
         }
 
-        /// <summary>The weapon wheel, if it is showing.</summary>
-        private const int WeaponWheel = 19;
-
         /// <summary>
-        /// Whether the weapon wheel is up.
+        /// What a person calls this button, rather than what the enumeration calls it.
         ///
-        /// LB IS THE WEAPON WHEEL, and LB is also the modifier every chord in this mod hangs
-        /// off. Hold it to choose a gun, touch the D-pad while the wheel is showing, and a chord
-        /// fires: the settings panel over the wheel, or the hazards, or the lock. The wheel is a
-        /// HUD component the game will say is active, and that is the whole test.
+        /// "HOLD SCRIPTRS AND PRESS PHONELEFT" IS A SENTENCE ABOUT AN ENUMERATION. The log line
+        /// and the panel footer are read by somebody sat holding the pad, and what they need is
+        /// the button under their thumb. The enum name is still what goes in the ini, because
+        /// that is what Parse reads back.
         /// </summary>
-        public static bool WheelUp()
+        public static string Name(Control control)
         {
-            try { return Function.Call<bool>(Hash.IS_HUD_COMPONENT_ACTIVE, WeaponWheel); }
-            catch { return false; }
-        }
-
-        private static bool _saidUp;
-        private static bool _saidDown;
-
-        /// <summary>
-        /// Reads the wheel test and writes down what it said, once each way. Observed, not obeyed.
-        ///
-        /// THE GATE WENT IN ON A GUESS ABOUT WHAT "ACTIVE" MEANS, and every chord went quiet on
-        /// the build that carried it. If the native means the wheel component is ENABLED, it is
-        /// true on every frame and a chord that defers to it never fires. So it is asked on every
-        /// chord press and the answer is logged with whether anything was pressed -- and the gate
-        /// goes back on only once the log shows it reading false while just driving.
-        /// </summary>
-        public static void ProbeWheel(string chord)
-        {
-            var up = WheelUp();
-
-            if (up && !_saidUp)
+            switch (control)
             {
-                _saidUp = true;
-                Log.Info("Weapon wheel test reads TRUE on the " + chord + " chord. If no wheel was on " +
-                         "screen, IS_HUD_COMPONENT_ACTIVE means enabled, not showing.");
-            }
-
-            if (!up && !_saidDown)
-            {
-                _saidDown = true;
-                Log.Info("Weapon wheel test reads FALSE on the " + chord + " chord, so it can tell " +
-                         "the wheel is down.");
+                case Control.ScriptLB: return "LB";
+                case Control.ScriptRB: return "RB";
+                case Control.ScriptLT: return "LT";
+                case Control.ScriptRT: return "RT";
+                case Control.ScriptLS: return "L3";
+                case Control.ScriptRS: return "R3";
+                case Control.ScriptSelect: return "VIEW";
+                case Control.ScriptPadUp:
+                case Control.PhoneUp: return "D-PAD UP";
+                case Control.ScriptPadDown:
+                case Control.MultiplayerInfo:
+                case Control.CharacterWheel:
+                case Control.PhoneDown: return "D-PAD DOWN";
+                case Control.ScriptPadLeft:
+                case Control.PhoneLeft: return "D-PAD LEFT";
+                case Control.ScriptPadRight:
+                case Control.PhoneRight: return "D-PAD RIGHT";
+                default: return control.ToString();
             }
         }
+
+        private static bool _saidHeld;
+
+        /// <summary>
+        /// Says once, the first time a modifier is felt going down, that the pad is being read.
+        ///
+        /// BECAUSE THE TWO WAYS THIS BREAKS LOOK IDENTICAL FROM THE SOFA. A chord that never
+        /// fires is either a modifier the game will not report to a script -- several controls
+        /// belong to groups that are only live in menus -- or a chord that is read and mishandled.
+        /// One line saying the button was felt tells those apart without a screenshot.
+        /// </summary>
+        public static void SeenHeld(Control modifier)
+        {
+            if (_saidHeld) return;
+
+            _saidHeld = true;
+            Log.Info("Pad: " + Name(modifier) + " read as held, so the chord modifier works here.");
+        }
+
     }
 
     /// <summary>
     /// A button held and a button pressed.
     ///
-    /// A CHORD, because there is no spare button on a pad. Every face button, shoulder and stick
-    /// is a gameplay action and the D-pad changes the radio station -- so a single button either
-    /// collides with something or has to be one nobody ever presses. Holding one while pressing
-    /// another is not something a thumb does by accident, which is the argument the keyboard
-    /// side makes for a modifier, except that on a keyboard there were free keys and here there
-    /// are none.
+    /// A CHORD, because there is no spare button on a pad. Not "few" -- none: LB is the weapon
+    /// wheel, RB is the handbrake, L3 is the horn, R3 looks behind, VIEW changes the camera, and
+    /// every D-pad direction is the phone, the character wheel, the radio wheel or a detonator.
+    /// Holding one while pressing another is not something a thumb does by accident, which is the
+    /// argument the keyboard side makes for a modifier, except that on a keyboard there were free
+    /// keys and here there are none.
+    ///
+    /// SO THE MODIFIER IS CHOSEN BY WHAT IT COSTS TO HOLD, not by being free. See PadModifier.
     ///
     /// ONLY WHILE THE PLAYER IS ACTUALLY ON A PAD. Every one of these controls has a keyboard
     /// binding too, and without that check each chord would quietly become a second keyboard
@@ -152,6 +158,18 @@ namespace VehicleTweaks.Input
             _modifier = Pad.Parse(modifier, what);
             _button = Pad.Parse(button, what);
             _what = what;
+
+            // THE ONE MODIFIER THAT CANNOT WORK, said once however many chords are built on it.
+            // LB opens the weapon wheel and the wheel is then worked with the D-pad, so every
+            // chord hung off LB fires while the player is choosing a gun: the panel over the
+            // wheel, the hazards on, the doors locked. That is not a bug to be gated around --
+            // it is the button being asked to mean two things at once.
+            if (_modifier == Control.ScriptLB)
+            {
+                Log.Once("lb-modifier", "PadModifier is LB, which opens the weapon wheel -- so " +
+                                        "every pad chord will also fire while you are choosing a " +
+                                        "weapon. R3 is the default for that reason.");
+            }
         }
 
         /// <summary>Null when nothing is bound, so callers can say so rather than guess.</summary>
@@ -160,7 +178,9 @@ namespace VehicleTweaks.Input
         public string Describe()
         {
             if (_button == null) return "off";
-            return (_modifier == null ? "press " : "hold " + _modifier + " and press ") + _button;
+
+            return (_modifier == null ? "press " : "hold " + Pad.Name(_modifier.Value) + " and press ") +
+                   Pad.Name(_button.Value);
         }
 
         /// <summary>Both controls, so a Deafen pass can hold them off while they are being read.</summary>
@@ -190,14 +210,13 @@ namespace VehicleTweaks.Input
                 }
 
                 var held = _modifier == null || Pad.Held(_modifier.Value);
+
+                if (held && _modifier != null) Pad.SeenHeld(_modifier.Value);
+
                 var down = held && Pad.Held(_button.Value);
 
                 fired = down && !_down;
                 _down = down;
-
-                // The wheel test is asked and written down, not acted on, until the log has shown
-                // what it actually measures. See Pad.ProbeWheel.
-                if (fired) Pad.ProbeWheel(_what);
             }
             catch
             {
