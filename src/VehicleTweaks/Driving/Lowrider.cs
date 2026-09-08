@@ -40,9 +40,16 @@ namespace VehicleTweaks.Driving
     /// tell you what a real lowrider's seat animation is CALLED. That is the whole question, and
     /// it is answered by one drive rather than by another list of guesses.
     ///
-    /// The dictionary probe stays alongside it, corrected: DOES_ANIM_DICT_EXIST answers for a
-    /// dictionary and GET_ANIM_DURATION for a clip inside one, so a wrong name is a log line
-    /// rather than the silence that let the first attempt go unnoticed.
+    /// The dictionary probe stays alongside it: DOES_ANIM_DICT_EXIST answers for a dictionary and
+    /// GET_ANIM_DURATION for a clip inside one, so a wrong name is a log line rather than the
+    /// silence that let the first attempt go unnoticed.
+    ///
+    /// AND THE PROBE SETTLED IT. 32 dictionaries exist, among them veh@low@front_ds@base with a
+    /// clip called "sit" that runs 6.33 seconds -- so the original guess was right after all, and
+    /// the "correction" to veh@low@ds@base from the clipset hash was wrong. The two are named
+    /// differently ON PURPOSE: a seat CLIPSET is clipset@veh@low@ds@base and the animation
+    /// DICTIONARY behind it is veh@low@front_ds@base. Reasoning across from one to the other was
+    /// a guess wearing the clothes of a deduction, and the probe is what caught it.
     /// </summary>
     internal sealed class Lowrider
     {
@@ -119,7 +126,7 @@ namespace VehicleTweaks.Driving
 
                 var car = me == null ? null : me.CurrentVehicle;
 
-                if (car == null || !car.Exists() || !Mine(car, me))
+                if (car == null || !car.Exists() || !Mine(car, me) || !Suits(car))
                 {
                     Release(me);
                     return;
@@ -441,6 +448,27 @@ namespace VehicleTweaks.Driving
             {
                 // The car is gone, and the window went with it.
             }
+        }
+
+        /// <summary>
+        /// Whether this is a thing you can hang an arm out of.
+        ///
+        /// THE FILTER IS BACK, AND FOR THE OPPOSITE REASON TO THE ONE IT LEFT ON. It was removed
+        /// when the pose was a seat CONTEXT, on the argument that a vehicle whose layout has no
+        /// such clipset would simply ignore the request -- which was true of a context, and is
+        /// completely false of a played animation. An animation plays on whatever you give it.
+        ///
+        /// A CAR-SEAT ANIMATION ON A BICYCLE is a man folded over the handlebars with one arm
+        /// reaching into the road, which is exactly what it looked like. Bikes have no window, no
+        /// door and no armrest; there is nothing there to lean on and nothing to lean out of.
+        ///
+        /// Cars only, then. Not because the others would break, but because on the others it is
+        /// not a pose, it is a fault.
+        /// </summary>
+        private static bool Suits(Vehicle car)
+        {
+            try { return car.Model.IsCar; }
+            catch { return false; }
         }
 
         /// <summary>The driver's window, down or up. Says whether it actually did anything.</summary>

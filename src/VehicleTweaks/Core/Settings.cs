@@ -664,18 +664,22 @@ namespace VehicleTweaks.Core
         /// so a wrong name here is a line in the log rather than a feature that quietly does
         /// nothing. Turn LowriderProbe on and the log lists what this build actually has.
         /// </summary>
-        public string LowriderAnimDict = "veh@low@ds@base";
+        public string LowriderAnimDict = "veh@low@front_ds@base";
         public string LowriderAnimClip = "sit";
 
         /// <summary>
         /// Ask the game which animation dictionaries and clips it has, and write them to the log.
         ///
-        /// ON, because the two names above are the best guess rather than a known answer, and one
-        /// drive with this on replaces the guess with a fact. Turn it off once the names are set:
-        /// it is sixty-four questions asked once per car, which is nothing, but the log lines are
-        /// only interesting the first time.
+        /// OFF, BECAUSE IT HAS ALREADY ANSWERED. It was on while the names above were a guess, and
+        /// one drive turned them into a fact: 32 dictionaries exist on this build and
+        /// veh@low@front_ds@base has a "sit" clip of 6.33 seconds. There is nothing left to ask.
+        ///
+        /// It stays because the question comes back. A game update, a different build, or a name
+        /// that stops working is answered by turning this on and driving once -- and the seat line
+        /// it prints names the clipset of whatever car you are in, which is how a real lowrider
+        /// would tell us what a real lowrider uses.
         /// </summary>
-        public bool LowriderProbe = true;
+        public bool LowriderProbe = false;
 
         /// <summary>
         /// The driver's window goes down with the pose.

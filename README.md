@@ -417,9 +417,22 @@ the name that hashes to it, which means sitting in a real lowrider makes the gam
 real lowrider's seat animation is *called*. That is the entire question, answered by one drive
 rather than by another list of guesses.
 
-The dictionary probe runs alongside it, corrected: `DOES_ANIM_DICT_EXIST` answers for a dictionary
-and `GET_ANIM_DURATION` for a clip inside one, so a wrong name is a log line rather than the
-silence that let the first attempt go unnoticed.
+The dictionary probe runs alongside it: `DOES_ANIM_DICT_EXIST` answers for a dictionary and
+`GET_ANIM_DURATION` for a clip inside one, so a wrong name is a log line rather than the silence
+that let the first attempt go unnoticed.
+
+**And the probe settled it.** 32 dictionaries exist on this build, among them
+`veh@low@front_ds@base` with a `sit` clip running 6.33 seconds — so the original guess was right
+all along, and my "correction" to `veh@low@ds@base` from the clipset hash was wrong. The two are
+named differently on purpose: the seat *clipset* is `clipset@veh@low@ds@base`, and the animation
+*dictionary* behind it is `veh@low@front_ds@base`. Reasoning across from one to the other was a
+guess wearing the clothes of a deduction, and the probe is what caught it.
+
+**Cars only.** The filter was removed back when the pose was a seat context, on the argument that a
+vehicle without that clipset would simply ignore the request — true of a context, completely false
+of a played animation, which plays on whatever you give it. A car-seat animation on a bicycle is a
+man folded over the handlebars with one arm reaching into the road. Bikes have no window, no door
+and nothing to lean on; on them it is not a pose, it is a fault.
 
 **The window goes down with it** and he winds it up on his way out — the signal being
 `IsSittingInVehicle` going false while `CurrentVehicle` still names the car, which is the climb-out.
