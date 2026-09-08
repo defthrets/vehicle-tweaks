@@ -104,6 +104,12 @@ namespace VehicleTweaks.UI
         /// <summary>How tall the highlight is, in rows, eased like its position.</summary>
         private float _rowTall = 1f;
 
+        /// <summary>Which way the body is stepping aside for a page turn, one to nought.</summary>
+        private float _turn;
+
+        /// <summary>A further fade on everything drawn while the body is mid-turn.</summary>
+        private float _dip = 1f;
+
         /// <summary>When a value was last nudged, so it can be lit for a moment afterwards.</summary>
         private int _touchedAt;
 
@@ -132,7 +138,7 @@ namespace VehicleTweaks.UI
         // How big, as fractions of the screen.
         private const float PanelW = 0.262f * Zoom;
         private const float TitleH = 0.056f * Zoom;
-        private const float RowH = 0.0280f * Zoom;
+        private const float RowH = 0.0295f * Zoom;
         private const float FootH = 0.044f * Zoom;
 
         // The margins inside it.
@@ -140,6 +146,20 @@ namespace VehicleTweaks.UI
         private const float LabelX = 0.017f * Zoom;
         private const float ValueX = 0.010f * Zoom;
         private const float Hair = 0.0016f * Zoom;
+
+        // The pictures on the right of a row: how wide the value's own column is, and the
+        // switch and the slider that sit to its left.
+        private const float ValueCol = 0.058f * Zoom;
+        private const float TrackW = 0.050f * Zoom;
+        private const float TrackH = 0.0034f * Zoom;
+        private const float PillW = 0.026f * Zoom;
+        private const float PillH = 0.0115f * Zoom;
+
+        /// <summary>How far the body steps aside on a page turn, and how fast it settles.</summary>
+        private const float Slide = 0.018f * Zoom;
+        private const float TurnTau = 0.065f;
+        private const float KnobTau = 0.055f;
+        private const float FillTau = 0.050f;
 
         // And the type. Text does not scale with a rectangle on its own.
         private const float TitleText = 0.46f * Zoom;
@@ -336,6 +356,19 @@ namespace VehicleTweaks.UI
             public readonly List<Item> Items = new List<Item>();
         }
 
+        /// <summary>The sorts of row there are, which is what decides how each is drawn.</summary>
+        private enum Kind
+        {
+            Setting,
+            Toggle,
+            Number,
+            Choice,
+            Bind,
+            Go,
+            Header,
+            Chart,
+        }
+
         private sealed class Item
         {
             public string Label;
@@ -370,6 +403,14 @@ namespace VehicleTweaks.UI
             public float Step;
             public string Format;
             public string[] Keys;
+
+            /// <summary>What sort of row this is, and the two things a picture of it needs.</summary>
+            public Kind Kind;
+            public Func<bool> On;
+            public Func<float> Value;
+
+            /// <summary>Where the knob or the fill has got to, eased, so each row moves on its own.</summary>
+            public float Anim;
 
             /// <summary>
             /// A heading, not a setting. Drawn differently and skipped by the highlight.
@@ -408,6 +449,7 @@ namespace VehicleTweaks.UI
                 Show = () => ">",
                 Press = press,
                 Live = live,
+                Kind = Kind.Go,
             };
         }
 
@@ -421,6 +463,7 @@ namespace VehicleTweaks.UI
                 Hint = hint,
                 Section = section,
                 IsChart = true,
+                Kind = Kind.Chart,
                 Bars = bars,
                 Bar = get,
                 SetBar = set,
@@ -444,7 +487,7 @@ namespace VehicleTweaks.UI
 
         private static Item Header(string text)
         {
-            return new Item { Label = text, IsHeader = true };
+            return new Item { Label = text, IsHeader = true, Kind = Kind.Header };
         }
 
         private Page Add(string title, string[] icon = null)
@@ -473,6 +516,8 @@ namespace VehicleTweaks.UI
                 Live = live,
             };
 
+            item.Kind = Kind.Toggle;
+            item.On = get;
             item.Nudge = d => set(!get());
             item.Press = () => set(!get());
             return item;
@@ -499,6 +544,10 @@ namespace VehicleTweaks.UI
                 Live = live,
             };
 
+            item.Kind = Kind.Number;
+            item.Value = get;
+            item.Min = min;
+            item.Max = max;
             item.Nudge = d =>
             {
                 var v = get() + step * d;
@@ -533,6 +582,7 @@ namespace VehicleTweaks.UI
                 Live = live,
             };
 
+            item.Kind = Kind.Choice;
             item.Nudge = d =>
             {
                 var at = Array.IndexOf(values, get());
@@ -573,6 +623,7 @@ namespace VehicleTweaks.UI
                 Live = live,
             };
 
+            item.Kind = Kind.Bind;
             item.Press = () =>
             {
                 _capturing = true;
@@ -1759,6 +1810,7 @@ namespace VehicleTweaks.UI
         private void TurnPage(int direction, bool top)
         {
             _editing = false;
+            _turn = direction > 0 ? 1f : -1f;
 
             _page = ((_page + direction) % _pages.Count + _pages.Count) % _pages.Count;
 
@@ -1927,6 +1979,7 @@ namespace VehicleTweaks.UI
             }
 
             _show = Toward(_show, _open ? 1f : 0f, ShowTau, dt);
+            _turn = Toward(_turn, 0f, TurnTau, dt);
 
             if (_show < 0.002f) _show = 0f;
             if (_show > 0.998f) _show = 1f;
@@ -1967,7 +2020,7 @@ namespace VehicleTweaks.UI
         /// <summary>The same colour, as present as the panel is.</summary>
         private Color Fade(Color c)
         {
-            var a = (int)(c.A * _show);
+            var a = (int)(c.A * _show * _dip);
 
             if (a < 0) a = 0;
             if (a > 255) a = 255;
@@ -2026,6 +2079,10 @@ namespace VehicleTweaks.UI
             // THE HIGHLIGHT, DRAWN ONCE AND WHEREVER IT HAS GOT TO, rather than on whichever row
             // owns it. Drawing it inside the loop is what ties it to a row, and a thing tied to
             // a row cannot be between two of them.
+            _dip = 1f - Math.Abs(_turn) * 0.85f;
+
+            var bx = x + _turn * Slide;
+
             var at = _rowAt - Offset(page, _scroll);
 
             if (_show > 0f && at > -1f && at < Units(page, shown) && !page.Items[_row].IsHeader)
@@ -2033,8 +2090,8 @@ namespace VehicleTweaks.UI
                 var hy = PanelTop + TitleH + at * RowH;
                 var hh = _rowTall * RowH;
 
-                Draw.Bar(x, hy, PanelW, hh, Fade(Color.FromArgb(38, 245, 196, 60)));
-                Draw.Bar(x, hy, 0.0022f * Zoom, hh, Fade(Amber));
+                Draw.Bar(bx, hy, PanelW, hh, Fade(Color.FromArgb(38, 245, 196, 60)));
+                Draw.Bar(bx, hy, 0.0022f * Zoom, hh, Fade(Amber));
 
                 // AN ASCII CARET, because the pretty one does not exist.
                 //
@@ -2045,10 +2102,14 @@ namespace VehicleTweaks.UI
                 // survived being wrong, which is exactly why it was made decoration; but a box
                 // that looks like a control is worse than no caret, and ">" is in every font
                 // there has ever been.
-                Draw.Text(">", x + 0.0055f * Zoom, hy + 0.0052f * Zoom, RowText * 0.88f,
+                Draw.Text(">", bx + 0.0055f * Zoom, hy + 0.0052f * Zoom, RowText * 0.88f,
                           Fade(Amber), Plain);
             }
 
+            // THE BODY MOVES ON A PAGE TURN, AND DIMS WHILE IT DOES. Everything below the tab
+            // strip is drawn a little to one side and faded while _turn eases back to nought, so
+            // a page change is seen as one page leaving and the next arriving rather than as the
+            // words under your eyes being swapped for different words.
             var y = PanelTop + TitleH;
 
             for (var i = 0; i < shown; i++)
@@ -2061,20 +2122,26 @@ namespace VehicleTweaks.UI
 
                 y += Tall(item) * RowH;
 
-                if (item.IsChart)
+                var kind = Of(item);
+
+                if (kind == Kind.Chart)
                 {
-                    ChartRow(x, rowY, item, index == _row);
+                    ChartRow(bx, rowY, item, index == _row);
                     continue;
                 }
 
-                if (item.IsHeader)
+                if (kind == Kind.Header)
                 {
-                    // A heading sits low in its row with a hairline under it, so the group it
-                    // opens reads as hanging off it rather than as another setting that happens
-                    // to be in capitals.
-                    Draw.Text(item.Label, x + PadX, rowY + 0.0090f * Zoom, HeadText, Fade(Amber), Plain);
-                    Draw.Bar(x + PadX, rowY + RowH - 0.0035f * Zoom, PanelW - PadX * 2f, 0.0011f * Zoom,
-                             Fade(Color.FromArgb(45, 245, 196, 60)));
+                    // A heading sits low in its row with a square bullet and a hairline under
+                    // it, so the group it opens reads as hanging off it rather than as another
+                    // setting that happens to be in capitals.
+                    var sq = 0.0046f * Zoom;
+
+                    Draw.Bar(bx + PadX, rowY + 0.0102f * Zoom, sq / Aspect(), sq, Fade(Amber));
+                    Draw.Text(item.Label, bx + PadX + sq / Aspect() + 0.0035f * Zoom,
+                              rowY + 0.0082f * Zoom, HeadText, Fade(Amber), Plain);
+                    Draw.Bar(bx + PadX, rowY + RowH - 0.0035f * Zoom, PanelW - PadX * 2f,
+                             0.0011f * Zoom, Fade(Color.FromArgb(45, 245, 196, 60)));
                     continue;
                 }
 
@@ -2100,11 +2167,32 @@ namespace VehicleTweaks.UI
                 // that size. The flash is.
                 if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                Draw.Text(item.Label, x + LabelX, rowY + 0.0044f * Zoom, RowText, Fade(label), Plain);
+                var ty = rowY + 0.0044f * Zoom;
 
-                Draw.Text(item.Show(), x + PanelW - ValueX, rowY + 0.0044f * Zoom, RowText,
-                          Fade(value), Plain, false, true);
+                Draw.Text(item.Label, bx + LabelX, ty, RowText, Fade(label), Plain);
+
+                var right = bx + PanelW - ValueX;
+
+                // EACH KIND OF ROW DRAWN AS THE KIND OF THING IT IS. A row of text on the right
+                // said ON or 0.35 s and left you to know what that meant; a switch is drawn as a
+                // switch, a number on a range as a slider, a choice with the arrows that change
+                // it, and a key as a keycap. The text stays, because the text is exact and the
+                // picture is quick, and a settings row wants both.
+                switch (kind)
+                {
+                    case Kind.Toggle: Pill(item, right, rowY, ty, live, value); break;
+                    case Kind.Number: Track(item, right, rowY, ty, live, value); break;
+                    case Kind.Choice: Chevrons(item, right, ty, selected, value); break;
+                    case Kind.Bind: Keycap(item.Show(), right, rowY, ty, value, false); break;
+                    case Kind.Go: Keycap("OPEN", right, rowY, ty, value, true); break;
+
+                    default:
+                        Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+                        break;
+                }
             }
+
+            _dip = 1f;
 
             // The scroll bar, only when there is something to scroll.
             if (Total(page) > Rows)
@@ -2151,6 +2239,132 @@ namespace VehicleTweaks.UI
                                  : "D-PAD move & change   A works a row   B saves & closes")
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
                       x + PadX, foot + 0.026f * Zoom, FootText, Fade(Faint), Plain);
+        }
+
+        /// <summary>
+        /// What sort of row this is, for the ones whose factory did not say.
+        ///
+        /// The switch, number and choice factories mark their rows; a heading and a chart carry
+        /// flags from before rows had kinds; and a door is the one row with something to press
+        /// and nowhere in the ini to write. What is left is a plain value.
+        /// </summary>
+        private static Kind Of(Item item)
+        {
+            if (item.IsHeader) return Kind.Header;
+            if (item.IsChart) return Kind.Chart;
+            if (item.Kind != Kind.Setting) return item.Kind;
+            if (item.Section == null && item.Press != null) return Kind.Go;
+
+            return Kind.Setting;
+        }
+
+        /// <summary>
+        /// A switch: a pill with a knob that slides to the side it is on.
+        ///
+        /// THE KNOB TRAVELS rather than jumping, eased on the row itself so every switch keeps
+        /// its own place mid-slide. Amber is on. The word beside it stays, because a knob on the
+        /// right of a pill is "on" in some countries and "off" in others and the word is exact.
+        /// </summary>
+        private void Pill(Item item, float right, float rowY, float ty, bool live, Color value)
+        {
+            var on = false;
+
+            try { on = item.On != null && item.On(); }
+            catch { /* drawn as off */ }
+
+            item.Anim = Toward(item.Anim, on ? 1f : 0f, KnobTau, Delta());
+
+            var px = right - ValueCol - PillW;
+            var py = rowY + (RowH - PillH) * 0.5f;
+
+            var track = on ? Color.FromArgb(150, 245, 196, 60) : Color.FromArgb(60, 255, 255, 255);
+            if (!live) track = Color.FromArgb(track.A / 2, track.R, track.G, track.B);
+
+            Draw.Bar(px, py, PillW, PillH, Fade(track));
+
+            var pad = PillH * 0.16f;
+            var kh = PillH - pad * 2f;
+            var kw = kh / Aspect();
+            var kx = px + pad / Aspect() + (PillW - kw - pad * 2f / Aspect()) * item.Anim;
+
+            Draw.Bar(kx, py + pad, kw, kh, Fade(live ? (on ? Ink : Dim) : Faint));
+
+            Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+        }
+
+        /// <summary>
+        /// A number on a range: a track filled to where the value sits, and the value beside it.
+        ///
+        /// "0.35 s" says how long; the track says how long OUT OF HOW LONG IT COULD BE, which is
+        /// the thing you actually want to know when you are deciding whether to nudge it. The
+        /// fill eases, so a held D-pad reads as the bar sliding rather than stepping.
+        /// </summary>
+        private void Track(Item item, float right, float rowY, float ty, bool live, Color value)
+        {
+            var part = 0f;
+
+            try
+            {
+                var span = item.Max - item.Min;
+                if (item.Value != null && span > 0f) part = (item.Value() - item.Min) / span;
+            }
+            catch { /* drawn empty */ }
+
+            if (part < 0f) part = 0f;
+            if (part > 1f) part = 1f;
+
+            item.Anim = Toward(item.Anim, part, FillTau, Delta());
+
+            var tx = right - ValueCol - TrackW;
+            var tyy = rowY + (RowH - TrackH) * 0.5f;
+
+            Draw.Bar(tx, tyy, TrackW, TrackH, Fade(Color.FromArgb(live ? 45 : 25, 255, 255, 255)));
+            Draw.Bar(tx, tyy, TrackW * item.Anim, TrackH, Fade(live ? value : Faint));
+
+            var tick = 0.0014f * Zoom;
+
+            Draw.Bar(tx + TrackW * item.Anim - tick * 0.5f, tyy - TrackH * 0.9f, tick, TrackH * 2.8f,
+                     Fade(live ? Ink : Faint));
+
+            Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+        }
+
+        /// <summary>
+        /// A choice from a list: the value, with the arrows that step through it either side.
+        ///
+        /// A row that cycles looks exactly like a row that does not until you press LEFT, so the
+        /// arrows say so in advance -- faint on every such row, lit on the one you are on.
+        /// </summary>
+        private void Chevrons(Item item, float right, float ty, bool selected, Color value)
+        {
+            var arrow = selected ? Amber : Faint;
+
+            Draw.Text("<", right - ValueCol, ty, RowText, Fade(arrow), Plain, false, true);
+            Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+            Draw.Text(">", right + 0.0012f * Zoom, ty, RowText, Fade(arrow), Plain);
+        }
+
+        /// <summary>
+        /// A key, drawn as a key: the name inside a small cap.
+        ///
+        /// Also used for the one row that opens something rather than holding a value, lit
+        /// amber, so a door reads as a button and not as a setting whose value is "OPEN".
+        /// </summary>
+        private void Keycap(string text, float right, float rowY, float ty, Color value, bool door)
+        {
+            var w = Draw.Width(text, RowText, Plain);
+            var pad = 0.0042f * Zoom;
+            var h = RowH * 0.80f;
+            var top = rowY + (RowH - h) * 0.5f;
+
+            var edge = door ? Color.FromArgb(160, 245, 196, 60) : Color.FromArgb(70, 255, 255, 255);
+            var face = door ? Color.FromArgb(70, 245, 196, 60) : Color.FromArgb(120, 0, 0, 0);
+
+            Draw.Bar(right - w - pad * 2f, top, w + pad * 2f, h, Fade(edge));
+            Draw.Bar(right - w - pad * 2f + Hair / 2f, top + Hair / 2f, w + pad * 2f - Hair, h - Hair,
+                     Fade(face));
+
+            Draw.Text(text, right - pad, ty, RowText, Fade(door ? Ink : value), Plain, false, true);
         }
 
         /// <summary>How lit a just-changed value should be, one down to nought.</summary>

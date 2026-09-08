@@ -81,6 +81,23 @@ scales — is a fraction of a single `Zoom` constant, so it can be made bigger o
 anyone having to get thirty ratios right by hand. That is how a menu ends up with a title that no
 longer fits its own bar.
 
+### Each row drawn as the thing it is
+
+A row of text on the right said `ON` or `0.35 s` and left you to know what that meant. Now:
+
+- a **switch** is a pill with a knob that slides to the side it is on — amber is on, and the word
+  stays beside it, because a knob on the right means "on" in some countries and "off" in others
+- a **number on a range** gets a track filled to where the value sits. `0.35 s` says how long; the
+  track says how long *out of how long it could be*, which is what you actually want to know
+  when deciding whether to nudge it
+- a **choice from a list** shows the arrows that step through it, faint on every such row and lit
+  on the one you are on — a row that cycles looks exactly like one that does not until you press
+  LEFT, so the arrows say so in advance
+- a **key** is drawn as a keycap, and the one row that opens something rather than holding a
+  value is an amber keycap reading OPEN — a door reads as a button, not as a setting whose value
+  happens to be "OPEN"
+- a **section heading** carries a square bullet, and rows have a touch more air
+
 ### It moves
 
 Four things are eased rather than switched, all of them **exponentially** — each moves a fraction
@@ -99,6 +116,10 @@ obvious version has and it reads as the menu skipping rows.
   sweeping the length of the panel to reach the row you were already on is not feedback.
 - **The tab underline** travels on a page change. It is the one part of the panel that can say
   which way you just went; the names cannot, because they do not move.
+- **A page turn** steps the whole body aside and dims it while the next page arrives, so a
+  change of page reads as one page leaving and another coming rather than the words under your
+  eyes being swapped for different words. Knobs slide and slider fills ease on their own rows,
+  so a held D-pad reads as a bar sliding rather than stepping.
 - **A nudged value** lights up for a fifth of a second. On a number moving in hundredths, held
   down on a D-pad, a digit going from 0.34 to 0.35 is not a signal at that size. The flash is.
 
