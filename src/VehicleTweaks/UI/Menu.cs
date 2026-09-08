@@ -2536,6 +2536,20 @@ namespace VehicleTweaks.UI
                 // the other pages, which draw; on this page they did not, and nothing about the
                 // maths says why. So the numbers the first bar is asked to be are written down
                 // once, and the answer comes from a log rather than from staring at a screenshot.
+                if (i == 0 && _chartAt == 0) _chartAt = Game.GameTime;
+
+                // AND AGAIN TWO SECONDS IN. The first reading lands on the frame after the page
+                // turn, when the body is deliberately stepped aside and dimmed, so it describes
+                // the animation rather than the chart. The second is the steady state.
+                if (i == 0 && Game.GameTime - _chartAt > 2000)
+                {
+                    Log.Once("chart-probe-2", "Chart at 2s: part " + part.ToString("0.00") +
+                             " litA " + lit.A + " show " + _show.ToString("0.00") +
+                             " dip " + _dip.ToString("0.00") + " turn " + _turn.ToString("0.00") +
+                             " rowTall " + _rowTall.ToString("0.0") + " bh " +
+                             bh.ToString("0.0000") + ".");
+                }
+
                 if (i == 0)
                 {
                     Log.Once("chart-probe", "Chart: top " + top.ToString("0.0000") +
@@ -2562,6 +2576,9 @@ namespace VehicleTweaks.UI
         // ---- how tall things are, in rows --------------------------------------
 
         private const int ChartRows = 6;
+
+        /// <summary>When a chart was first drawn, for the steady-state probe.</summary>
+        private int _chartAt;
 
         private static int Tall(Item item)
         {
