@@ -1071,6 +1071,9 @@ namespace VehicleTweaks.UI
             private bool _down;
             private int _repeatAt;
 
+            /// <summary>Held from before we were listening, so it does not count until let go.</summary>
+            private bool _muted;
+
             /// <summary>Whether this counted as a press on the frame Poll last ran.</summary>
             public bool Fired { get; private set; }
 
@@ -1106,6 +1109,30 @@ namespace VehicleTweaks.UI
                 _repeats = repeats;
             }
 
+            /// <summary>
+            /// Treats this button as held-from-before, until it is actually released.
+            ///
+            /// THE ONE-FRAME GUARD WAS NOT ENOUGH, and the way it failed is worth writing down.
+            /// The panel used to open on a chord ending in D-pad UP, which is the panel's own UP,
+            /// and polling once on the opening frame was the fix: the button is recorded as
+            /// already down, so there is no edge and nothing moves.
+            ///
+            /// Then the chord moved to D-pad RIGHT, which is the panel's NUDGE. One frame still
+            /// stopped the edge -- but a button held past the repeat delay fires again on its own,
+            /// and three hundred and fifty milliseconds is not a long press. So opening the panel
+            /// and not letting go instantly nudged whatever row the highlight had landed on, which
+            /// is the first row of the first page: manual ignition. It switched itself off, and
+            /// the exit key quietly went back to being the game's.
+            ///
+            /// A frame was the wrong unit. The right one is "until you let go".
+            /// </summary>
+            public void Disarm()
+            {
+                _down = true;
+                _muted = true;
+                Fired = false;
+            }
+
             public void Poll()
             {
                 var down = (_hasKey && Held(_key)) || (_hasPad && Pad.Held(_pad));
@@ -1113,6 +1140,13 @@ namespace VehicleTweaks.UI
                 if (!down)
                 {
                     _down = false;
+                    _muted = false;
+                    Fired = false;
+                    return;
+                }
+
+                if (_muted)
+                {
                     Fired = false;
                     return;
                 }
@@ -1192,6 +1226,28 @@ namespace VehicleTweaks.UI
         /// reports a fresh press the next time anything asks, for a button that was held the
         /// whole time.
         /// </summary>
+        /// <summary>
+        /// Nothing counts until it has been let go of.
+        ///
+        /// EVERY BUTTON, NOT JUST THE CHORD'S. The panel cannot see which controls the chord is
+        /// made of without asking, and the answer changes with the settings -- so rather than
+        /// disarm the two it thinks are involved, it disarms all of them. Nothing here is meant
+        /// to happen on the frame it opens anyway.
+        /// </summary>
+        private void Disarm()
+        {
+            _up.Disarm();
+            _down.Disarm();
+            _left.Disarm();
+            _right.Disarm();
+            _accept.Disarm();
+            _back.Disarm();
+            _tab.Disarm();
+
+            if (_padPrev != null) _padPrev.Disarm();
+            if (_padNext != null) _padNext.Disarm();
+        }
+
         private void Poll()
         {
             _up.Poll();
@@ -1231,6 +1287,10 @@ namespace VehicleTweaks.UI
                 {
                     _open = true;
                     _justOpened = true;
+
+                    // NOTHING COUNTS UNTIL IT IS RELEASED. The chord that opened this is still
+                    // being held, and its buttons are the panel's buttons.
+                    Disarm();
 
                     // The highlight belongs on the row it is on, not wherever it was left when
                     // the panel last shut.

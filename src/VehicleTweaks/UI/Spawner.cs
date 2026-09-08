@@ -120,6 +120,17 @@ namespace VehicleTweaks.UI
         {
             _open = true;
             _movedAt = Game.GameTime;
+
+            // THE SAME TRAP AS THE PANEL'S, arriving through the same door. This is opened from a
+            // row on the panel, so A or ENTER is held at the moment it appears -- and A is this
+            // menu's spawn button. Without disarming, opening the spawner would spawn whatever
+            // the highlight happened to start on.
+            _up.Disarm();
+            _down.Disarm();
+            _left.Disarm();
+            _right.Disarm();
+            _accept.Disarm();
+            _back.Disarm();
         }
 
         public void Update(Ped me)
@@ -663,6 +674,7 @@ namespace VehicleTweaks.UI
 
             private bool _down;
             private int _repeatAt;
+            private bool _muted;
 
             public bool Fired { get; private set; }
 
@@ -673,6 +685,14 @@ namespace VehicleTweaks.UI
                 _repeats = repeats;
             }
 
+            /// <summary>Held from before we were listening, so it does not count until let go.</summary>
+            public void Disarm()
+            {
+                _down = true;
+                _muted = true;
+                Fired = false;
+            }
+
             public void Poll()
             {
                 var down = Down(_key) || Pad.Held(_pad);
@@ -680,6 +700,13 @@ namespace VehicleTweaks.UI
                 if (!down)
                 {
                     _down = false;
+                    _muted = false;
+                    Fired = false;
+                    return;
+                }
+
+                if (_muted)
+                {
                     Fired = false;
                     return;
                 }
