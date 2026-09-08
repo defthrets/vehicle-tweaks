@@ -363,7 +363,7 @@ namespace VehicleTweaks.UI
 
                 var on = at >= 0 ? Numerals[text[at] - '0'] : 0;
 
-                Digit(dx, y, dw, dh, tx, ty, on, lit);
+                Digit(dx, y, dw, dh, tx, ty, on, lit, i);
             }
 
             Draw.Text(unitText, x + digits + unitGap, y + dh * 0.5f - unitScale * 0.028f,
@@ -377,7 +377,7 @@ namespace VehicleTweaks.UI
                 var shape = gear == 0 ? 0x50 : Numerals[gear];
 
                 Digit(x + digits + unitGap + unitWidth + unitGap, y + (dh - gh) * 0.5f,
-                      gw, gh, gtx, gty, shape, lit);
+                      gw, gh, gtx, gty, shape, lit, 3);
             }
 
             if (_cfg.SpeedoRevs) Tacho(x, y + dh + revGap, block, revH, revs, lit);
@@ -423,7 +423,8 @@ namespace VehicleTweaks.UI
         /// One digit: seven bars, of which the unlit ones are drawn faintly rather than not
         /// at all.
         /// </summary>
-        private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit)
+        private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit,
+                           int slot)
         {
             // THE PICTURE FIRST. One draw instead of seven, out of the budget every script shares.
             var name = on == 0 ? (_cfg.SpeedoGhost ? "blank" : null)
@@ -432,14 +433,19 @@ namespace VehicleTweaks.UI
 
             if (name == null) return;
 
+            // ONE SPRITE PER POSITION, NOT PER GLYPH. A CustomSprite is one texture instance,
+            // and an instance drawn twice in a frame is moved by the second call rather than
+            // shown twice -- so two positions showing the same digit fought over one sprite,
+            // and as the number changed the loser changed every frame. That is what flicker is.
             var file = (_cfg.SpeedoGhost ? "g" : "n") + name + ".png";
+            var key = slot + ":" + file;
 
             Sprite glyph;
 
-            if (!_glyphs.TryGetValue(file, out glyph))
+            if (!_glyphs.TryGetValue(key, out glyph))
             {
                 glyph = new Sprite(file, 0.6f);
-                _glyphs[file] = glyph;
+                _glyphs[key] = glyph;
             }
 
             if (glyph.DrawBox(x, y, w, h, lit)) return;
