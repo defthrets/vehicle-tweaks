@@ -137,6 +137,39 @@ list, and a row cycling through three hundred and sixty of them would not be a m
 the ini, and the log says what each resolved to at start-up — including, loudly, when it could
 not.
 
+## The car spawner — F7
+
+Every vehicle in the game, browsable by class, with the highlighted one stood in front of you.
+`F7`, or the **Open it** row on the panel's GENERAL page — which is how a pad reaches it, because
+the D-pad has four directions and all four are already spoken for.
+
+**The list is the game's own.** SHVDN's `VehicleHash` enumeration is **843 entries** covering the
+base game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to
+go stale. Each is checked against `IsInCdImage` before it is offered — the game's own answer to
+whether that model is actually installed. A menu that offers a car it cannot spawn is worse than a
+shorter menu.
+
+**The preview *is* the car.** A script cannot render a model to a picture, so rather than fake one,
+the highlighted vehicle is spawned in front of you and turned side-on. It is a preview in the sense
+that matters: the actual thing, at actual size, in the actual light.
+
+**It waits before it spawns.** Holding `DOWN` through forty cars would otherwise be forty models
+loaded and forty vehicles created and destroyed — a stutter for each. Nothing loads until the
+highlight has been still for a fifth of a second, so scrolling is free and stopping is what costs.
+The previous preview is deleted and its model marked as no longer needed before the next arrives;
+eight hundred models the game has been told to keep is a crash with somebody else's name on it.
+
+**The stats come from the game, and the bars are relative to the best in it.** Top speed,
+acceleration, braking and grip, plus seats, price and — the one thing you might actually want to
+type — the **model code**. The game reports a top speed in metres a second and an acceleration in
+units nobody has ever explained; what you want to know is whether this one is quick, and quick only
+means anything next to something else. So the maximum of each stat is worked out while the
+catalogue is read, and every bar is drawn against it.
+
+Reading 843 models is a couple of thousand native calls, so it is done sixty a frame with a
+progress bar rather than in one tick — it finishes in about a quarter of a second and nobody sees
+it happen.
+
 ## Tests
 
 ```bash

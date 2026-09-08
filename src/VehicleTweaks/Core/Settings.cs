@@ -742,6 +742,26 @@ namespace VehicleTweaks.Core
         /// something, which is a taste, not a fix -- and a taste that reaches the whole world
         /// should be asked for rather than assumed.
         /// </summary>
+        // ---- the spawner -------------------------------------------------------
+
+        /// <summary>
+        /// Every vehicle in the game, browsable, with the highlighted one stood in front of you.
+        ///
+        /// THE LIST IS THE GAME'S OWN -- 843 entries covering the base game and every DLC and
+        /// multiplayer pack, each checked against the model actually being installed here. There
+        /// is no list to maintain and nothing to go stale.
+        /// </summary>
+        public bool Spawner = true;
+
+        /// <summary>
+        /// The key it opens on. There is a row on the panel too, which is how a pad reaches it.
+        ///
+        /// F7 BECAUSE F8 IS THE PANEL, and the two belong beside each other. No pad binding of its
+        /// own: the D-pad has four directions and they are all spoken for, so the pad route is the
+        /// panel row rather than a chord nobody could guess.
+        /// </summary>
+        public Keys SpawnerKey = Keys.F7;
+
         public bool CrashSlowMo = false;
 
         // ---- repairs -----------------------------------------------------------
@@ -1056,6 +1076,9 @@ namespace VehicleTweaks.Core
                 s.LowriderWindow = ini.GetBool("Driving", "LowriderWindow", s.LowriderWindow);
                 s.DashLightKey = ini.GetKey("Driving", "DashLightKey", s.DashLightKey);
                 s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
+
+                s.Spawner = ini.GetBool("General", "Spawner", s.Spawner);
+                s.SpawnerKey = ini.GetKey("General", "SpawnerKey", s.SpawnerKey);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
 

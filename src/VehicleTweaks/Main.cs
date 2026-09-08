@@ -46,6 +46,7 @@ namespace VehicleTweaks
         private readonly Seatbelt _seatbelt;
         private readonly Locks _locks;
         private readonly Menu _menu;
+        private readonly Spawner _spawner;
         private readonly Speedo _speedo;
         private readonly DashLight _dash;
         private readonly Lowrider _lowrider;
@@ -72,6 +73,11 @@ namespace VehicleTweaks
             _seatbelt = new Seatbelt(_cfg);
             _locks = new Locks(_cfg);
             _menu = new Menu(_cfg);
+            _spawner = new Spawner(_cfg);
+
+            // The panel's door to the spawner, which is how a pad reaches it: there is no D-pad
+            // direction left to give it a chord of its own.
+            _menu.OpenSpawner = () => _spawner.Open();
             _speedo = new Speedo(_cfg);
             _dash = new DashLight(_cfg);
             _lowrider = new Lowrider(_cfg);
@@ -138,6 +144,7 @@ namespace VehicleTweaks
                 // the ini and editing it by hand. A setting that can be changed one way is a
                 // trap, not a setting.
                 _menu.Update();
+                _spawner.Update(me);
 
                 if (!_cfg.Enabled)
                 {
@@ -147,7 +154,7 @@ namespace VehicleTweaks
 
                 // Not while the panel has the keyboard, or the arrow keys would be steering a
                 // car nobody is looking at.
-                if (!_menu.IsOpen)
+                if (!_menu.IsOpen && !_spawner.IsOpen)
                 {
                     _ignition.Update(me);
                     Indicate(me);
@@ -169,7 +176,7 @@ namespace VehicleTweaks
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:
                 // there is nothing for it to steal, and it has to keep drawing while the panel
                 // is open or the four rows that position it would be moving something invisible.
-                _speedo.Update(me, _menu.IsOpen, _cruise.Holding > 0f, _chauffeur.Driving);
+                _speedo.Update(me, _menu.IsOpen || _spawner.IsOpen, _cruise.Holding > 0f, _chauffeur.Driving);
 
                 _failures = 0;
             }
@@ -303,6 +310,7 @@ namespace VehicleTweaks
             try { _tuning.Release(); } catch (Exception ex) { Log.Error("Tuning", ex); }
             try { _stance.Release(); } catch (Exception ex) { Log.Error("Stance", ex); }
             try { _myCar.Release(); } catch (Exception ex) { Log.Error("Parked car", ex); }
+            try { _spawner.Close(); } catch (Exception ex) { Log.Error("Spawner", ex); }
             try { _menu.Dismiss(); } catch (Exception ex) { Log.Error("Panel shutdown", ex); }
 
             Log.Info(Build.Name + " stopped cleanly.");

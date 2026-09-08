@@ -58,6 +58,15 @@ namespace VehicleTweaks.UI
         private int _captureAt;
 
         /// <summary>
+        /// What to run when the spawner row is pressed.
+        ///
+        /// HANDED IN RATHER THAN REACHED FOR. The panel is built before the spawner exists and has
+        /// no business knowing what one is; it knows there is a door on the GENERAL page and that
+        /// somebody else decided what is behind it.
+        /// </summary>
+        public Action OpenSpawner;
+
+        /// <summary>
         /// True whenever the panel is taking input, so the rest of the mod can stand off.
         ///
         /// THE INPUT GATE, NOT THE PICTURE. It goes false the instant the panel is dismissed,
@@ -245,6 +254,24 @@ namespace VehicleTweaks.UI
             /// faint, so a page says at a glance which of it is live.
             /// </summary>
             public Func<bool> Live;
+        }
+
+        /// <summary>
+        /// A row that DOES something rather than holding a value.
+        ///
+        /// Every other row on this panel is a setting, and a setting reads as a thing you change.
+        /// This one is a door, so it shows an arrow instead of a value and nothing is written to
+        /// the ini when the panel closes -- there is nothing to write.
+        /// </summary>
+        private static Item Go(string label, Action press, string hint)
+        {
+            return new Item
+            {
+                Label = label,
+                Hint = hint,
+                Show = () => ">",
+                Press = press,
+            };
         }
 
         private static Item Header(string text)
@@ -962,6 +989,28 @@ namespace VehicleTweaks.UI
                                  "General", "CrashSlowMoSeconds",
                                  "Measured in game time, so it lasts longer than it reads.",
                                  () => _cfg.CrashSlowMo));
+
+            gen.Items.Add(Header("THE SPAWNER"));
+
+            gen.Items.Add(Toggle("Car spawner", () => _cfg.Spawner, v => _cfg.Spawner = v,
+                                 "General", "Spawner",
+                                 "Every vehicle in the game, one at a time, in front of you."));
+
+            gen.Items.Add(Go("Open it", () =>
+                             {
+                                 // CLOSED ON THE WAY THROUGH. Two menus open at once is two things
+                                 // drawing and two things reading the same D-pad, and the second to
+                                 // look would win every press.
+                                 Close();
+
+                                 if (OpenSpawner != null) OpenSpawner();
+                             },
+                             "Both cannot be open at once, so this one closes."));
+
+            gen.Items.Add(Bind("Spawner key", () => _cfg.SpawnerKey, v => _cfg.SpawnerKey = v,
+                               "General", "SpawnerKey",
+                               "ENTER, then press the key you want. F7 by default.",
+                               () => _cfg.Spawner));
 
             gen.Items.Add(Header("REPAIRS"));
 
