@@ -264,6 +264,20 @@ TUNING baseline, and the slide compensation multiplies that. Gear slide **adds**
 slider — a slider at nought with second set to a half is a car planted everywhere except second,
 which is exactly the picture drawn. Seventh gear and up use the sixth bar.
 
+### Playing nicely with other mods' hotkeys
+
+`Up` is the phone button — on a keyboard and on a pad — and `Up` is how you move through this
+panel, so every press of it put the Hoodrich phone on top of the settings. Disabling the control
+while the panel is open does not help: a script that reads controls the way this one does reads
+through a disable, and which script runs first in a frame is not something either of you gets to
+choose.
+
+So the signal is a **variable, not a control**. Every SHVDN script lives in the one AppDomain and
+its data slots are shared: while the panel or the spawner is up, this mod sets
+`AppDomain.CurrentDomain.SetData("MenuOpen", "Vehicle Tweaks")`, and clears it on the way out. A
+script with a hotkey reads it before it listens. Hoodrich does; anything else that adopts the same
+name gets the same courtesy. No native, no frame order, nothing to be first at.
+
 ### Icons
 
 The page tabs are icons now, with only the current page named. Nine pages of capitals across a

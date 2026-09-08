@@ -131,7 +131,7 @@ namespace VehicleTweaks.UI
 
         // How big, as fractions of the screen.
         private const float PanelW = 0.262f * Zoom;
-        private const float TitleH = 0.052f * Zoom;
+        private const float TitleH = 0.056f * Zoom;
         private const float RowH = 0.0280f * Zoom;
         private const float FootH = 0.044f * Zoom;
 
@@ -2006,10 +2006,17 @@ namespace VehicleTweaks.UI
             // the width it takes depends on the aspect ratio it is read at -- and the panel got
             // narrower the day it got a size of its own, which is exactly the change that turns
             // a title that just fitted into one that does not.
-            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW - PadX * 2f, Plain);
+            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
 
             Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.005f * Zoom, titleScale,
                       Fade(Amber), Plain);
+
+            // THE PAGE, NAMED WHERE THERE IS ROOM FOR A NAME. It used to sit in the tab strip
+            // beside its icon and squash the other eight; the title bar has a whole line spare to
+            // the right of the title, and a name on its own line reads as a heading rather than
+            // as a wider tab.
+            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0085f * Zoom, TabText * 1.10f,
+                      Fade(Ink), Plain, false, true);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
             // to the row underneath it; all the names with the current one lit says the same
@@ -2171,87 +2178,62 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// The pages across the head of the panel: an icon each, and the current one named.
+        /// The pages across the head of the panel, as icons, evenly spaced.
         ///
-        /// ICONS BECAUSE THE NAMES STOPPED FITTING. Nine pages of capitals across a panel this
-        /// narrow shrinks the type until it is a row of grey smudges, and the fix is not smaller
-        /// type -- it is not drawing eight names nobody is reading. The page you are ON is the
-        /// one that needs its name, and it gets it, beside its icon; the rest are icons, which
-        /// at this size read faster than the words did anyway.
+        /// ICONS ONLY, AND THE NAME MOVED UPSTAIRS. The first version named the current page
+        /// beside its icon, and nine icons plus a name plus the gaps between them did not fit a
+        /// strip this wide -- it read as squashed because it was. Worse, the icons were drawn a
+        /// shade too tall and ran into the rule under the title bar. The name now sits in the
+        /// title bar itself, right of "VEHICLE TWEAKS", where there is a whole line of room; the
+        /// strip is nine things of one size spread evenly across it, which is the one layout of
+        /// nine things that cannot be squashed; and the bar got taller so the icons have air.
         ///
-        /// STILL LAID OUT BY MEASUREMENT. The named tab is wider than the others by however wide
-        /// its name is, and that is measured rather than guessed, and the name is shrunk if the
-        /// strip is full. The underline under the current tab travels, as it did before.
+        /// The underline under the current icon still travels.
         /// </summary>
         private void Tabs()
         {
-            var cell = 0.0030f * Zoom;
+            var cell = 0.0028f * Zoom;
             var cellAcross = cell / Aspect();
             var iconW = 7f * cellAcross;
-            var gapIn = 0.005f * Zoom;
-            var minGap = 0.006f * Zoom;
 
             var left = _drawX + PadX;
             var right = _drawX + PanelW - PadX;
-            var y = PanelTop + 0.030f * Zoom;
-            var room = right - left;
+            var y = PanelTop + 0.0300f * Zoom;
 
-            var scale = TabText;
-            var title = _pages[_page].Title;
-            var nameW = Draw.Width(title, scale, Plain);
-
-            var icons = _pages.Count * iconW + gapIn;
-            var least = icons + minGap * (_pages.Count - 1);
-
-            if (least + nameW > room && nameW > 0f)
-            {
-                scale = TabText * Math.Max(0.5f, (room - least) / nameW);
-                nameW = Draw.Width(title, scale, Plain);
-            }
-
-            var gap = (room - icons - nameW) / Math.Max(1, _pages.Count - 1);
-            if (gap < minGap) gap = minGap;
+            var n = _pages.Count;
+            var gap = n > 1 ? (right - left - n * iconW) / (n - 1) : 0f;
+            if (gap < 0f) gap = 0f;
 
             var x = left;
             var wantX = left;
-            var wantW = iconW;
 
-            for (var i = 0; i < _pages.Count; i++)
+            for (var i = 0; i < n; i++)
             {
                 var on = i == _page;
-                var w = iconW + (on ? gapIn + nameW : 0f);
 
-                if (on)
-                {
-                    wantX = x;
-                    wantW = w;
-                }
+                if (on) wantX = x;
 
-                Draw.Icon(_pages[i].Icon, x, y + 0.0012f * Zoom, cell, cellAcross,
-                          Fade(on ? Amber : Faint));
+                Draw.Icon(_pages[i].Icon, x, y, cell, cellAcross, Fade(on ? Amber : Faint));
 
-                if (on) Draw.Text(title, x + iconW + gapIn, y, scale, Fade(Amber), Plain);
-
-                x += w + gap;
+                x += iconW + gap;
             }
 
-            // MEASURED HERE AND EASED HERE, because the widths only exist inside this method.
+            // MEASURED HERE AND EASED HERE, because the positions only exist inside this method.
             var dt = Delta();
 
             if (_tabWide <= 0f)
             {
                 _tabAt = wantX;
-                _tabWide = wantW;
+                _tabWide = iconW;
             }
             else
             {
                 _tabAt = Toward(_tabAt, wantX, TabTau, dt);
-                _tabWide = Toward(_tabWide, wantW, TabTau, dt);
+                _tabWide = Toward(_tabWide, iconW, TabTau, dt);
             }
 
-            Draw.Bar(_tabAt, y + 0.0165f * Zoom, _tabWide, Hair, Fade(Amber));
+            Draw.Bar(_tabAt, y + 7f * cell + 0.0024f * Zoom, _tabWide, Hair, Fade(Amber));
         }
-
 
         /// <summary>
         /// One chart: a bar per gear, the number over each, the gear under each.

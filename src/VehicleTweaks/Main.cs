@@ -146,6 +146,9 @@ namespace VehicleTweaks
                 _menu.Update();
                 _spawner.Update(me);
 
+                // TOLD TO EVERY OTHER SCRIPT, not only to our own features. See Announce.
+                Announce(_menu.IsOpen || _spawner.IsOpen);
+
                 if (!_cfg.Enabled)
                 {
                     _failures = 0;
@@ -198,6 +201,38 @@ namespace VehicleTweaks
         /// Ignition asks the same question for itself, since its answer also has to take in
         /// whether the thing is an aircraft and what it did with the last car it was in.
         /// </summary>
+        private bool _announced;
+
+        /// <summary>
+        /// Tells every other script whether one of our menus is up.
+        ///
+        /// THE PHONE WAS OPENING ON UP. Hoodrich puts its phone on the phone button, the phone
+        /// button is Up on a keyboard and D-pad up on a pad, and Up is how you move through this
+        /// panel -- so every press of it put a phone on top of the settings. Disabling the control
+        /// while the panel is open does not help, because a script that reads controls the way
+        /// this one does reads through a disable, and because which script runs first in a frame
+        /// is not something either of us gets to choose.
+        ///
+        /// SO THE SIGNAL IS A VARIABLE, NOT A CONTROL. Every SHVDN script lives in the one
+        /// AppDomain, and its data slots are shared: a script that opens a menu sets "MenuOpen"
+        /// to its own name for as long as the menu is up, and a script with a hotkey looks before
+        /// it listens. No native, no frame order, nothing to be first at. Hoodrich checks it;
+        /// anything else that adopts the same name gets the same courtesy.
+        ///
+        /// Written on change rather than every frame, and cleared on the way out -- a flag left
+        /// set after this script is gone would be every other mod's hotkey dead until the game
+        /// restarts.
+        /// </summary>
+        private void Announce(bool open)
+        {
+            if (open == _announced) return;
+
+            _announced = open;
+
+            try { AppDomain.CurrentDomain.SetData("MenuOpen", open ? Build.Name : null); }
+            catch { /* then the phone opens on Up, as it did before */ }
+        }
+
         private void Indicate(Ped me)
         {
             try
@@ -295,6 +330,10 @@ namespace VehicleTweaks
         /// </summary>
         private void OnAborted(object sender, EventArgs e)
         {
+            // FIRST, before anything that could throw: a flag left set on the domain after this
+            // script is gone is every other mod's hotkey dead until the game restarts.
+            Announce(false);
+
             // THE TIME SCALE FIRST, before anything that could throw. It is the only thing this
             // mod can leave behind that affects the whole game rather than one car, and a
             // reload landing in the middle of a crash would otherwise leave the world running
