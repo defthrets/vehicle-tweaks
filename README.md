@@ -220,8 +220,8 @@ in anything `DRAW_SPRITE` can be handed. So the mod ships one PNG per model — 
 transparent, 512×288, about 20 KB each and 16 MB the lot — in `scripts\VehicleTweaks\cars\`, drawn
 through the same `CustomSprite` path as the title. They are the shots from the
 [FiveM vehicle reference](https://docs.fivem.net/docs/game-references/vehicle-models/), which
-are renders of the game's own models; 841 of the 843. A model with no file there — an add-on car,
-or the Khanjali and the RE-7B, which the reference has no shot of — falls through to the badge:
+are renders of the game's own models; every one of the 841 models (the enum has 843 names, two of
+them aliases). A model with no file there — an add-on car — falls through to the badge:
 a dictionary named after the model first, in case the add-on shipped one, then the badge, then the
 class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 

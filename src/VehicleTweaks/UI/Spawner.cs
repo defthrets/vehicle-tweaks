@@ -831,8 +831,8 @@ namespace VehicleTweaks.UI
         /// badge; the photographs on the in-game websites live inside their web pages, where
         /// DRAW_SPRITE cannot be pointed. So the mod ships its own: one PNG per model, the car
         /// cut out on transparent, in the cars folder beside the log, drawn through the same
-        /// CustomSprite path as the title. A model with no file there -- an add-on car, or one
-        /// of the two the reference had no shot of -- falls through to the badge as before.
+        /// CustomSprite path as the title, one for every model in the enumeration. A model with
+        /// no file there -- an add-on car -- falls through to the badge as before.
         ///
         /// ONLY ONCE THE HIGHLIGHT HAS SETTLED. A texture ScriptHookV has loaded stays loaded
         /// until the scripts reload; there is no handing one back. Loading as you scroll would
