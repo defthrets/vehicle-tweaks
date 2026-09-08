@@ -119,8 +119,8 @@ namespace VehicleTweaks.Core
         /// "Off" on PadOpen means the pad cannot open the panel. "None" on PadModifier means the
         /// single button does it on its own.
         /// </summary>
-        public string PadOpen = "PhoneUp";
-        public string PadModifier = "MultiplayerInfo";
+        public string PadOpen = "PhoneRight";
+        public string PadModifier = "ScriptLB";
 
         /// <summary>
         /// The combination, written the way a person would say it.
@@ -712,17 +712,20 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// The switch, on a keyboard and on a pad.
         ///
-        /// K BECAUSE L IS TAKEN, and taken by the headlights, which is the thing this was just
-        /// separated from. The letters around it are spoken for -- H is the horn, R is the
-        /// radio, E and Q are looking about -- and a function key would put a light switch
-        /// somewhere no thumb goes while driving.
+        /// I FOR INTERIOR, AFTER K TURNED OUT TO BE THE SEATBELT'S. This shipped on K without
+        /// anybody checking what else was on K, and the seatbelt had been there for weeks -- so
+        /// one press did both, which is the kind of collision that reads as one of the two
+        /// features being broken. L is the headlights, which is the thing this was separated
+        /// from; H is the horn and R is the radio.
         ///
-        /// The pad shares the panel's modifier and takes D-pad LEFT: up opens the settings, down
-        /// is the hazards, and left and right change the radio station, which is why this one
-        /// needs the modifier held to mean anything.
+        /// AND NOTHING ON THE PAD, which is an honest shortage rather than an oversight. There
+        /// are four directions on a D-pad and five things that want one: the panel, the hazards,
+        /// the seatbelt, the lock and this. This is the newest of them and the one that matters
+        /// least, so it is the one that goes without. Name any control here to give it one back
+        /// -- something else will have to lose it.
         /// </summary>
-        public Keys DashLightKey = Keys.K;
-        public string PadDashLight = "PhoneLeft";
+        public Keys DashLightKey = Keys.I;
+        public string PadDashLight = "Off";
 
         // ---- crashes ----------------------------------------------------------
 
@@ -876,7 +879,7 @@ namespace VehicleTweaks.Core
         public bool Locking = true;
 
         public Keys LockKey = Keys.L;
-        public string PadLock = "PhoneRight";
+        public string PadLock = "PhoneUp";
 
         /// <summary>
         /// The horn blips when it locks.

@@ -177,6 +177,21 @@ namespace VehicleTweaks.UI
             _cfg = cfg;
             _openChord = new Chord(cfg.PadModifier, cfg.PadOpen, "panel");
 
+            // THE PAGE SHOULDERS STAND DOWN IF THE CHORD IS USING THEM. With the panel opened by
+            // LB and a direction, LB is held every time it is opened or closed -- and a shoulder
+            // that also turns the page would turn one on the way in and another on the way out.
+            // The chord is what the player asked for, so the shortcut is what gives way.
+            var modifier = Pad.Parse(cfg.PadModifier, "the panel chord");
+
+            _padPrev = Free(modifier, Control.ScriptLB) ? new Button(Control.ScriptLB, false) : null;
+            _padNext = Free(modifier, Control.ScriptRB) ? new Button(Control.ScriptRB, false) : null;
+
+            if (_padPrev == null || _padNext == null)
+            {
+                Log.Info("Panel: the shoulder page shortcut is off, because the chord that opens " +
+                         "the panel is using that button.");
+            }
+
             Log.Info("Panel on " + cfg.BindingText() + ", or on a pad " + _openChord.Describe() + ".");
 
             Build();
@@ -1088,6 +1103,12 @@ namespace VehicleTweaks.UI
         /// <summary>Keyboard only, and it does not need to be anything else. See Navigate.</summary>
         private readonly Button _tab = new Button(Keys.Tab, false);
 
+        /// <summary>Whether a shoulder is still available, given what the chord has claimed.</summary>
+        private static bool Free(Control? modifier, Control shoulder)
+        {
+            return !modifier.HasValue || modifier.Value != shoulder;
+        }
+
         /// <summary>
         /// The shoulders, which turn the page on a pad the way TAB does on a keyboard.
         ///
@@ -1105,8 +1126,8 @@ namespace VehicleTweaks.UI
         /// that. If it turns out these do not read during gameplay, nothing is lost but a
         /// shortcut, and nothing anywhere depends on them firing.
         /// </summary>
-        private readonly Button _padPrev = new Button(Control.ScriptLB, false);
-        private readonly Button _padNext = new Button(Control.ScriptRB, false);
+        private readonly Button _padPrev;
+        private readonly Button _padNext;
 
         private bool _openKey;
 
@@ -1131,8 +1152,9 @@ namespace VehicleTweaks.UI
             _accept.Poll();
             _back.Poll();
             _tab.Poll();
-            _padPrev.Poll();
-            _padNext.Poll();
+
+            if (_padPrev != null) _padPrev.Poll();
+            if (_padNext != null) _padNext.Poll();
         }
 
         public void Update()
@@ -1318,14 +1340,14 @@ namespace VehicleTweaks.UI
 
         private void Navigate()
         {
-            if (_tab.Fired || _padNext.Fired)
+            if (_tab.Fired || (_padNext != null && _padNext.Fired))
             {
                 TurnPage(1, true);
                 Settle(1);
                 return;
             }
 
-            if (_padPrev.Fired)
+            if (_padPrev != null && _padPrev.Fired)
             {
                 TurnPage(-1, true);
                 Settle(1);
@@ -1711,7 +1733,9 @@ namespace VehicleTweaks.UI
             // BACKSPACE to somebody holding a pad is worse than no footer: they are the two
             // instructions on screen and neither of them can be followed.
             Draw.Text(pad
-                          ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
+                          ? (_padNext != null
+                                 ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
+                                 : "D-PAD move & change   A works a row   B saves & closes")
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
                       x + PadX, foot + 0.026f * Zoom, FootText, Fade(Faint), Plain);
         }
