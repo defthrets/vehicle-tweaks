@@ -92,6 +92,37 @@ namespace VehicleTweaks.Input
             try { return Function.Call<bool>(Hash.IS_HUD_COMPONENT_ACTIVE, WeaponWheel); }
             catch { return false; }
         }
+
+        private static bool _saidUp;
+        private static bool _saidDown;
+
+        /// <summary>
+        /// Reads the wheel test and writes down what it said, once each way. Observed, not obeyed.
+        ///
+        /// THE GATE WENT IN ON A GUESS ABOUT WHAT "ACTIVE" MEANS, and every chord went quiet on
+        /// the build that carried it. If the native means the wheel component is ENABLED, it is
+        /// true on every frame and a chord that defers to it never fires. So it is asked on every
+        /// chord press and the answer is logged with whether anything was pressed -- and the gate
+        /// goes back on only once the log shows it reading false while just driving.
+        /// </summary>
+        public static void ProbeWheel(string chord)
+        {
+            var up = WheelUp();
+
+            if (up && !_saidUp)
+            {
+                _saidUp = true;
+                Log.Info("Weapon wheel test reads TRUE on the " + chord + " chord. If no wheel was on " +
+                         "screen, IS_HUD_COMPONENT_ACTIVE means enabled, not showing.");
+            }
+
+            if (!up && !_saidDown)
+            {
+                _saidDown = true;
+                Log.Info("Weapon wheel test reads FALSE on the " + chord + " chord, so it can tell " +
+                         "the wheel is down.");
+            }
+        }
     }
 
     /// <summary>
@@ -161,10 +192,12 @@ namespace VehicleTweaks.Input
                 var held = _modifier == null || Pad.Held(_modifier.Value);
                 var down = held && Pad.Held(_button.Value);
 
-                // NOT WHILE THE WEAPON WHEEL IS SHOWING. The edge memory still records the button
-                // as down, so letting go of everything afterwards is not read as a fresh press.
-                fired = down && !_down && !Pad.WheelUp();
+                fired = down && !_down;
                 _down = down;
+
+                // The wheel test is asked and written down, not acted on, until the log has shown
+                // what it actually measures. See Pad.ProbeWheel.
+                if (fired) Pad.ProbeWheel(_what);
             }
             catch
             {

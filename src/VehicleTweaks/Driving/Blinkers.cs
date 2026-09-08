@@ -32,6 +32,9 @@ namespace VehicleTweaks.Driving
         private int _car;
 
         private bool _hazardKeyDown;
+
+        /// <summary>The last side written to the log, so it is said on change rather than per frame.</summary>
+        private int _saidSide;
         private readonly Chord _hazardChord;
 
         public Blinkers(Settings cfg)
@@ -101,6 +104,17 @@ namespace VehicleTweaks.Driving
                 // junction is worse than one that does nothing at all.
                 car.IsLeftIndicatorLightOn = _rules.LeftOn;
                 car.IsRightIndicatorLightOn = _rules.RightOn;
+
+                // SAID WHEN IT CHANGES, AT DEBUG. These have never logged anything but the
+                // hazards, so "the indicators have stopped working" could not be checked against
+                // anything -- silence in this log meant no logging, not nothing happening.
+                var side = _rules.Side;
+
+                if (side != _saidSide)
+                {
+                    _saidSide = side;
+                    Log.Debug("Indicator " + (side == 0 ? "cancelled." : side < 0 ? "left." : "right."));
+                }
             }
             catch (Exception ex)
             {
