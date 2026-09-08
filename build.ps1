@@ -441,7 +441,18 @@ function Deploy-To([string]$gameDir, [string]$label) {
         $artDst = Join-Path $scripts 'VehicleTweaks'
         New-Item -ItemType Directory -Force $artDst | Out-Null
         Get-ChildItem $art -Filter '*.png' | ForEach-Object { Copy-Item $_.FullName $artDst -Force }
-        Write-Host "  ART    $((Get-ChildItem $art -Filter '*.png').Count) picture(s) into scripts\VehicleTweaks" -ForegroundColor DarkGray
+
+        # THE CAR PICTURES, eight hundred and some, so only the ones that changed: robocopy /XO
+        # copies a file when the source is newer and leaves the rest. It exits 1 for "copied
+        # something" and 0 for "nothing to do"; 8 and up is a failure.
+        $cars = Join-Path $art 'cars'
+        $carCount = 0
+        if (Test-Path $cars) {
+            $null = & robocopy $cars (Join-Path $artDst 'cars') '*.png' /XO /NJH /NJS /NFL /NDL /NP /R:1 /W:1
+            if ($LASTEXITCODE -ge 8) { Write-Host "  ART    robocopy failed ($LASTEXITCODE) copying the car pictures" -ForegroundColor Yellow }
+            $carCount = (Get-ChildItem $cars -Filter '*.png').Count
+        }
+        Write-Host "  ART    $((Get-ChildItem $art -Filter '*.png').Count) picture(s) and $carCount car(s) into scripts\VehicleTweaks" -ForegroundColor DarkGray
     }
 
     if (-not $locked -and (Get-Process GTA5, GTA5_Enhanced -ErrorAction SilentlyContinue)) {
@@ -556,6 +567,8 @@ if ($Package) {
         $artDst = Join-Path $scripts 'VehicleTweaks'
         New-Item -ItemType Directory -Force $artDst | Out-Null
         Get-ChildItem $art -Filter '*.png' | ForEach-Object { Copy-Item $_.FullName $artDst }
+        $cars = Join-Path $art 'cars'
+        if (Test-Path $cars) { Copy-Item $cars (Join-Path $artDst 'cars') -Recurse }
     }
     Copy-Item (Join-Path $root 'VehicleTweaks.ini') (Join-Path $scripts 'VehicleTweaks.ini')
 

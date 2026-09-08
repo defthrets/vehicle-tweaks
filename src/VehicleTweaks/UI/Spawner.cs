@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using GTA;
 using GTA.Math;
@@ -14,7 +15,8 @@ using Control = GTA.Control;
 namespace VehicleTweaks.UI
 {
     /// <summary>
-    /// Every vehicle in the game, browsable, with the one it is pointing at stood in front of you.
+    /// Every vehicle in the game, browsable, with a picture of the one it is pointing at and the
+    /// real thing stood beside the menu.
     ///
     /// THE LIST IS THE GAME'S OWN. SHVDN's VehicleHash enumeration is 843 entries covering the base
     /// game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to
@@ -95,6 +97,9 @@ namespace VehicleTweaks.UI
         private readonly float[] _best = new float[4];
 
         private VehicleHash[] _all;
+
+        /// <summary>Hashes already catalogued: an enum can name one value twice, and the list must not.</summary>
+        private readonly HashSet<uint> _seen = new HashSet<uint>();
         private int _built;
 
         private bool _open;
@@ -110,6 +115,19 @@ namespace VehicleTweaks.UI
         private int _movedAt;
         private Entry _showing;
         private Vehicle _demo;
+
+        /// <summary>The demo's place: how far along the camera's forward, and where across the screen.</summary>
+        private const float StageDepth = 10f;
+        private const float Beside = (X + ListW + 0.004f + StatW + 1f) * 0.5f;
+
+        /// <summary>How long the highlight has to be still before a picture is loaded for it.</summary>
+        private const int PictureSettleMs = 120;
+
+        /// <summary>One picture per model, made once and kept -- see Picture.</summary>
+        private readonly Dictionary<string, Sprite> _photos = new Dictionary<string, Sprite>();
+
+        /// <summary>How many of the catalogue have a picture beside the log, for the log.</summary>
+        private int _pictured;
 
         /// <summary>How long to wait for each try to load before looking past it.</summary>
         private const int WaitMs = 500;
@@ -237,6 +255,8 @@ namespace VehicleTweaks.UI
 
                 try
                 {
+                    if (!_seen.Add((uint)hash)) continue;
+
                     var model = new Model(hash);
 
                     if (!model.IsValid || !model.IsInCdImage || !model.IsVehicle) continue;
@@ -247,7 +267,7 @@ namespace VehicleTweaks.UI
                     var entry = new Entry
                     {
                         Hash = hash,
-                        Code = hash.ToString(),
+                        Code = CodeOf(hash),
                         Name = Label(hash),
                         Speed = Stat(Hash.GET_VEHICLE_MODEL_ESTIMATED_MAX_SPEED, hash),
                         Accel = Stat(Hash.GET_VEHICLE_MODEL_ACCELERATION, hash),
@@ -265,6 +285,8 @@ namespace VehicleTweaks.UI
                     if (entry.Grip > _best[3]) _best[3] = entry.Grip;
 
                     _classes[group].Add(entry);
+
+                    if (Photo(entry).Exists) _pictured++;
                 }
                 catch
                 {
@@ -279,9 +301,36 @@ namespace VehicleTweaks.UI
             var total = 0;
             foreach (var list in _classes) total += list.Count;
 
-            Log.Info("Spawner: " + total + " of " + _all.Length + " vehicles are installed here.");
+            Log.Info("Spawner: " + total + " of " + _all.Length + " vehicles are installed here, " +
+                     _pictured + " with a picture beside the log.");
 
             Settle();
+        }
+
+        /// <summary>
+        /// The model's name in the files, which is what the picture is called and what you type.
+        ///
+        /// SHVDN'S ENUMERATION IS NOT ALWAYS THE MODEL NAME. Its values are the right hashes, but
+        /// ten of its names are tidied-up spellings that hash to nothing: FireTruck is firetruk
+        /// in the files, RE7B is le7b, Khanjari is khanjali. Every name here was checked by
+        /// hashing it and comparing with the enumeration's own value, so the ten are the ten.
+        /// </summary>
+        private static string CodeOf(VehicleHash hash)
+        {
+            switch (hash)
+            {
+                case VehicleHash.UtilityTruck: return "utillitruck";
+                case VehicleHash.UtilityTruck2: return "utillitruck2";
+                case VehicleHash.UtilityTruck3: return "utillitruck3";
+                case VehicleHash.HotringSabre: return "hotring";
+                case VehicleHash.EntityMT: return "entity3";
+                case VehicleHash.EntityXXR: return "entity2";
+                case VehicleHash.FireTruck: return "firetruk";
+                case VehicleHash.Terrorbyte: return "terbyte";
+                case VehicleHash.Khanjali: return "khanjali";
+                case VehicleHash.RE7B: return "le7b";
+                default: return hash.ToString();
+            }
         }
 
         /// <summary>
@@ -397,23 +446,26 @@ namespace VehicleTweaks.UI
         }
 
         // ==================================================================
-        // The car in front of you
+        // The car beside the menu
         // ==================================================================
 
         /// <summary>
-        /// The highlighted car, stood outside while you look at it. Off by default.
+        /// The highlighted car, stood beside the menu on a slow turntable while you look at it.
         ///
-        /// THIS WAS THE PREVIEW ONCE, AND IT WAS THE WRONG JOB FOR IT. As the only preview it
-        /// littered the street, streamed a model for every row it settled on, and put whatever you
-        /// were pointing at between you and the menu. The picture on the card does that job now.
+        /// BESIDE THE MENU, NOT IN FRONT OF YOU. The first version put it straight ahead, which
+        /// is where the panels are, so the live view was mostly a bonnet poking out from behind
+        /// a list. It is placed from the camera now: a fixed way along the camera's own forward
+        /// and enough to the right, worked out from the field of view and the aspect ratio, that
+        /// it lands in the middle of the room the panels leave -- on a 16:9 screen and a 21:9
+        /// one alike, because the panels take the same fraction of either.
         ///
-        /// AS A SECOND OPINION IT EARNS ITS PLACE, which is why it is back rather than gone. Most
-        /// cars have no picture at all -- the in-game websites only ever sold a fraction of them
-        /// and add-on cars bring none -- and for those the choice is the real thing or nothing.
-        /// It is also the only way to see the size of something, which a photograph flattens out.
+        /// A SHOWROOM PIECE, NOT A CAR. Frozen, so the turntable is the only thing that moves
+        /// it; no collision, so traffic passes through it instead of piling into it; invincible,
+        /// so the traffic that does leaves no wreck. Spawn hands all three back, because the car
+        /// you keep is the one that was stood there.
         ///
         /// STILL WAITS FOR THE HIGHLIGHT TO SETTLE, and still takes the last one away before it
-        /// brings the next. Neither of those stopped being true when it stopped being the default.
+        /// brings the next, so scrolling is free and nothing is left standing about.
         /// </summary>
         private void Demo(Ped me)
         {
@@ -429,7 +481,12 @@ namespace VehicleTweaks.UI
 
             var want = list[_row];
 
-            if (_showing == want) return;
+            if (_showing == want)
+            {
+                Turntable();
+                return;
+            }
+
             if (Game.GameTime - _movedAt < SettleMs) return;
 
             var model = new Model(want.Hash);
@@ -442,14 +499,18 @@ namespace VehicleTweaks.UI
 
             try
             {
-                var where = me.Position + me.ForwardVector * 6f + Vector3.WorldUp * 0.5f;
+                float heading;
+                var where = Stage(me, out heading);
 
-                _demo = World.CreateVehicle(model, where, me.Heading + 90f);
+                _demo = World.CreateVehicle(model, where, heading);
 
                 if (_demo != null)
                 {
                     _demo.IsPersistent = true;
                     _demo.PlaceOnGround();
+                    _demo.IsPositionFrozen = true;
+                    _demo.IsCollisionEnabled = false;
+                    _demo.IsInvincible = true;
                 }
                 else
                 {
@@ -465,6 +526,69 @@ namespace VehicleTweaks.UI
             finally
             {
                 model.MarkAsNoLongerNeeded();
+            }
+        }
+
+        /// <summary>
+        /// Where the demo stands and which way it faces: in the clear part of the screen, three-
+        /// quarters on to the camera.
+        ///
+        /// THE SUM THAT PUTS IT BESIDE THE PANELS. The panels end at X + ListW + StatW of the
+        /// width; the middle of what is left is the screen fraction Beside. A point some distance
+        /// along the camera's forward appears that far across when it is that distance times
+        /// (Beside - 0.5) times twice the tangent of half the horizontal field of view to the
+        /// right -- and the horizontal field of view is the vertical one the game reports,
+        /// widened by the aspect ratio. Flat: a camera tilted down is not a reason to bury it.
+        /// </summary>
+        private Vector3 Stage(Ped me, out float heading)
+        {
+            var forward = GameplayCamera.Direction;
+            forward.Z = 0f;
+
+            // A camera looking straight down has no forward to speak of; the player's will do.
+            if (forward.X * forward.X + forward.Y * forward.Y < 0.01f) forward = me.ForwardVector;
+
+            forward.Z = 0f;
+            forward.Normalize();
+
+            var right = Vector3.Cross(forward, Vector3.WorldUp);
+            right.Normalize();
+
+            var half = (float)Math.Tan(GameplayCamera.FieldOfView * 0.5 * Math.PI / 180.0) * Across();
+            var across = (Beside - 0.5f) * 2f * half;
+
+            var where = GameplayCamera.Position + forward * StageDepth + right * (StageDepth * across);
+            where.Z = me.Position.Z + 0.5f;
+
+            // NOSE TOWARDS THE CAMERA AND TURNED A LITTLE INWARDS, which is how a brochure shoots
+            // a car. A heading is degrees anticlockwise from north, so the heading that faces a
+            // direction (x, y) is atan2(-x, y); facing back down the camera's forward is that of
+            // its negative, and thirty-five degrees off it points the nose at the middle of the
+            // screen rather than off the edge of it.
+            heading = (float)(Math.Atan2(forward.X, -forward.Y) * 180.0 / Math.PI) - 35f;
+
+            return where;
+        }
+
+        /// <summary>A slow turn, so the side you cannot see comes round.</summary>
+        private void Turntable()
+        {
+            if (_demo == null || _cfg.SpawnerTurn <= 0f) return;
+
+            try
+            {
+                if (!_demo.Exists())
+                {
+                    _demo = null;
+                    _showing = null;
+                    return;
+                }
+
+                _demo.Heading = (_demo.Heading + _cfg.SpawnerTurn * Game.LastFrameTime) % 360f;
+            }
+            catch
+            {
+                // It will be replaced the next time the highlight moves.
             }
         }
 
@@ -519,6 +643,11 @@ namespace VehicleTweaks.UI
             // stops being a demo and becomes yours.
             if (_demo != null && _demo.Exists() && _showing == want)
             {
+                // A SHOWROOM PIECE MADE INTO A CAR: unfrozen, solid, mortal, and set down.
+                _demo.IsPositionFrozen = false;
+                _demo.IsCollisionEnabled = true;
+                _demo.IsInvincible = false;
+                _demo.PlaceOnGround();
                 _demo.IsPersistent = false;
                 _demo = null;
                 _showing = null;
@@ -693,79 +822,48 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// A picture for the card: the car itself if the game has one, its maker's badge if not,
-        /// and what sort of thing it is failing that. Returns the height it used.
+        /// A picture for the card: the car itself when there is one beside the log, its maker's
+        /// badge when there is not, and what sort of thing it is failing that. Returns the height
+        /// it used.
         ///
-        /// THE GAME DOES NOT SHIP CAR PHOTOS A SCRIPT CAN DRAW. That was the assumption behind the
-        /// first version, and two separate texture inventories say the same thing: the only
-        /// per-vehicle artwork in a streamable dictionary is the MANUFACTURER'S BADGE, in
-        /// mpcarhud, named after the make -- annis, pegassi, vapid. The pictures on the in-game
-        /// websites live inside their web pages, not in anything DRAW_SPRITE can be handed.
+        /// THE PICTURES ARE OURS, BECAUSE THE GAME'S ARE OUT OF REACH. Two texture inventories
+        /// agree that the only per-vehicle artwork in a streamable dictionary is the maker's
+        /// badge; the photographs on the in-game websites live inside their web pages, where
+        /// DRAW_SPRITE cannot be pointed. So the mod ships its own: one PNG per model, the car
+        /// cut out on transparent, in the cars folder beside the log, drawn through the same
+        /// CustomSprite path as the title. A model with no file there -- an add-on car, or one
+        /// of the two the reference had no shot of -- falls through to the badge as before.
         ///
-        /// SO IT TRIES IN ORDER, AND SAYS WHICH ONE IT FOUND. A dictionary named after the model is
-        /// still asked for first, because an add-on car can ship one and a future update might;
-        /// then the badge, which nearly every car has; then the class icon, which everything has.
-        /// The tries are walked in priority, waiting a moment for each to load before giving up on
-        /// it, so a slow car picture is not beaten by a fast badge.
-        ///
-        /// HANDED BACK WHEN WE MOVE ON. A streamed dictionary is memory the game has been told to
-        /// hold; eight hundred of those left requested is somebody else's crash.
+        /// ONLY ONCE THE HIGHLIGHT HAS SETTLED. A texture ScriptHookV has loaded stays loaded
+        /// until the scripts reload; there is no handing one back. Loading as you scroll would
+        /// mean a run down the list left every car you passed in memory, so nothing is loaded
+        /// until the highlight has been still for a moment, and what is loaded is what you
+        /// actually stopped on. Half a megabyte each; a long session of browsing is tens.
         /// </summary>
         private float Picture(float x, float y, Entry entry)
         {
             var w = StatW - 0.020f;
-            var h = w * 0.62f;
+
+            // AS TALL AS A 16:9 PICTURE NEEDS, on whatever screen this is. The box is drawn in
+            // screen fractions, which are wider than they are tall by the aspect ratio, so a box
+            // that is 16:9 in pixels is w * aspect / (16/9) tall -- capped, because on a very
+            // wide screen that is most of the card.
+            var h = Math.Min(w * Across() / (16f / 9f), 0.200f);
 
             Draw.Bar(x + 0.010f, y, w, h, Color.FromArgb(120, 0, 0, 0));
 
             try
             {
-                if (_want != entry)
+                // STILL MOVING: an empty frame, rather than a badge the picture then shoves aside.
+                if (Game.GameTime - _movedAt < PictureSettleMs) return h + 0.010f;
+
+                if (Photo(entry).DrawFit(x + 0.010f, y, w, h, Color.White))
                 {
-                    Forget();
-
-                    _want = entry;
-                    _tries = Tries(entry);
-                    _hit = -1;
-                    _since = Game.GameTime;
-
-                    foreach (var t in _tries) Function.Call(Hash.REQUEST_STREAMED_TEXTURE_DICT, t[0], false);
-                }
-
-                if (_hit < 0) Resolve();
-
-                if (_hit < 0)
-                {
-                    var over = Game.GameTime - _since > WaitMs * _tries.Length;
-
-                    Draw.Text(over ? "NO PICTURE" : "...", x + 0.010f + w * 0.5f, y + h * 0.5f - 0.007f,
-                              0.26f, Faint, Plain, true);
-
+                    if (_want != null) Forget();
                     return h + 0.010f;
                 }
 
-                var dict = _tries[_hit][0];
-                var tex = _tries[_hit][1];
-
-                // ITS OWN SHAPE, INSIDE THE BOX. A fraction of the screen's width and a fraction
-                // of its height are not the same size, so a picture drawn at equal fractions is
-                // stretched by the aspect ratio -- the same trap the speedo's digits fell into.
-                // A badge is drawn smaller than a photo would be: a logo filling a photo's frame
-                // reads as a mistake, and a logo sat in the middle of one reads as a badge.
-                var room = _hit == 0 ? 1f : 0.55f;
-                var wants = _size.X / _size.Y / Across();
-
-                var fw = w * room;
-                var fh = fw / wants;
-
-                if (fh > h * room)
-                {
-                    fh = h * room;
-                    fw = fh * wants;
-                }
-
-                Function.Call(Hash.DRAW_SPRITE, dict, tex,
-                              x + 0.010f + w * 0.5f, y + h * 0.5f, fw, fh, 0f, 255, 255, 255, 255);
+                Badge(x, y, w, h, entry);
             }
             catch
             {
@@ -773,6 +871,81 @@ namespace VehicleTweaks.UI
             }
 
             return h + 0.010f;
+        }
+
+        /// <summary>The picture of this model, made once and kept: a texture cannot be handed back.</summary>
+        private Sprite Photo(Entry entry)
+        {
+            Sprite photo;
+
+            if (!_photos.TryGetValue(entry.Code, out photo))
+            {
+                photo = new Sprite(Path.Combine("cars", entry.Code.ToLowerInvariant() + ".png"), 16f / 9f, true);
+                _photos[entry.Code] = photo;
+            }
+
+            return photo;
+        }
+
+        /// <summary>
+        /// The game's own artwork, for a model the mod has no picture of: a dictionary named after
+        /// the model if an add-on car shipped one, the maker's badge, or the class icon.
+        ///
+        /// IT TRIES IN ORDER, AND SAYS WHICH ONE IT FOUND. The tries are walked in priority,
+        /// waiting a moment for each to load before giving up on it, so a slow car picture is not
+        /// beaten by a fast badge.
+        ///
+        /// HANDED BACK WHEN WE MOVE ON. A streamed dictionary is memory the game has been told to
+        /// hold; eight hundred of those left requested is somebody else's crash.
+        /// </summary>
+        private void Badge(float x, float y, float w, float h, Entry entry)
+        {
+            if (_want != entry)
+            {
+                Forget();
+
+                _want = entry;
+                _tries = Tries(entry);
+                _hit = -1;
+                _since = Game.GameTime;
+
+                foreach (var t in _tries) Function.Call(Hash.REQUEST_STREAMED_TEXTURE_DICT, t[0], false);
+            }
+
+            if (_hit < 0) Resolve();
+
+            if (_hit < 0)
+            {
+                var over = Game.GameTime - _since > WaitMs * _tries.Length;
+
+                Draw.Text(over ? "NO PICTURE" : "...", x + 0.010f + w * 0.5f, y + h * 0.5f - 0.007f,
+                          0.26f, Faint, Plain, true);
+
+                return;
+            }
+
+            var dict = _tries[_hit][0];
+            var tex = _tries[_hit][1];
+
+            // ITS OWN SHAPE, INSIDE THE BOX. A fraction of the screen's width and a fraction of
+            // its height are not the same size, so a picture drawn at equal fractions is
+            // stretched by the aspect ratio. A badge is drawn smaller than a photo would be: a
+            // logo filling a photo's frame reads as a mistake, and a logo sat in the middle of
+            // one reads as a badge.
+            var room = _hit == 0 ? 1f : 0.55f;
+            var wants = _size.X / _size.Y / Across();
+
+            var fw = w * room;
+            var fh = fw / wants;
+
+            if (fh > h * room)
+            {
+                fh = h * room;
+                fw = fh * wants;
+            }
+
+            Function.Call(Hash.DRAW_SPRITE, dict, tex,
+                          x + 0.010f + w * 0.5f, y + h * 0.5f, fw, fh, 0f, 255, 255, 255, 255);
         }
 
         /// <summary>

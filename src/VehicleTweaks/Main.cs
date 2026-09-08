@@ -187,6 +187,12 @@ namespace VehicleTweaks
             {
                 Fail(ex);
             }
+            finally
+            {
+                // AFTER EVERY DRAW OF THE TICK, WHATEVER HAPPENED TO IT: a glyph that was on
+                // screen last frame and is not this frame is taken down here. See Sprite.
+                Sprite.EndFrame();
+            }
         }
 
         /// <summary>

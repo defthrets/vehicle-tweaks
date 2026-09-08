@@ -1291,10 +1291,15 @@ namespace VehicleTweaks.UI
                                  "General", "Spawner",
                                  "Off hides the row at the top of DRIVING that opens it."));
 
-            gen.Items.Add(Toggle("Show it in front of you", () => _cfg.SpawnerDemo,
+            gen.Items.Add(Toggle("Live view beside the menu", () => _cfg.SpawnerDemo,
                                  v => _cfg.SpawnerDemo = v, "General", "SpawnerDemo",
-                                 "As well as the picture. Most cars have no picture.",
+                                 "The real thing on a turntable, as well as the picture.",
                                  () => _cfg.Spawner));
+
+            gen.Items.Add(Number("Turntable speed", () => _cfg.SpawnerTurn, v => _cfg.SpawnerTurn = v,
+                                 5f, 0f, 180f, "0", "deg/s", "General", "SpawnerTurn",
+                                 "Degrees a second. 0 holds it still.",
+                                 () => _cfg.Spawner && _cfg.SpawnerDemo));
 
             gen.Items.Add(Bind("Spawner key", () => _cfg.SpawnerKey, v => _cfg.SpawnerKey = v,
                                "General", "SpawnerKey",

@@ -791,21 +791,26 @@ namespace VehicleTweaks.Core
         public Keys SpawnerKey = Keys.F7;
 
         /// <summary>
-        /// The highlighted car is also stood outside while you look at it.
+        /// The highlighted car is also stood beside the menu, on a slow turntable, while you look.
         ///
-        /// OFF, BECAUSE THE PICTURE IS THE PREVIEW NOW. This was the only one once, and as the
-        /// only one it littered the street, streamed a model for every row it settled on, and put
-        /// whatever you were pointing at between you and the menu.
+        /// ON, BESIDE THE PICTURE. The picture is what a person means by a preview and it is
+        /// there for nearly every model; this is the second opinion -- the actual thing, at
+        /// actual size, in the actual light, which is the only way to judge the size of anything
+        /// -- and for an add-on car with no picture it is the only preview there is.
         ///
-        /// IT IS STILL WORTH HAVING. Most cars have no picture -- the in-game websites only ever
-        /// sold a fraction of them and add-on cars bring none at all -- and for those the choice
-        /// is the real thing or nothing. It is also the only way to judge the SIZE of something,
-        /// which a photograph flattens out.
-        ///
-        /// It waits for the highlight to settle before fetching anything, and takes the last one
-        /// away before it brings the next, so scrolling stays free and nothing is left behind.
+        /// It stands in the clear part of the screen rather than behind the panels, frozen and
+        /// without collision so it neither rolls off nor gets hit, waits for the highlight to
+        /// settle before it is fetched, and is taken away before the next one arrives.
         /// </summary>
-        public bool SpawnerDemo = false;
+        public bool SpawnerDemo = true;
+
+        /// <summary>
+        /// How fast the demo car turns, in degrees a second. Nought holds it still.
+        ///
+        /// THIRTY IS A TURNTABLE: a full turn in twelve seconds, slow enough that every side gets
+        /// a look and nothing about it reads as spinning.
+        /// </summary>
+        public float SpawnerTurn = 30f;
 
         public bool CrashSlowMo = false;
 
@@ -1131,6 +1136,7 @@ namespace VehicleTweaks.Core
                 s.Spawner = ini.GetBool("General", "Spawner", s.Spawner);
                 s.SpawnerKey = ini.GetKey("General", "SpawnerKey", s.SpawnerKey);
                 s.SpawnerDemo = ini.GetBool("General", "SpawnerDemo", s.SpawnerDemo);
+                s.SpawnerTurn = ini.GetFloat("General", "SpawnerTurn", s.SpawnerTurn, 0f, 180f);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
 

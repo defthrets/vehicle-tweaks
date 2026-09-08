@@ -95,6 +95,16 @@ and the nine tab icons. A picture is one draw; the icons alone were about two hu
 rectangles stay as the fallback for a `scripts\` folder the pictures did not reach. Same trick
 Fumes uses for its digits, for the same reason.
 
+### A texture stays up for a tenth of a second
+
+ScriptHookV keeps every drawn texture on screen for the time it was given, and SHVDN gives a
+hundred milliseconds. Harmless for a title drawn every frame; on a seven-segment display it meant
+the moment a 3 became a 4 the 3 was still there for six frames, over the 4 — and a car accelerating
+changes its last digit faster than that, so the digit was never clean. That was "it flickers when
+driving". `Sprite` keeps a ledger of how many times each file was drawn this frame and last, and
+at the end of every tick draws the difference again — one pixel, off screen, transparent — so the
+slot ScriptHookV would have kept showing is overwritten with nothing.
+
 ### The title
 
 "Vehicle Tweaks" is set in blackletter — UnifrakturCook, the same face Fumes keeps in its tools. The
@@ -186,7 +196,8 @@ not.
 
 ## The car spawner — F7
 
-Every vehicle in the game, browsable by class, with the highlighted one stood in front of you.
+Every vehicle in the game, browsable by class, with a picture of the highlighted one and the real
+thing stood beside the menu on a turntable.
 `F7`, or the **first row of the panel** — top of the DRIVING page, where the highlight already is
 when it opens, so it is the one row you can reach without moving at all. That is how a pad gets
 there, because the D-pad has four directions and all four are spoken for.
@@ -202,24 +213,37 @@ go stale. Each is checked against `IsInCdImage` before it is offered — the gam
 whether that model is actually installed. A menu that offers a car it cannot spawn is worse than a
 shorter menu.
 
-**The picture is the maker's badge, because the game ships no car photos a script can draw.** Two
-separate texture inventories agree: the only per-vehicle artwork in a streamable dictionary is the
-manufacturer badge in `mpcarhud`, named after the make — `annis`, `pegassi`, `vapid`. The pictures
-on the in-game websites live inside their web pages, not in anything `DRAW_SPRITE` can be handed.
+**The pictures are the mod's own, because the game's are out of reach.** Two separate texture
+inventories agree: the only per-vehicle artwork in a streamable dictionary is the manufacturer
+badge in `mpcarhud`, and the photographs on the in-game websites live inside their web pages, not
+in anything `DRAW_SPRITE` can be handed. So the mod ships one PNG per model — the car cut out on
+transparent, 512×288, about 20 KB each and 16 MB the lot — in `scripts\VehicleTweaks\cars\`, drawn
+through the same `CustomSprite` path as the title. They are the shots from the
+[FiveM vehicle reference](https://docs.fivem.net/docs/game-references/vehicle-models/), which
+are renders of the game's own models; 841 of the 843. A model with no file there — an add-on car,
+or the Khanjali and the RE-7B, which the reference has no shot of — falls through to the badge:
+a dictionary named after the model first, in case the add-on shipped one, then the badge, then the
+class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 
-So the card tries in order and says in the log which it found: a dictionary named after the model
-first, because an add-on car can ship one; then the badge, which nearly every car has; then the
-class icon, which everything has. Walked in priority with a moment allowed for each to load, so a
-fast badge cannot beat a slow car picture. A badge is drawn smaller than a photo would be — a logo
-filling a photo frame reads as a mistake, and a logo in the middle of one reads as a badge. Every
-dictionary asked for is handed back when the card moves on.
+**Nothing is loaded until the highlight has been still for a moment.** A texture ScriptHookV has
+loaded stays loaded until the scripts reload — there is no handing one back — so loading as you
+scrolled would leave every car you passed in memory. What is loaded is what you stopped on, at
+about half a megabyte each; the log says at start-up how many of the catalogue have a picture.
 
-**It used to spawn the car in front of you instead**, on the argument that a script cannot render a
-model to a picture, so the real thing is the honest preview. That was true and it was still the
-wrong answer: browsing littered the street, loaded a model for every row, and put whatever you were
-pointing at between you and the menu. A picture is what a person means by a preview. The car now
-arrives only when it is asked for — which also means nothing is streamed for the eight hundred you
-scrolled past on the way.
+**Ten of SHVDN's enum names are not the model name**, and the model name is what the picture is
+called and what you would type. `FireTruck` is `firetruk` in the files, `RE7B` is `le7b`, `Khanjari`
+is `khanjali`, `HotringSabre` is `hotring`, `Terrorbyte` is `terbyte`, `EntityXXR` and `EntityMT`
+are `entity2` and `entity3`, the three `UtilityTruck`s are `utillitruck`. Each was found by hashing
+the name and comparing with the enum's own value, and the MODEL line on the card shows the real one.
+
+**The live view is back, beside the menu.** With `SpawnerDemo` on (it is, by default) the
+highlighted car is also stood in the clear part of the screen — placed from the camera, a fixed way
+along its forward and enough to the right, worked out from the field of view and the aspect ratio,
+that it lands in the middle of the room the panels leave, on 16:9 and 21:9 alike. It turns slowly
+(`SpawnerTurn`, degrees a second; 0 holds it still), frozen so the turntable is the only thing that
+moves it, without collision so traffic passes through it, invincible so what does hit it leaves no
+wreck. It waits for the highlight to settle, is taken away before the next one arrives, and pressing
+A on it hands all of that back and makes it yours rather than spawning a second one through it.
 
 **The stats come from the game, and the bars are relative to the best in it.** Top speed,
 acceleration, braking and grip, plus seats, price and — the one thing you might actually want to

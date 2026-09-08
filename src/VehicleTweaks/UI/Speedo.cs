@@ -363,7 +363,7 @@ namespace VehicleTweaks.UI
 
                 var on = at >= 0 ? Numerals[text[at] - '0'] : 0;
 
-                Digit(dx, y, dw, dh, tx, ty, on, lit, i);
+                Digit(dx, y, dw, dh, tx, ty, on, lit);
             }
 
             Draw.Text(unitText, x + digits + unitGap, y + dh * 0.5f - unitScale * 0.028f,
@@ -377,7 +377,7 @@ namespace VehicleTweaks.UI
                 var shape = gear == 0 ? 0x50 : Numerals[gear];
 
                 Digit(x + digits + unitGap + unitWidth + unitGap, y + (dh - gh) * 0.5f,
-                      gw, gh, gtx, gty, shape, lit, 3);
+                      gw, gh, gtx, gty, shape, lit);
             }
 
             if (_cfg.SpeedoRevs) Tacho(x, y + dh + revGap, block, revH, revs, lit);
@@ -423,8 +423,7 @@ namespace VehicleTweaks.UI
         /// One digit: seven bars, of which the unlit ones are drawn faintly rather than not
         /// at all.
         /// </summary>
-        private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit,
-                           int slot)
+        private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit)
         {
             // THE PICTURE FIRST. One draw instead of seven, out of the budget every script shares.
             var name = on == 0 ? (_cfg.SpeedoGhost ? "blank" : null)
@@ -433,19 +432,18 @@ namespace VehicleTweaks.UI
 
             if (name == null) return;
 
-            // ONE SPRITE PER POSITION, NOT PER GLYPH. A CustomSprite is one texture instance,
-            // and an instance drawn twice in a frame is moved by the second call rather than
-            // shown twice -- so two positions showing the same digit fought over one sprite,
-            // and as the number changed the loser changed every frame. That is what flicker is.
+            // ONE SPRITE PER GLYPH, however many positions show it: SHVDN numbers the draws of a
+            // texture within a frame, so the same file can stand in three places at once. What
+            // it cannot do is take back a draw once the digit changes -- ScriptHookV keeps it up
+            // for a tenth of a second regardless -- and that is dealt with in Sprite.EndFrame.
             var file = (_cfg.SpeedoGhost ? "g" : "n") + name + ".png";
-            var key = slot + ":" + file;
 
             Sprite glyph;
 
-            if (!_glyphs.TryGetValue(key, out glyph))
+            if (!_glyphs.TryGetValue(file, out glyph))
             {
                 glyph = new Sprite(file, 0.6f);
-                _glyphs[key] = glyph;
+                _glyphs[file] = glyph;
             }
 
             if (glyph.DrawBox(x, y, w, h, lit)) return;
