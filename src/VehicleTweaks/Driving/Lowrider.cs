@@ -26,15 +26,31 @@ namespace VehicleTweaks.Driving
     /// every custom driving pose in this game is actually done. The steering still works, because
     /// the steering is not his arms -- it is the car.
     ///
-    /// AND THE NAMES ARE TESTED RATHER THAN GUESSED, which is the part that matters. A dictionary
-    /// can be checked with DOES_ANIM_DICT_EXIST and a clip inside it with GET_ANIM_DURATION -- so
-    /// instead of picking a name and hoping, the probe walks sixty-four candidates and the log
-    /// says which ones this build has. One drive answers it, and the answer goes in the ini.
+    /// AND THE NAMES ARE WORKED OUT RATHER THAN GUESSED, which is the part that matters.
+    ///
+    /// THE CLIPSET HASHES FROM THE FIRST ATTEMPT TURNED OUT TO BE THE KEY. GET_IN_VEHICLE_CLIPSET
+    /// _HASH_FOR_SEAT hands back a joaat hash of a NAME, and joaat is reversible by search rather
+    /// than by mathematics: hash a few thousand candidate names and see which one lands on the
+    /// number the game gave you. 3332998045, logged from an ordinary car, turns out to be
+    /// "clipset@veh@std@ds@base" -- so the naming is clipset@veh@LAYOUT@SEAT@STATE, and the seat
+    /// is "ds", not the "front_ds" the first probe was built around.
+    ///
+    /// SO THE PROBE NAMES THINGS NOW. It takes the seat clipset of whatever car you are sat in and
+    /// finds the name that hashes to it, which means sitting in a real lowrider makes the game
+    /// tell you what a real lowrider's seat animation is CALLED. That is the whole question, and
+    /// it is answered by one drive rather than by another list of guesses.
+    ///
+    /// The dictionary probe stays alongside it, corrected: DOES_ANIM_DICT_EXIST answers for a
+    /// dictionary and GET_ANIM_DURATION for a clip inside one, so a wrong name is a log line
+    /// rather than the silence that let the first attempt go unnoticed.
     /// </summary>
     internal sealed class Lowrider
     {
         /// <summary>How long to let requested dictionaries load before asking what is in them.</summary>
         private const int LoadMs = 2000;
+
+        /// <summary>The driver's seat, which the game numbers as minus one rather than nought.</summary>
+        private const int Driver = -1;
 
         private readonly Settings _cfg;
 
@@ -53,17 +69,32 @@ namespace VehicleTweaks.Driving
         private string _playing;
         private string _clip;
 
+        /// <summary>Whether the seat clipset of this car has been named in the log yet.</summary>
+        private bool _named;
+
         /// <summary>Nought for not started, one for dictionaries found, two for finished.</summary>
         private int _probe;
         private int _probedAt;
         private string[] _found;
 
-        // GTA'S VEHICLE ANIMATIONS ARE NAMED BY PATTERN -- a family, a seat and a state -- so the
-        // candidates are built from the pieces rather than typed out one at a time. Sixty-four
-        // names cost sixty-four calls, once, on a native that only answers a question.
-        private static readonly string[] Families = { "veh@low@", "veh@std@", "veh@lowrider@", "anim@veh@low@" };
-        private static readonly string[] Seats = { "front_ds@", "ds@", "front_ps@", "ps@" };
-        private static readonly string[] States = { "base", "idle_a", "idle_b", "sit" };
+        // THE PIECES THE NAMES ARE BUILT FROM, corrected against a hash the game itself gave us.
+        // clipset@veh@std@ds@base hashes to 3332998045, which is what an ordinary car reported --
+        // so the layout comes first, the seat is ds/ps/rds/rps, and the state is last.
+        private static readonly string[] Layouts =
+        {
+            "low", "std", "lowrider", "low_restricted", "van", "truck", "bus", "bike", "quad",
+            "tanker", "big", "coupe", "sports", "sportscar", "muscle", "suv", "mini", "luxor",
+            "bodhi", "tank", "forklift", "hotknife", "dune", "rally", "freight", "tow", "semi",
+            "boat", "heli", "plane", "sub", "jetski", "tractor", "trailer", "taxi", "police",
+            "convertible", "speedo", "burrito", "journey", "camper", "hauler", "phantom",
+        };
+
+        private static readonly string[] Seats = { "ds", "ps", "rds", "rps" };
+
+        private static readonly string[] States =
+        {
+            "base", "idle_a", "idle_b", "idle_c", "idle_d", "idle_e", "sit", "arm", "idle_duck",
+        };
 
         /// <summary>Clip names worth asking a dictionary about, once it is known to exist.</summary>
         private static readonly string[] Clips =
@@ -98,7 +129,10 @@ namespace VehicleTweaks.Driving
                 {
                     Release(me);
                     _car = car.Handle;
+                    _named = false;
                 }
+
+                if (_cfg.LowriderProbe) Name(car);
 
                 Probe();
 
@@ -202,6 +236,72 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
+        /// What the seat animation of the car you are in is actually CALLED.
+        ///
+        /// A JOAAT HASH IS ONE-WAY, BUT IT IS NOT WIDE. The game will tell you which clipset a seat
+        /// is using and it answers with a number; a number cannot be turned back into a name, but a
+        /// few thousand candidate names can be hashed and compared against it, and one of them
+        /// lands. That is how clipset@veh@std@ds@base was identified from 3332998045 -- and it is
+        /// how sitting in a real lowrider will name a real lowrider's seat animation, which is the
+        /// only thing this feature has ever actually needed to know.
+        ///
+        /// WORTH RUNNING ON EVERY CAR, not just the ones we cannot pose. The interesting reading is
+        /// the one taken in a car that already does it.
+        /// </summary>
+        private void Name(Vehicle car)
+        {
+            if (_named) return;
+
+            _named = true;
+
+            try
+            {
+                var want = Function.Call<uint>(Hash.GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT,
+                                               car.Handle, Driver);
+
+                if (want == 0)
+                {
+                    Log.Debug("Lowrider probe: this seat reports no clipset at all.");
+                    return;
+                }
+
+                foreach (var layout in Layouts)
+                {
+                    foreach (var seat in Seats)
+                    {
+                        foreach (var state in States)
+                        {
+                            var tail = layout + "@" + seat + "@" + state;
+
+                            if (StringHash.AtStringHash("clipset@veh@" + tail) == want)
+                            {
+                                Log.Info("Lowrider probe: this seat is 'clipset@veh@" + tail +
+                                         "' (" + want + "), so its animations are in 'veh@" +
+                                         tail + "'.");
+                                return;
+                            }
+
+                            if (StringHash.AtStringHash("veh@" + tail) == want)
+                            {
+                                Log.Info("Lowrider probe: this seat is 'veh@" + tail + "' (" +
+                                         want + ").");
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                Log.Info("Lowrider probe: seat clipset " + want + " matched none of the " +
+                         (Layouts.Length * Seats.Length * States.Length * 2) +
+                         " candidate names. The layout word is one this list has not got.");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("lowrider-name", "Naming the seat clipset fell over: " + ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Which animation dictionaries and clips this build actually has.
         ///
         /// THE WHOLE REASON THE LAST ATTEMPT FAILED SILENTLY was that nothing could tell a name the
@@ -224,13 +324,13 @@ namespace VehicleTweaks.Driving
                 {
                     var found = new List<string>();
 
-                    foreach (var family in Families)
+                    foreach (var layout in Layouts)
                     {
                         foreach (var seat in Seats)
                         {
                             foreach (var state in States)
                             {
-                                var dict = family + seat + state;
+                                var dict = "veh@" + layout + "@" + seat + "@" + state;
 
                                 if (!Function.Call<bool>(Hash.DOES_ANIM_DICT_EXIST, dict)) continue;
 
@@ -245,13 +345,14 @@ namespace VehicleTweaks.Driving
                     _probedAt = Game.GameTime;
 
                     Log.Info("Lowrider probe: " + _found.Length + " of " +
-                             (Families.Length * Seats.Length * States.Length) +
+                             (Layouts.Length * Seats.Length * States.Length) +
                              " candidate dictionaries exist in this build.");
 
                     if (_found.Length == 0)
                     {
-                        Log.Info("Lowrider probe: none of the guessed families are right, so the " +
-                                 "names are not veh@low@ / veh@std@ shaped on this build.");
+                        Log.Info("Lowrider probe: none exist, which would be a surprise now that " +
+                                 "the naming has been confirmed from a hash. Check the seat line " +
+                                 "above for what this car is actually using.");
                         _probe = 2;
                     }
 
@@ -308,6 +409,7 @@ namespace VehicleTweaks.Driving
             var clip = _clip;
 
             _car = 0;
+            _named = false;
             _posed = false;
             _wound = false;
             _sat = false;

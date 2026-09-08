@@ -405,12 +405,21 @@ animation over his top half while the game keeps driving the rest of him — whi
 custom driving pose in this game is actually done. The steering still works, because the steering
 is not his arms, it is the car.
 
-**And the names are tested rather than guessed**, which is the part that matters. A dictionary can
-be checked with `DOES_ANIM_DICT_EXIST` and a clip inside it with `GET_ANIM_DURATION`, so a wrong
-name is a line in the log rather than a feature that quietly does nothing. `LowriderProbe` walks
-sixty-four candidate names, reports which exist, waits two seconds for them to load and then
-reports which clips are inside them. One drive replaces the guess with a fact; the answer goes in
-`LowriderAnimDict` and `LowriderAnimClip`.
+**And the names are worked out rather than guessed.** The clipset hashes from the failed first
+attempt turned out to be the key. `GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT` returns a joaat hash *of a
+name*, and joaat is reversible by search rather than by mathematics — hash a few thousand candidate
+names and see which lands on the number the game gave you. `3332998045`, logged from an ordinary
+car, is **`clipset@veh@std@ds@base`**. So the naming is `clipset@veh@LAYOUT@SEAT@STATE`, and the
+seat token is `ds` — not the `front_ds` the first probe had been built around.
+
+So the probe **names things** now. It takes the seat clipset of whatever car you are in and finds
+the name that hashes to it, which means sitting in a real lowrider makes the game tell you what a
+real lowrider's seat animation is *called*. That is the entire question, answered by one drive
+rather than by another list of guesses.
+
+The dictionary probe runs alongside it, corrected: `DOES_ANIM_DICT_EXIST` answers for a dictionary
+and `GET_ANIM_DURATION` for a clip inside one, so a wrong name is a log line rather than the
+silence that let the first attempt go unnoticed.
 
 **The window goes down with it** and he winds it up on his way out — the signal being
 `IsSittingInVehicle` going false while `CurrentVehicle` still names the car, which is the climb-out.

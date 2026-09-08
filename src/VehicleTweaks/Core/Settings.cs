@@ -664,7 +664,7 @@ namespace VehicleTweaks.Core
         /// so a wrong name here is a line in the log rather than a feature that quietly does
         /// nothing. Turn LowriderProbe on and the log lists what this build actually has.
         /// </summary>
-        public string LowriderAnimDict = "veh@low@front_ds@base";
+        public string LowriderAnimDict = "veh@low@ds@base";
         public string LowriderAnimClip = "sit";
 
         /// <summary>
