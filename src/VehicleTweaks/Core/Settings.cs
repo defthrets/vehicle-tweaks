@@ -573,6 +573,34 @@ namespace VehicleTweaks.Core
         /// </summary>
         public float DriftTorqueBoost = 1.4f;
 
+        // ---- per gear -----------------------------------------------------------
+
+        /// <summary>
+        /// Torque, gear by gear, as a multiplier on top of everything else.
+        ///
+        /// A CHART RATHER THAN A NUMBER, because one number is not what anybody means when they
+        /// say a car needs more torque. They mean it needs more in SECOND -- the gear a slide is
+        /// held in, the gear you leave a junction in -- and no more in fifth, where extra torque
+        /// is a car that will not settle at speed. Six bars, one per gear; seventh and up use the
+        /// sixth, because six is what nearly everything you would drift has and a chart of eight
+        /// would be two bars of nothing.
+        ///
+        /// MULTIPLIES, LIKE EVERYTHING ELSE THAT LANDS ON THIS FIELD. The TUNING torque is the
+        /// baseline, this is per gear on top, and the slide compensation is on top of that. One
+        /// place adds it all up so that none of them can fight.
+        /// </summary>
+        public float[] GearTorque = { 1f, 1f, 1f, 1f, 1f, 1f };
+
+        /// <summary>
+        /// How much slidier the tyres are, gear by gear. Nought is no change.
+        ///
+        /// ADDED TO THE DRIFT SLIDER, NOT REPLACING IT. The GRIP page's drift amount is the
+        /// baseline for every gear; this is extra on top, per gear, so a car can be planted in
+        /// fourth and loose in second without either setting knowing about the other. The sum is
+        /// clamped to the same nought-to-one the slider uses.
+        /// </summary>
+        public float[] GearSlide = { 0f, 0f, 0f, 0f, 0f, 0f };
+
         /// <summary>
         /// More steering lock while the car is sideways, so a slide can be caught.
         ///
@@ -1080,6 +1108,12 @@ namespace VehicleTweaks.Core
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
                 s.DriftTorqueBoost = ini.GetFloat("Driving", "DriftTorqueBoost", s.DriftTorqueBoost, 1f, 3f);
+
+                for (var g = 0; g < s.GearTorque.Length; g++)
+                {
+                    s.GearTorque[g] = ini.GetFloat("Driving", "GearTorque" + (g + 1), s.GearTorque[g], 0.25f, 3f);
+                    s.GearSlide[g] = ini.GetFloat("Driving", "GearSlide" + (g + 1), s.GearSlide[g], 0f, 1f);
+                }
                 s.DriftAngle = ini.GetFloat("Driving", "DriftAngle", s.DriftAngle, 3f, 60f);
                 s.CounterSteer = ini.GetBool("Driving", "CounterSteer", s.CounterSteer);
                 s.CounterSteerLock = ini.GetFloat("Driving", "CounterSteerLock", s.CounterSteerLock, 1f, 3f);

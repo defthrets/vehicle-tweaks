@@ -89,6 +89,21 @@ namespace VehicleTweaks.UI
         /// <summary>Set when something has to arrive where it belongs rather than travel there.</summary>
         private bool _snap = true;
 
+        /// <summary>
+        /// Inside a chart, choosing a bar and moving it, rather than moving between rows.
+        ///
+        /// A MODE, WHICH THIS PANEL OTHERWISE HAS NONE OF, and it is there because the D-pad has
+        /// only four directions. Between rows, UP and DOWN move and LEFT and RIGHT change; inside
+        /// a chart LEFT and RIGHT have to choose the bar, so UP and DOWN have to become the change
+        /// -- and that is a different meaning for the same button, which is what a mode is.
+        /// ENTER goes in, ENTER or BACK comes out, and the footer says which you are in.
+        /// </summary>
+        private bool _editing;
+        private int _bar;
+
+        /// <summary>How tall the highlight is, in rows, eased like its position.</summary>
+        private float _rowTall = 1f;
+
         /// <summary>When a value was last nudged, so it can be lit for a moment afterwards.</summary>
         private int _touchedAt;
 
@@ -206,6 +221,110 @@ namespace VehicleTweaks.UI
             Build();
         }
 
+
+        // ==================================================================
+        // The icons, seven cells square. Readable here as the thing each draws.
+        // ==================================================================
+
+        private static readonly string[] IconKey =
+        {
+            "..###..",
+            ".#...#.",
+            ".#...#.",
+            "..###..",
+            "...#...",
+            "...##..",
+            "...#...",
+        };
+
+        private static readonly string[] IconCog =
+        {
+            ".#.#.#.",
+            "#######",
+            ".##.##.",
+            "##...##",
+            ".##.##.",
+            "#######",
+            ".#.#.#.",
+        };
+
+        private static readonly string[] IconWrench =
+        {
+            "....###",
+            "....#.#",
+            "...###.",
+            "..##...",
+            ".##....",
+            "##.....",
+            "#......",
+        };
+
+        private static readonly string[] IconTyre =
+        {
+            "..###..",
+            ".##.##.",
+            "##...##",
+            "#.....#",
+            "##...##",
+            ".##.##.",
+            "..###..",
+        };
+
+        private static readonly string[] IconDoor =
+        {
+            "######.",
+            "#....#.",
+            "#....#.",
+            "#...##.",
+            "#....#.",
+            "#....#.",
+            "######.",
+        };
+
+        private static readonly string[] IconWheel =
+        {
+            "..###..",
+            ".#...#.",
+            "#..#..#",
+            "#.###.#",
+            "#..#..#",
+            ".#...#.",
+            "..###..",
+        };
+
+        private static readonly string[] IconArrow =
+        {
+            "...#...",
+            "..##...",
+            ".#####.",
+            "######.",
+            ".#####.",
+            "..##...",
+            "...#...",
+        };
+
+        private static readonly string[] IconGauge =
+        {
+            "..###..",
+            ".#...#.",
+            "#.....#",
+            "#..#..#",
+            "#..##.#",
+            ".#...#.",
+            "..#.#..",
+        };
+
+        private static readonly string[] IconSliders =
+        {
+            ".......",
+            "#######",
+            "..###..",
+            ".......",
+            "#######",
+            "...###.",
+            ".......",
+        };
+
         // ==================================================================
         // The items
         // ==================================================================
@@ -213,6 +332,7 @@ namespace VehicleTweaks.UI
         private sealed class Page
         {
             public string Title;
+            public string[] Icon;
             public readonly List<Item> Items = new List<Item>();
         }
 
@@ -234,6 +354,22 @@ namespace VehicleTweaks.UI
             public string Section;
             public string Key;
             public Func<string> Written;
+
+            /// <summary>
+            /// A chart: several numbers in one row, drawn as bars.
+            ///
+            /// Bar and SetBar are indexed by bar; Keys is the ini key for each, because six
+            /// values written back is six lines in the file, not one.
+            /// </summary>
+            public bool IsChart;
+            public int Bars;
+            public Func<int, float> Bar;
+            public Action<int, float> SetBar;
+            public float Min;
+            public float Max;
+            public float Step;
+            public string Format;
+            public string[] Keys;
 
             /// <summary>
             /// A heading, not a setting. Drawn differently and skipped by the highlight.
@@ -275,14 +411,45 @@ namespace VehicleTweaks.UI
             };
         }
 
+        private static Item Chart(string label, int bars, Func<int, float> get, Action<int, float> set,
+                                  float min, float max, float step, string format,
+                                  string section, string[] keys, string hint)
+        {
+            return new Item
+            {
+                Label = label,
+                Hint = hint,
+                Section = section,
+                IsChart = true,
+                Bars = bars,
+                Bar = get,
+                SetBar = set,
+                Min = min,
+                Max = max,
+                Step = step,
+                Format = format,
+                Keys = keys,
+                Show = () => string.Empty,
+            };
+        }
+
+        private static string[] Numbered(string prefix, int count)
+        {
+            var keys = new string[count];
+
+            for (var i = 0; i < count; i++) keys[i] = prefix + (i + 1);
+
+            return keys;
+        }
+
         private static Item Header(string text)
         {
             return new Item { Label = text, IsHeader = true };
         }
 
-        private Page Add(string title)
+        private Page Add(string title, string[] icon = null)
         {
-            var p = new Page { Title = title };
+            var p = new Page { Title = title, Icon = icon };
             _pages.Add(p);
             return p;
         }
@@ -480,7 +647,7 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Build()
         {
-            var drive = Add("DRIVING");
+            var drive = Add("DRIVING", IconKey);
 
             // THE FIRST ROW OF THE FIRST PAGE, which is where the highlight lands when the panel
             // opens -- so it is the one row you can reach without moving at all. That is the right
@@ -586,7 +753,7 @@ namespace VehicleTweaks.UI
             // adding fresh defaults under a new heading while somebody's real values sat under
             // the old one, and the new copy would win. A page is a way to find a setting; the
             // section is where the value has always lived.
-            var tune = Add("TUNING");
+            var tune = Add("TUNING", IconWrench);
 
             tune.Items.Add(Header("THE ENGINE"));
 
@@ -664,7 +831,25 @@ namespace VehicleTweaks.UI
                                   "Driving", "HeightRear",
                                   "Applied every frame, because the game poses wheels every frame."));
 
-            var grip = Add("GRIP");
+            var gears = Add("GEARS", IconCog);
+
+            gears.Items.Add(Header("TORQUE, GEAR BY GEAR"));
+
+            gears.Items.Add(Chart("Torque multiplier", 6,
+                                  i => _cfg.GearTorque[i], (i, v) => _cfg.GearTorque[i] = v,
+                                  0.25f, 3f, 0.05f, "0.00",
+                                  "Driving", Numbered("GearTorque", 6),
+                                  "More in second than first is a curve you can see. ENTER to shape it."));
+
+            gears.Items.Add(Header("HOW SLIDY THE TYRES ARE, GEAR BY GEAR"));
+
+            gears.Items.Add(Chart("Extra slide", 6,
+                                  i => _cfg.GearSlide[i], (i, v) => _cfg.GearSlide[i] = v,
+                                  0f, 1f, 0.05f, "0.00",
+                                  "Driving", Numbered("GearSlide", 6),
+                                  "On top of the GRIP drift slider. 0 is that slider alone."));
+
+            var grip = Add("GRIP", IconTyre);
 
             grip.Items.Add(Header("THE HANDBRAKE"));
 
@@ -732,7 +917,7 @@ namespace VehicleTweaks.UI
                                   "Between where it points and where it is going. Governs both.",
                                   () => _cfg.DriftPower || _cfg.CounterSteer));
 
-            var leave = Add("LEAVING");
+            var leave = Add("LEAVING", IconDoor);
 
             leave.Items.Add(Header("WHAT THE CAR KEEPS"));
 
@@ -782,7 +967,7 @@ namespace VehicleTweaks.UI
                                    v => _cfg.RememberStations = v, "Leaving", "RememberStations",
                                    "Get back in and it is on what you left it on."));
 
-            var auto = Add("AUTOPILOT");
+            var auto = Add("AUTOPILOT", IconWheel);
 
             auto.Items.Add(Header("CRUISE CONTROL"));
 
@@ -817,7 +1002,7 @@ namespace VehicleTweaks.UI
                                   "RECKLESS ignores red lights. It is not a joke setting.",
                                   () => _cfg.AutoDrive));
 
-            var ind = Add("INDICATORS");
+            var ind = Add("INDICATORS", IconArrow);
 
             ind.Items.Add(Header("THE STALK"));
 
@@ -869,7 +1054,7 @@ namespace VehicleTweaks.UI
                                "Both sides at once. On a pad it is the modifier and D-pad down.",
                                () => _cfg.Blinkers));
 
-            var speed = Add("SPEEDO");
+            var speed = Add("SPEEDO", IconGauge);
 
             speed.Items.Add(Header("THE READOUT"));
 
@@ -957,7 +1142,7 @@ namespace VehicleTweaks.UI
                                    "It shows here regardless while this panel is open.",
                                    () => _cfg.Speedo));
 
-            var gen = Add("GENERAL");
+            var gen = Add("GENERAL", IconSliders);
 
             gen.Items.Add(Toggle("Everything on", () => _cfg.Enabled, v => _cfg.Enabled = v,
                                  "General", "Enabled",
@@ -1464,6 +1649,31 @@ namespace VehicleTweaks.UI
 
         private void Navigate()
         {
+            if (_editing)
+            {
+                var chart = _pages[_page].Items[_row];
+
+                if (!chart.IsChart)
+                {
+                    _editing = false;
+                }
+                else
+                {
+                    if (_left.Fired && _bar > 0) _bar--;
+                    if (_right.Fired && _bar < chart.Bars - 1) _bar++;
+
+                    if (_up.Fired) Move(chart, 1);
+                    if (_down.Fired) Move(chart, -1);
+
+                    // BACK LEAVES THE CHART, NOT THE PANEL. Inside a chart the way out is one
+                    // level up, the same as it would be from the rebind row; a B that shut the
+                    // whole thing from in here would throw away the bar you were half way through.
+                    if (_accept.Fired || _back.Fired) _editing = false;
+
+                    return;
+                }
+            }
+
             if (_tab.Fired || (_padNext != null && _padNext.Fired))
             {
                 TurnPage(1, true);
@@ -1504,6 +1714,13 @@ namespace VehicleTweaks.UI
             if (_left.Fired && item.Nudge != null) Touch(item, -1);
             if (_right.Fired && item.Nudge != null) Touch(item, 1);
 
+            if (_accept.Fired && item.IsChart)
+            {
+                _editing = true;
+                _bar = 0;
+                return;
+            }
+
             if (_accept.Fired && item.Press != null)
             {
                 item.Press();
@@ -1541,12 +1758,31 @@ namespace VehicleTweaks.UI
         /// <summary>Moves to another page, landing on its first or last row.</summary>
         private void TurnPage(int direction, bool top)
         {
+            _editing = false;
+
             _page = ((_page + direction) % _pages.Count + _pages.Count) % _pages.Count;
 
             var count = _pages[_page].Items.Count;
 
             _row = top ? 0 : count - 1;
             _scroll = _row < Rows ? 0 : _row - Rows + 1;
+        }
+
+        /// <summary>One bar of a chart, up or down a step.</summary>
+        private void Move(Item chart, int direction)
+        {
+            _touchedAt = Game.GameTime;
+
+            var v = chart.Bar(_bar) + direction * chart.Step;
+
+            if (v < chart.Min) v = chart.Min;
+            if (v > chart.Max) v = chart.Max;
+
+            // Snapped to the step, or a slider nudged in hundredths drifts into thousandths.
+            v = (float)Math.Round(v / chart.Step) * chart.Step;
+
+            chart.SetBar(_bar, v);
+            _changed.Add(chart);
         }
 
         private void Touch(Item item, int direction)
@@ -1583,6 +1819,7 @@ namespace VehicleTweaks.UI
         private void Close()
         {
             _open = false;
+            _editing = false;
 
             if (_changed.Count == 0) return;
 
@@ -1592,7 +1829,19 @@ namespace VehicleTweaks.UI
             {
                 try
                 {
-                    if (IniFile.SetValue(Paths.Ini, item.Section, item.Key, item.Written())) written++;
+                    if (item.IsChart)
+                    {
+                        // SIX LINES FOR ONE ROW. A chart is one thing on screen and six things in
+                        // the file, and each has to go back on its own line under its own name.
+                        for (var b = 0; b < item.Bars; b++)
+                        {
+                            var text = item.Bar(b).ToString(item.Format, CultureInfo.InvariantCulture);
+
+                            if (IniFile.SetValue(Paths.Ini, item.Section, item.Keys[b], text)) written++;
+                            else Log.Warn("Could not write [" + item.Section + "] " + item.Keys[b] + " to VehicleTweaks.ini.");
+                        }
+                    }
+                    else if (IniFile.SetValue(Paths.Ini, item.Section, item.Key, item.Written())) written++;
                     else Log.Warn("Could not write [" + item.Section + "] " + item.Key + " to VehicleTweaks.ini.");
                 }
                 catch (Exception ex)
@@ -1648,14 +1897,33 @@ namespace VehicleTweaks.UI
             // highlight sweeping the length of the panel to get there. The panel itself is
             // MEANT to travel -- that is the animation. And the underline travelling is the
             // whole point of a page change, so it is never snapped at all.
+            // IN ROWS, NOT IN ITEMS. A chart is one item six rows tall, so the highlight has
+            // to travel by how far down the page a thing is, not by how many things are above it
+            // -- and it has to grow to fit what it lands on.
+            var want = _rowAt;
+            var tall = _rowTall;
+
+            if (_pages.Count > 0)
+            {
+                var page = _pages[_page];
+
+                if (_row >= 0 && _row < page.Items.Count)
+                {
+                    want = Offset(page, _row);
+                    tall = Tall(page.Items[_row]);
+                }
+            }
+
             if (_snap)
             {
                 _snap = false;
-                _rowAt = _row;
+                _rowAt = want;
+                _rowTall = tall;
             }
             else
             {
-                _rowAt = Toward(_rowAt, _row, RowTau, dt);
+                _rowAt = Toward(_rowAt, want, RowTau, dt);
+                _rowTall = Toward(_rowTall, tall, RowTau, dt);
             }
 
             _show = Toward(_show, _open ? 1f : 0f, ShowTau, dt);
@@ -1723,9 +1991,9 @@ namespace VehicleTweaks.UI
         private void Render()
         {
             var page = _pages[_page];
-            var shown = Math.Min(Rows, page.Items.Count);
+            var shown = Shown(page);
 
-            var bodyH = shown * RowH;
+            var bodyH = Units(page, shown) * RowH;
             var totalH = TitleH + bodyH + FootH;
 
             var x = _drawX;
@@ -1751,14 +2019,15 @@ namespace VehicleTweaks.UI
             // THE HIGHLIGHT, DRAWN ONCE AND WHEREVER IT HAS GOT TO, rather than on whichever row
             // owns it. Drawing it inside the loop is what ties it to a row, and a thing tied to
             // a row cannot be between two of them.
-            var at = _rowAt - _scroll;
+            var at = _rowAt - Offset(page, _scroll);
 
-            if (_show > 0f && at > -1f && at < shown && !page.Items[_row].IsHeader)
+            if (_show > 0f && at > -1f && at < Units(page, shown) && !page.Items[_row].IsHeader)
             {
                 var hy = PanelTop + TitleH + at * RowH;
+                var hh = _rowTall * RowH;
 
-                Draw.Bar(x, hy, PanelW, RowH, Fade(Color.FromArgb(38, 245, 196, 60)));
-                Draw.Bar(x, hy, 0.0022f * Zoom, RowH, Fade(Amber));
+                Draw.Bar(x, hy, PanelW, hh, Fade(Color.FromArgb(38, 245, 196, 60)));
+                Draw.Bar(x, hy, 0.0022f * Zoom, hh, Fade(Amber));
 
                 // AN ASCII CARET, because the pretty one does not exist.
                 //
@@ -1773,21 +2042,31 @@ namespace VehicleTweaks.UI
                           Fade(Amber), Plain);
             }
 
+            var y = PanelTop + TitleH;
+
             for (var i = 0; i < shown; i++)
             {
                 var index = _scroll + i;
                 if (index >= page.Items.Count) break;
 
                 var item = page.Items[index];
-                var y = PanelTop + TitleH + i * RowH;
+                var rowY = y;
+
+                y += Tall(item) * RowH;
+
+                if (item.IsChart)
+                {
+                    ChartRow(x, rowY, item, index == _row);
+                    continue;
+                }
 
                 if (item.IsHeader)
                 {
                     // A heading sits low in its row with a hairline under it, so the group it
                     // opens reads as hanging off it rather than as another setting that happens
                     // to be in capitals.
-                    Draw.Text(item.Label, x + PadX, y + 0.0090f * Zoom, HeadText, Fade(Amber), Plain);
-                    Draw.Bar(x + PadX, y + RowH - 0.0035f * Zoom, PanelW - PadX * 2f, 0.0011f * Zoom,
+                    Draw.Text(item.Label, x + PadX, rowY + 0.0090f * Zoom, HeadText, Fade(Amber), Plain);
+                    Draw.Bar(x + PadX, rowY + RowH - 0.0035f * Zoom, PanelW - PadX * 2f, 0.0011f * Zoom,
                              Fade(Color.FromArgb(45, 245, 196, 60)));
                     continue;
                 }
@@ -1814,18 +2093,18 @@ namespace VehicleTweaks.UI
                 // that size. The flash is.
                 if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                Draw.Text(item.Label, x + LabelX, y + 0.0044f * Zoom, RowText, Fade(label), Plain);
+                Draw.Text(item.Label, x + LabelX, rowY + 0.0044f * Zoom, RowText, Fade(label), Plain);
 
-                Draw.Text(item.Show(), x + PanelW - ValueX, y + 0.0044f * Zoom, RowText,
+                Draw.Text(item.Show(), x + PanelW - ValueX, rowY + 0.0044f * Zoom, RowText,
                           Fade(value), Plain, false, true);
             }
 
             // The scroll bar, only when there is something to scroll.
-            if (page.Items.Count > Rows)
+            if (Total(page) > Rows)
             {
                 var track = bodyH;
-                var thumb = track * Rows / page.Items.Count;
-                var down = track * _scroll / page.Items.Count;
+                var thumb = track * Rows / Total(page);
+                var down = track * Offset(page, _scroll) / Total(page);
 
                 Draw.Bar(x + PanelW - 0.0018f, PanelTop + TitleH, 0.0018f, track,
                          Fade(Color.FromArgb(60, 255, 255, 255)));
@@ -1846,7 +2125,10 @@ namespace VehicleTweaks.UI
                        // the player to work out from a panel that has stopped responding.
                        ? "This needs a keyboard.  B cancels."
                        : "Press the key you want the panel on.  ESC cancels.")
-                : page.Items[_row].Hint;
+                : _editing
+                    ? (pad ? "LEFT RIGHT pick the gear   UP DOWN move it   A done"
+                           : "LEFT RIGHT pick the gear   UP DOWN move it   ENTER done")
+                    : page.Items[_row].Hint;
 
             if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
@@ -1889,75 +2171,71 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// The page names across the head of the panel, current one lit and underlined.
+        /// The pages across the head of the panel: an icon each, and the current one named.
         ///
-        /// LAID OUT BY MEASUREMENT rather than by fixed columns: the names are different
-        /// lengths, so evenly spaced columns would either crowd INDICATORS or strand GENERAL.
-        /// Each is measured, and they are spread across whatever room is left.
+        /// ICONS BECAUSE THE NAMES STOPPED FITTING. Nine pages of capitals across a panel this
+        /// narrow shrinks the type until it is a row of grey smudges, and the fix is not smaller
+        /// type -- it is not drawing eight names nobody is reading. The page you are ON is the
+        /// one that needs its name, and it gets it, beside its icon; the rest are icons, which
+        /// at this size read faster than the words did anyway.
         ///
-        /// THE UNDERLINE TRAVELS. It is the one part of this panel that says which way you just
-        /// went -- the names cannot, because they do not move -- and on a strip of seven it is
-        /// the difference between reading where you are and watching yourself get there.
+        /// STILL LAID OUT BY MEASUREMENT. The named tab is wider than the others by however wide
+        /// its name is, and that is measured rather than guessed, and the name is shrunk if the
+        /// strip is full. The underline under the current tab travels, as it did before.
         /// </summary>
         private void Tabs()
         {
+            var cell = 0.0030f * Zoom;
+            var cellAcross = cell / Aspect();
+            var iconW = 7f * cellAcross;
+            var gapIn = 0.005f * Zoom;
             var minGap = 0.006f * Zoom;
 
             var left = _drawX + PadX;
             var right = _drawX + PanelW - PadX;
             var y = PanelTop + 0.030f * Zoom;
-
             var room = right - left;
-            var gaps = _pages.Count > 1 ? minGap * (_pages.Count - 1) : 0f;
 
-            // SHRUNK TO FIT, not trusted to fit. The names very nearly filled this strip at the
-            // old size and the panel is smaller now, so an eighth page added later cannot be
-            // assumed to go in beside them -- the failure is not a tidy clip, it is the last
-            // name running out of the panel and across the game. Measuring costs a couple of
-            // native calls on a menu only drawn while it is open.
             var scale = TabText;
-            var total = Measure(scale);
+            var title = _pages[_page].Title;
+            var nameW = Draw.Width(title, scale, Plain);
 
-            if (total > 0f && total > room - gaps)
+            var icons = _pages.Count * iconW + gapIn;
+            var least = icons + minGap * (_pages.Count - 1);
+
+            if (least + nameW > room && nameW > 0f)
             {
-                scale = TabText * ((room - gaps) / total);
-                if (scale < 0.16f * Zoom) scale = 0.16f * Zoom;
+                scale = TabText * Math.Max(0.5f, (room - least) / nameW);
+                nameW = Draw.Width(title, scale, Plain);
             }
 
-            var widths = new float[_pages.Count];
-            total = 0f;
-
-            for (var i = 0; i < _pages.Count; i++)
-            {
-                widths[i] = Draw.Width(_pages[i].Title, scale, Plain);
-                total += widths[i];
-            }
-
-            var gap = _pages.Count > 1 ? (room - total) / (_pages.Count - 1) : 0f;
+            var gap = (room - icons - nameW) / Math.Max(1, _pages.Count - 1);
             if (gap < minGap) gap = minGap;
 
             var x = left;
             var wantX = left;
-            var wantW = widths.Length > 0 ? widths[0] : 0f;
+            var wantW = iconW;
 
             for (var i = 0; i < _pages.Count; i++)
             {
                 var on = i == _page;
+                var w = iconW + (on ? gapIn + nameW : 0f);
 
                 if (on)
                 {
                     wantX = x;
-                    wantW = widths[i];
+                    wantW = w;
                 }
 
-                Draw.Text(_pages[i].Title, x, y, scale, Fade(on ? Amber : Faint), Plain);
+                Draw.Icon(_pages[i].Icon, x, y + 0.0012f * Zoom, cell, cellAcross,
+                          Fade(on ? Amber : Faint));
 
-                x += widths[i] + gap;
+                if (on) Draw.Text(title, x + iconW + gapIn, y, scale, Fade(Amber), Plain);
+
+                x += w + gap;
             }
 
             // MEASURED HERE AND EASED HERE, because the widths only exist inside this method.
-            // Working them out a second time in Animate would be the same measurement kept in
-            // two places, which is the shape of every layout bug this panel has had.
             var dt = Delta();
 
             if (_tabWide <= 0f)
@@ -1974,16 +2252,141 @@ namespace VehicleTweaks.UI
             Draw.Bar(_tabAt, y + 0.0165f * Zoom, _tabWide, Hair, Fade(Amber));
         }
 
-        /// <summary>The width of every tab name laid end to end, at a given scale.</summary>
-        private float Measure(float scale)
+
+        /// <summary>
+        /// One chart: a bar per gear, the number over each, the gear under each.
+        ///
+        /// A ROW SIX ROWS TALL, rather than six rows. Six separate "2nd gear torque" rows would
+        /// hold the same numbers and say nothing about the SHAPE of them, and the shape is the
+        /// point -- more in second than first, tailing off to fifth is a curve you can see and
+        /// cannot read off a column of decimals.
+        ///
+        /// THE LINE AT ONE. On a chart whose range straddles the standard value, a bar on its own
+        /// says how tall it is and nothing about whether that is more or less than the car came
+        /// with. The faint line is "as it came", and every bar is read against it.
+        /// </summary>
+        private void ChartRow(float x, float y, Item item, bool selected)
         {
-            var total = 0f;
+            var h = ChartRows * RowH;
 
-            foreach (var page in _pages) total += Draw.Width(page.Title, scale, Plain);
+            var left = x + LabelX;
+            var right = x + PanelW - ValueX;
+            var top = y + 0.020f * Zoom;
+            var bottom = y + h - 0.013f * Zoom;
 
-            return total;
+            Draw.Text(item.Label, x + PadX, y + 0.003f * Zoom, HeadText,
+                      Fade(selected ? Ink : Dim), Plain);
+
+            var slot = (right - left) / item.Bars;
+            var barW = slot * 0.52f;
+            var span = item.Max - item.Min;
+
+            // "As it came", when the range has it. A chart of nought to one has no such line
+            // because nought IS as it came, and that is the floor.
+            if (item.Min < 1f && item.Max > 1f)
+            {
+                var one = bottom - (bottom - top) * ((1f - item.Min) / span);
+                Draw.Bar(left, one, right - left, 0.0009f * Zoom, Fade(Color.FromArgb(70, 255, 255, 255)));
+            }
+
+            for (var i = 0; i < item.Bars; i++)
+            {
+                var v = item.Bar(i);
+                var part = span > 0f ? (v - item.Min) / span : 0f;
+
+                if (part < 0f) part = 0f;
+                if (part > 1f) part = 1f;
+
+                var bx = left + i * slot + (slot - barW) * 0.5f;
+                var bh = (bottom - top) * part;
+                var mine = selected && _editing && i == _bar;
+
+                var lit = mine ? Amber
+                              : selected ? Color.FromArgb(200, 245, 196, 60)
+                                         : Color.FromArgb(150, 150, 150, 156);
+
+                if (mine) lit = Mix(lit, Color.FromArgb(255, 255, 255, 255), Flash());
+
+                Draw.Bar(bx, top, barW, bottom - top, Fade(Color.FromArgb(22, 255, 255, 255)));
+                Draw.Bar(bx, bottom - bh, barW, bh, Fade(lit));
+
+                Draw.Text(v.ToString(item.Format, CultureInfo.InvariantCulture),
+                          bx + barW * 0.5f, top - 0.0135f * Zoom, 0.20f * Zoom,
+                          Fade(mine ? Ink : Faint), Plain, true);
+
+                Draw.Text((i + 1).ToString(), bx + barW * 0.5f, bottom + 0.0012f * Zoom,
+                          0.22f * Zoom, Fade(mine ? Amber : Dim), Plain, true);
+
+                if (mine) Draw.Bar(bx, bottom + 0.0115f * Zoom, barW, 0.0012f * Zoom, Fade(Amber));
+            }
         }
 
+        // ---- how tall things are, in rows --------------------------------------
+
+        private const int ChartRows = 6;
+
+        private static int Tall(Item item)
+        {
+            return item.IsChart ? ChartRows : 1;
+        }
+
+        /// <summary>Rows above this item, counting a chart as the rows it takes.</summary>
+        private static int Offset(Page page, int index)
+        {
+            var units = 0;
+
+            for (var i = 0; i < index && i < page.Items.Count; i++) units += Tall(page.Items[i]);
+
+            return units;
+        }
+
+        private static int Total(Page page)
+        {
+            return Offset(page, page.Items.Count);
+        }
+
+        /// <summary>How many items from the scroll point fit in the rows there are.</summary>
+        private int Shown(Page page)
+        {
+            var units = 0;
+            var count = 0;
+
+            for (var i = _scroll; i < page.Items.Count; i++)
+            {
+                var tall = Tall(page.Items[i]);
+                if (units + tall > Rows) break;
+
+                units += tall;
+                count++;
+            }
+
+            return count;
+        }
+
+        private int Units(Page page, int shown)
+        {
+            var units = 0;
+
+            for (var i = 0; i < shown && _scroll + i < page.Items.Count; i++)
+            {
+                units += Tall(page.Items[_scroll + i]);
+            }
+
+            return units;
+        }
+
+        private static float Aspect()
+        {
+            try
+            {
+                var aspect = GTA.UI.Screen.AspectRatio;
+                return aspect < 0.5f || aspect > 6f ? 16f / 9f : aspect;
+            }
+            catch
+            {
+                return 16f / 9f;
+            }
+        }
         // ==================================================================
         // Small print
         // ==================================================================

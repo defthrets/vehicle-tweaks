@@ -62,7 +62,7 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                if (_cfg.DriftAmount <= 0f)
+                if (_cfg.DriftAmount <= 0f && !AnySlide())
                 {
                     // Switched off in the panel: the cars we did it to get their grip back on the
                     // same frame, rather than the next time they happen to be looked at.
@@ -81,7 +81,7 @@ namespace VehicleTweaks.Driving
                     // costs nothing to set to what it already is, and this is the row somebody
                     // will sit and nudge while driving -- so it has to follow the setting rather
                     // than be whatever it was when they got in.
-                    Friction(car, _cfg.DriftAmount);
+                    Friction(car, Amount(car));
                     return;
                 }
 
@@ -97,7 +97,7 @@ namespace VehicleTweaks.Driving
                     _ours.RemoveAt(0);
                 }
 
-                _ours.Add(Apply(car, _cfg.DriftAmount));
+                _ours.Add(Apply(car, Amount(car)));
             }
             catch (Exception ex)
             {
@@ -165,6 +165,47 @@ namespace VehicleTweaks.Driving
         /// Spending the whole slider on the half that is usable is worth more than a top end
         /// nobody would choose.
         /// </summary>
+        /// <summary>
+        /// The drift amount for the gear the car is in: the slider, plus that gear's bar.
+        ///
+        /// Summed and clamped rather than multiplied, because the bars are "extra slide" and
+        /// extra is what a person means by it -- a slider at nought with second set to a half is
+        /// a car that is planted everywhere except second, which is exactly the picture drawn.
+        /// </summary>
+        private float Amount(Vehicle car)
+        {
+            var amount = _cfg.DriftAmount;
+
+            try
+            {
+                var gear = car.CurrentGear;
+
+                if (gear >= 1)
+                {
+                    var bars = _cfg.GearSlide;
+                    amount += bars[Math.Min(gear, bars.Length) - 1];
+                }
+            }
+            catch
+            {
+                // The slider alone, then.
+            }
+
+            if (amount < 0f) amount = 0f;
+            return amount > 1f ? 1f : amount;
+        }
+
+        /// <summary>Whether any gear asks for slide on its own, with the slider at nought.</summary>
+        private bool AnySlide()
+        {
+            foreach (var bar in _cfg.GearSlide)
+            {
+                if (bar > 0f) return true;
+            }
+
+            return false;
+        }
+
         private static float Grip(float amount)
         {
             if (amount < 0f) amount = 0f;

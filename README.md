@@ -243,6 +243,36 @@ moves the thing while you watch it — the default position is an estimate off a
 where the minimap really ends depends on your safe-zone slider and aspect ratio, which no script
 can ask about.
 
+## Gear by gear
+
+A **chart** page: torque per gear, and how slidy the tyres are per gear, six bars each.
+
+A chart rather than six numbers, because one number is not what anybody means when they say a car
+needs more torque. They mean it needs more in *second* — the gear a slide is held in, the gear you
+leave a junction in — and no more in fifth, where extra torque is a car that will not settle. More
+in second than first, tailing off to fifth, is a **shape**, and a shape is something you can see
+on a chart and cannot read off a column of decimals. The faint line across the torque chart is
+"as it came", so every bar is read against it.
+
+`ENTER` on a chart to shape it — `LEFT`/`RIGHT` pick the gear, `UP`/`DOWN` move it, `ENTER` or
+`BACK` when done. That is the one **mode** this panel has, and it exists because a D-pad has four
+directions: between rows, up and down *move* and left and right *change*; inside a chart, left and
+right have to choose the bar, so up and down become the change. The footer says which you are in.
+
+Both compose with what is already there rather than competing. Gear torque **multiplies** the
+TUNING baseline, and the slide compensation multiplies that. Gear slide **adds** to the GRIP drift
+slider — a slider at nought with second set to a half is a car planted everywhere except second,
+which is exactly the picture drawn. Seventh gear and up use the sixth bar.
+
+### Icons
+
+The page tabs are icons now, with only the current page named. Nine pages of capitals across a
+panel this narrow shrinks the type to a row of grey smudges, and the fix is not smaller type — it is
+not drawing eight names nobody is reading. Each icon is a seven-by-seven grid of cells drawn from
+rectangles, for the same reason the speedo's digits are: no font this game ships has a glyph for a
+cog or a tyre, and the one time this mod tried a symbol it drew the missing-character box. They are
+written in the source as rows of `#` and `.`, so an icon is readable as the thing it draws.
+
 ## Tuning
 
 Sliders for what the car is, before anything happens to it.

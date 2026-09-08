@@ -88,7 +88,7 @@ namespace VehicleTweaks.Driving
                 var angle = Slip(car);
 
                 var power = _cfg.PowerMultiplier;
-                var torque = _cfg.TorqueMultiplier;
+                var torque = _cfg.TorqueMultiplier * PerGear(car);
                 var steering = _cfg.SteeringLock;
 
                 // THE SLIDE COMPENSATION, ON TOP. Ramped rather than switched, so it arrives as
@@ -149,6 +149,31 @@ namespace VehicleTweaks.Driving
             {
                 Release();
                 Log.Once("tuning", "Tuning the car fell over: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// The torque bar for the gear the car is in.
+        ///
+        /// Reverse and neutral are nought and below, and they get the car as it came -- a chart
+        /// of forward gears has nothing to say about backing out of a space. Seventh and up use
+        /// the sixth bar, for the reason given on the setting.
+        /// </summary>
+        private float PerGear(Vehicle car)
+        {
+            try
+            {
+                var gear = car.CurrentGear;
+                if (gear < 1) return 1f;
+
+                var bars = _cfg.GearTorque;
+                var i = Math.Min(gear, bars.Length) - 1;
+
+                return bars[i];
+            }
+            catch
+            {
+                return 1f;
             }
         }
 

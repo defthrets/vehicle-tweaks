@@ -54,6 +54,37 @@ namespace VehicleTweaks.UI
         /// table. It also has a hard limit of 99 characters, so anything longer is cut here
         /// rather than silently drawing nothing at all.
         /// </summary>
+        /// <summary>
+        /// A small picture, out of squares.
+        ///
+        /// THE SAME REASON THE SPEEDO'S DIGITS ARE RECTANGLES: no font this game ships has a
+        /// glyph for a cog or a tyre, and the one time this mod tried a symbol it drew the
+        /// missing-character box. A seven-by-seven grid of cells is crude at any size bigger than
+        /// this and exactly right at this one, and it matches the seven-segment look the rest of
+        /// the mod already has.
+        ///
+        /// Rows are strings, '#' for a lit cell, so an icon is readable in the source as the thing
+        /// it draws. Cell height and width are passed separately because a screen fraction is a
+        /// fraction of that axis -- the same trap as everywhere else in here.
+        /// </summary>
+        public static void Icon(string[] rows, float left, float top, float cellTall, float cellWide,
+                                Color colour)
+        {
+            if (rows == null) return;
+
+            for (var r = 0; r < rows.Length; r++)
+            {
+                var row = rows[r];
+
+                for (var c = 0; c < row.Length; c++)
+                {
+                    if (row[c] != '#') continue;
+
+                    Bar(left + c * cellWide, top + r * cellTall, cellWide, cellTall, colour);
+                }
+            }
+        }
+
         public static void Text(string text, float x, float y, float scale, Color colour,
                                 int font = 4, bool centre = false, bool rightAlign = false,
                                 bool outline = true)
