@@ -28,9 +28,13 @@ namespace VehicleTweaks.UI
     ///
     /// IT USED TO SPAWN THE CAR IN FRONT OF YOU INSTEAD, on the argument that a script cannot
     /// render a model to a picture so the real thing is the honest preview. That was true and it
-    /// was still the wrong answer: browsing littered the street, loaded a model for every row, and
-    /// put whatever you were pointing at between you and the menu. A picture is what a person
-    /// means by a preview. Now the car only arrives when it is asked for.
+    /// was still the wrong job for it: as the ONLY preview it littered the street, loaded a model
+    /// for every row, and put whatever you were pointing at between you and the menu.
+    ///
+    /// SO IT IS A SETTING NOW RATHER THAN GONE. Most cars have no picture -- the websites only
+    /// ever sold a fraction of them and add-on cars bring none -- and for those the choice is the
+    /// real thing or nothing at all. It is also the only way to judge the SIZE of something, which
+    /// a photograph flattens out. Off by default; on when you want it.
     ///
     /// THE STAT BARS ARE RELATIVE TO THE FASTEST THING IN THE GAME, worked out from the catalogue
     /// as it is built rather than against numbers I would have had to invent. The game hands back
@@ -93,9 +97,21 @@ namespace VehicleTweaks.UI
         private int _scroll;
 
 
+        /// <summary>How long the highlight has to be still before the demo car is fetched.</summary>
+        private const int SettleMs = 220;
+
+        /// <summary>When the highlight last moved, and what is currently stood outside.</summary>
+        private int _movedAt;
+        private Entry _showing;
+        private Vehicle _demo;
+
         /// <summary>The texture dictionary asked for, so it can be handed back when we move on.</summary>
         private string _txd;
         private bool _txdReady;
+
+        /// <summary>Said once each way, so the log answers "do pictures work here at all".</summary>
+        private bool _saidHit;
+        private bool _saidMiss;
 
         private bool _keyDown;
 
@@ -117,6 +133,7 @@ namespace VehicleTweaks.UI
         public void Open()
         {
             _open = true;
+            _movedAt = Game.GameTime;
 
             // THE SAME TRAP AS THE PANEL'S, arriving through the same door. This is opened from a
             // row on the panel, so A or ENTER is held at the moment it appears -- and A is this
@@ -159,7 +176,11 @@ namespace VehicleTweaks.UI
 
                 Deafen();
 
-                if (_built >= (_all == null ? 1 : _all.Length)) Navigate(me);
+                if (_built >= (_all == null ? 1 : _all.Length))
+                {
+                    Navigate(me);
+                    Demo(me);
+                }
 
                 Render();
             }
@@ -299,8 +320,8 @@ namespace VehicleTweaks.UI
 
             if (list.Count > 0)
             {
-                if (_up.Fired) _row--;
-                if (_down.Fired) _row++;
+                if (_up.Fired) { _row--; _movedAt = Game.GameTime; }
+                if (_down.Fired) { _row++; _movedAt = Game.GameTime; }
 
                 if (_row < 0) _row = list.Count - 1;
                 if (_row >= list.Count) _row = 0;
@@ -324,6 +345,7 @@ namespace VehicleTweaks.UI
 
                 _row = 0;
                 _scroll = 0;
+                _movedAt = Game.GameTime;
                 return;
             }
         }
@@ -336,6 +358,98 @@ namespace VehicleTweaks.UI
         // ==================================================================
         // The car in front of you
         // ==================================================================
+
+        /// <summary>
+        /// The highlighted car, stood outside while you look at it. Off by default.
+        ///
+        /// THIS WAS THE PREVIEW ONCE, AND IT WAS THE WRONG JOB FOR IT. As the only preview it
+        /// littered the street, streamed a model for every row it settled on, and put whatever you
+        /// were pointing at between you and the menu. The picture on the card does that job now.
+        ///
+        /// AS A SECOND OPINION IT EARNS ITS PLACE, which is why it is back rather than gone. Most
+        /// cars have no picture at all -- the in-game websites only ever sold a fraction of them
+        /// and add-on cars bring none -- and for those the choice is the real thing or nothing.
+        /// It is also the only way to see the size of something, which a photograph flattens out.
+        ///
+        /// STILL WAITS FOR THE HIGHLIGHT TO SETTLE, and still takes the last one away before it
+        /// brings the next. Neither of those stopped being true when it stopped being the default.
+        /// </summary>
+        private void Demo(Ped me)
+        {
+            if (!_cfg.SpawnerDemo)
+            {
+                Remove();
+                return;
+            }
+
+            var list = Current;
+
+            if (list.Count == 0 || _row < 0 || _row >= list.Count) return;
+
+            var want = list[_row];
+
+            if (_showing == want) return;
+            if (Game.GameTime - _movedAt < SettleMs) return;
+
+            var model = new Model(want.Hash);
+
+            model.Request();
+
+            if (!model.IsLoaded) return;
+
+            Remove();
+
+            try
+            {
+                var where = me.Position + me.ForwardVector * 6f + Vector3.WorldUp * 0.5f;
+
+                _demo = World.CreateVehicle(model, where, me.Heading + 90f);
+
+                if (_demo != null)
+                {
+                    _demo.IsPersistent = true;
+                    _demo.PlaceOnGround();
+                }
+                else
+                {
+                    Log.Debug("Spawner: " + want.Name + " (" + want.Code + ") would not stand up.");
+                }
+
+                _showing = want;
+            }
+            catch
+            {
+                _demo = null;
+            }
+            finally
+            {
+                model.MarkAsNoLongerNeeded();
+            }
+        }
+
+        /// <summary>Takes away whatever is stood outside, if anything is.</summary>
+        private void Remove()
+        {
+            var old = _demo;
+
+            _demo = null;
+            _showing = null;
+
+            if (old == null) return;
+
+            try
+            {
+                if (old.Exists())
+                {
+                    old.IsPersistent = false;
+                    old.Delete();
+                }
+            }
+            catch
+            {
+                // The game would have cleaned it up eventually anyway.
+            }
+        }
 
         /// <summary>
         /// Puts the chosen vehicle on the ground beside the player, once, when it is asked for.
@@ -358,6 +472,21 @@ namespace VehicleTweaks.UI
             if (list.Count == 0 || _row < 0 || _row >= list.Count) return;
 
             var want = list[_row];
+
+            // THE ONE ALREADY STOOD THERE IS THE ONE YOU ASKED FOR. With the demo on, spawning
+            // would otherwise put a second identical car through the first one -- so it simply
+            // stops being a demo and becomes yours.
+            if (_demo != null && _demo.Exists() && _showing == want)
+            {
+                _demo.IsPersistent = false;
+                _demo = null;
+                _showing = null;
+
+                Log.Info("Spawner: kept " + want.Name + " (" + want.Code + ").");
+                Close();
+                return;
+            }
+
             var model = new Model(want.Hash);
 
             try
@@ -402,6 +531,8 @@ namespace VehicleTweaks.UI
         public void Close()
         {
             _open = false;
+
+            Remove();
             Forget();
         }
 
@@ -527,19 +658,29 @@ namespace VehicleTweaks.UI
         /// streamed texture dictionary per model, named after the model. So there is no image to
         /// render and none to fake: it is asked for by name and drawn.
         ///
+        /// HAS_STREAMED_TEXTURE_DICT_LOADED IS NOT AN EXISTENCE CHECK, which is what the first
+        /// version of this got wrong and got wrong in the worst way. Requesting a dictionary that
+        /// does not exist succeeds, and asking whether it loaded then says YES -- so the fallback
+        /// never ran and DRAW_SPRITE was handed a texture nobody has, which it draws as a solid
+        /// white rectangle. A blank white box is not a missing picture; it is a missing picture
+        /// wearing the costume of a present one.
+        ///
+        /// GET_TEXTURE_RESOLUTION IS the existence check. A texture that is really there has a
+        /// size; one that is not comes back at nothing. That also gives the SHAPE of the picture,
+        /// so it is drawn at its own proportions inside the box rather than stretched to fill it.
+        ///
         /// AND NOT EVERY CAR HAS ONE. The websites only ever sold a fraction of them, and add-on
         /// cars bring no artwork at all, so a missing picture is the ordinary case rather than a
-        /// fault. When there is nothing to draw, the box says so and the car standing outside is
-        /// the preview -- which is what it always was.
-        ///
-        /// HANDED BACK WHEN WE MOVE ON. A streamed dictionary is memory the game has been told to
-        /// hold; eight hundred of those left requested is somebody else's crash.
+        /// fault. The log says, once each way, whether any of them are being found at all -- which
+        /// is the difference between "this car has no picture" and "the naming is wrong".
         /// </summary>
         private float Picture(float x, float y, Entry entry)
         {
             var want = entry.Code.ToLowerInvariant();
             var w = StatW - 0.020f;
             var h = w * 0.62f;
+
+            Draw.Bar(x + 0.010f, y, w, h, Color.FromArgb(120, 0, 0, 0));
 
             try
             {
@@ -558,29 +699,71 @@ namespace VehicleTweaks.UI
                     _txdReady = Function.Call<bool>(Hash.HAS_STREAMED_TEXTURE_DICT_LOADED, want);
                 }
 
-                Draw.Bar(x + 0.010f, y, w, h, Color.FromArgb(120, 0, 0, 0));
+                var size = _txdReady
+                               ? Function.Call<Vector3>(Hash.GET_TEXTURE_RESOLUTION, want, want)
+                               : Vector3.Zero;
 
-                if (_txdReady)
+                if (size.X <= 0f || size.Y <= 0f)
                 {
-                    // CENTRED, WHICH DRAW_SPRITE MEANS BY x AND y -- unlike every rectangle in
-                    // this file, which is drawn from its top left. Getting that the wrong way
-                    // round puts the picture a quarter of the screen away from its own box.
-                    Function.Call(Hash.DRAW_SPRITE, want, want,
-                                  x + 0.010f + w * 0.5f, y + h * 0.5f, w, h, 0f, 255, 255, 255, 255);
+                    if (_txdReady && !_saidMiss)
+                    {
+                        _saidMiss = true;
+                        Log.Debug("Spawner: no picture for '" + want + "'. If nothing ever has " +
+                                  "one, the dictionary naming is wrong rather than the car.");
+                    }
+
+                    Draw.Text("NO PICTURE", x + 0.010f + w * 0.5f, y + h * 0.5f - 0.007f,
+                              0.26f, Faint, Plain, true);
+
+                    return h + 0.010f;
                 }
-                else
+
+                if (!_saidHit)
                 {
-                    Draw.Text("NO PICTURE - SEE THE CAR OUTSIDE",
-                              x + 0.010f + w * 0.5f, y + h * 0.5f - 0.006f, 0.22f, Faint, Plain,
-                              true);
+                    _saidHit = true;
+                    Log.Info("Spawner: pictures work - '" + want + "' is " + (int)size.X + " by " +
+                             (int)size.Y + ".");
                 }
+
+                // ITS OWN SHAPE, INSIDE THE BOX. A fraction of the screen's width and a fraction
+                // of its height are not the same size, so a picture drawn at equal fractions is
+                // stretched by the aspect ratio -- the same trap the speedo's digits fell into.
+                var aspect = Across();
+                var wants = size.X / size.Y / aspect;
+
+                var fw = w;
+                var fh = w / wants;
+
+                if (fh > h)
+                {
+                    fh = h;
+                    fw = h * wants;
+                }
+
+                // CENTRED, WHICH IS WHAT DRAW_SPRITE MEANS BY x AND y -- unlike every rectangle in
+                // this file, which is drawn from its top left.
+                Function.Call(Hash.DRAW_SPRITE, want, want,
+                              x + 0.010f + w * 0.5f, y + h * 0.5f, fw, fh, 0f, 255, 255, 255, 255);
             }
             catch
             {
-                // A picture is the one thing here nobody needs.
+                // A picture is the one thing on this card nobody needs.
             }
 
             return h + 0.010f;
+        }
+
+        private static float Across()
+        {
+            try
+            {
+                var aspect = GTA.UI.Screen.AspectRatio;
+                return aspect < 0.5f || aspect > 6f ? 16f / 9f : aspect;
+            }
+            catch
+            {
+                return 16f / 9f;
+            }
         }
 
         /// <summary>Gives back the streamed dictionary, if one was asked for.</summary>

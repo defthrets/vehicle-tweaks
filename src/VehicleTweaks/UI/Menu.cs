@@ -1017,6 +1017,11 @@ namespace VehicleTweaks.UI
                                  "General", "Spawner",
                                  "Off hides the row at the top of DRIVING that opens it."));
 
+            gen.Items.Add(Toggle("Show it in front of you", () => _cfg.SpawnerDemo,
+                                 v => _cfg.SpawnerDemo = v, "General", "SpawnerDemo",
+                                 "As well as the picture. Most cars have no picture.",
+                                 () => _cfg.Spawner));
+
             gen.Items.Add(Bind("Spawner key", () => _cfg.SpawnerKey, v => _cfg.SpawnerKey = v,
                                "General", "SpawnerKey",
                                "ENTER, then press the key you want. F7 by default.",

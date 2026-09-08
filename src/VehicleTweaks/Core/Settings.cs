@@ -762,6 +762,23 @@ namespace VehicleTweaks.Core
         /// </summary>
         public Keys SpawnerKey = Keys.F7;
 
+        /// <summary>
+        /// The highlighted car is also stood outside while you look at it.
+        ///
+        /// OFF, BECAUSE THE PICTURE IS THE PREVIEW NOW. This was the only one once, and as the
+        /// only one it littered the street, streamed a model for every row it settled on, and put
+        /// whatever you were pointing at between you and the menu.
+        ///
+        /// IT IS STILL WORTH HAVING. Most cars have no picture -- the in-game websites only ever
+        /// sold a fraction of them and add-on cars bring none at all -- and for those the choice
+        /// is the real thing or nothing. It is also the only way to judge the SIZE of something,
+        /// which a photograph flattens out.
+        ///
+        /// It waits for the highlight to settle before fetching anything, and takes the last one
+        /// away before it brings the next, so scrolling stays free and nothing is left behind.
+        /// </summary>
+        public bool SpawnerDemo = false;
+
         public bool CrashSlowMo = false;
 
         // ---- repairs -----------------------------------------------------------
@@ -1079,6 +1096,7 @@ namespace VehicleTweaks.Core
 
                 s.Spawner = ini.GetBool("General", "Spawner", s.Spawner);
                 s.SpawnerKey = ini.GetKey("General", "SpawnerKey", s.SpawnerKey);
+                s.SpawnerDemo = ini.GetBool("General", "SpawnerDemo", s.SpawnerDemo);
 
                 s.CrashSlowMo = ini.GetBool("General", "CrashSlowMo", s.CrashSlowMo);
 
