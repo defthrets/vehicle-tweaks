@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using GTA;
 using GTA.Native;
 using VehicleTweaks.Core;
@@ -8,90 +9,67 @@ namespace VehicleTweaks.Driving
     /// <summary>
     /// He drives everything the way he drives a lowrider: sat back, one arm through the window.
     ///
-    /// THE GAME ALREADY HAS THIS POSE and only ever gives it to you in the cars Benny built. It
-    /// is not an animation somebody has to author -- it is a seat context, chosen per vehicle in
-    /// the game's own layout data, and a script can ask for a different one. So this is not a new
-    /// animation bolted on; it is the one that already exists, applied to the car you are in.
+    /// THE SEAT CONTEXT DID NOT WORK, AND THE LOG IS WHY WE KNOW. The first version asked the game
+    /// for a different seat context -- the mechanism the game itself uses to choose which
+    /// animation a ped sits in -- and read the resulting clipset back before and after to see
+    /// whether anything changed. It never did: clipsets 2462687501 and 3332998045 across two
+    /// different cars, unchanged every single time, with MINI_LOWRIDER asked for and ignored. The
+    /// documented list of contexts turns out to be mission-specific things like
+    /// MISSFBI5_TREVOR_DRIVING, and there is no lowrider entry in it.
     ///
-    /// THE WINDOW GOES DOWN WITH IT, because an arm hanging through glass is worse than no arm at
-    /// all. That is the whole reason the pose looks right in a lowrider and wrong everywhere
-    /// else: those cars are driven with the window down.
+    /// That readout is the only reason this is a settled question rather than an argument, and it
+    /// is worth saying plainly: the first attempt was WRONG, and wrong in the way that is hardest
+    /// to see -- a call that succeeds and does nothing.
     ///
-    /// AND HE WINDS IT UP AS HE GETS OUT, rather than the car doing it once he has gone. Both
-    /// versions put the window back; only one of them looks like a person doing it. The signal is
-    /// IsSittingInVehicle going false while CurrentVehicle still names the car, which is exactly
-    /// the climb-out -- the same pair that has to be told apart for the radio, and for the pose
-    /// itself on the way in.
+    /// SO THE POSE IS PLAYED, NOT SELECTED. TASK_PLAY_ANIM with UpperBodyOnly and Secondary lays
+    /// an animation over his top half while the game keeps driving the rest of him, which is how
+    /// every custom driving pose in this game is actually done. The steering still works, because
+    /// the steering is not his arms -- it is the car.
     ///
-    /// EVERY VEHICLE, WHICH IS THE POINT. There is no lowrider check and no convertible check --
-    /// there was a cars-only filter here and it was MINE, not the game's. A vehicle whose seat
-    /// layout has no such clipset simply ignores the context and sits him normally, so the filter
-    /// was not preventing a broken pose, it was preventing an attempt.
-    ///
-    /// ASKED FOR EARLY, AND AGAIN A FEW TIMES. The seat clipset is resolved as he gets in, so a
-    /// context set after he has landed in the seat can be a context set too late -- which looks
-    /// exactly like a context the game does not have. So it starts the moment the car becomes his
-    /// rather than waiting for IsSittingInVehicle, and is re-asserted at a few points across the
-    /// first second and a half. Four times, not every frame: this is a state, and hammering a
-    /// state is how you get an animation that restarts sixty times a second and never plays.
-    ///
-    /// AND IT SAYS WHETHER IT WORKED. GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT is the game's own
-    /// answer to "which seat animation is this ped actually using", read before the context goes
-    /// on and again after the last attempt. A context that does nothing is otherwise
-    /// indistinguishable from one that was never applied, and this mod has already lost a day to
-    /// a feature that was deployed, never ran, and got judged anyway.
-    ///
-    /// THE CONTEXT IS A SETTING, and that is deliberate rather than lazy. Everything else here was
-    /// verified against SHVDN before it was relied on; a context is a NAME, hashed at runtime, and
-    /// there is no list to check it against from outside the game. Baking a guess into the build
-    /// would mean a rebuild to try the next candidate. In the ini it is one line and a reload, and
-    /// the log says what went on -- the same reasoning that put the pad control names there.
+    /// AND THE NAMES ARE TESTED RATHER THAN GUESSED, which is the part that matters. A dictionary
+    /// can be checked with DOES_ANIM_DICT_EXIST and a clip inside it with GET_ANIM_DURATION -- so
+    /// instead of picking a name and hoping, the probe walks sixty-four candidates and the log
+    /// says which ones this build has. One drive answers it, and the answer goes in the ini.
     /// </summary>
     internal sealed class Lowrider
     {
-        /// <summary>The driver's seat, which the game numbers as minus one rather than nought.</summary>
-        private const int Driver = -1;
+        /// <summary>How long to let requested dictionaries load before asking what is in them.</summary>
+        private const int LoadMs = 2000;
 
         private readonly Settings _cfg;
 
         private int _car;
 
-        /// <summary>Whether the pose is on, so there is something to put back.</summary>
+        /// <summary>Whether the pose has been put on, so it is asked for once rather than per frame.</summary>
         private bool _posed;
-
-        /// <summary>When the car became his, which is when the seat animation is being decided.</summary>
-        private int _since;
-
-        /// <summary>How many of the attempts below have been made for this car.</summary>
-        private int _step;
-
-        /// <summary>The seat clipset the game had chosen before we asked for anything.</summary>
-        private uint _was;
 
         /// <summary>Whether WE put the window down, so only our own is wound back up.</summary>
         private bool _wound;
 
-        /// <summary>
-        /// Whether he has actually been sat in this car yet.
-        ///
-        /// WITHOUT IT THERE IS NO WAY TO TELL THE TWO ANIMATIONS APART. Climbing in and climbing
-        /// out look identical from outside: CurrentVehicle names the car and IsSittingInVehicle
-        /// says no, in both. What separates them is which came first, and this is that.
-        /// </summary>
+        /// <summary>Whether he has actually been sat in this car yet. See the climb-out below.</summary>
         private bool _sat;
 
-        /// <summary>Said once per context, not once per car.</summary>
-        private string _said;
+        /// <summary>Which dictionary and clip are actually playing, so the right one is stopped.</summary>
+        private string _playing;
+        private string _clip;
 
-        /// <summary>
-        /// When the context is asked for, in milliseconds from the car becoming his.
-        ///
-        /// SPREAD ACROSS THE WAY IN rather than fired once at a moment picked by guesswork. The
-        /// seat clipset is chosen somewhere inside the entry animation and nothing tells a script
-        /// when; one attempt means picking that moment correctly first time, and being silently
-        /// wrong if not. Four cost nothing and cover the whole climb-in.
-        /// </summary>
-        private static readonly int[] Attempts = { 0, 300, 800, 1600 };
+        /// <summary>Nought for not started, one for dictionaries found, two for finished.</summary>
+        private int _probe;
+        private int _probedAt;
+        private string[] _found;
+
+        // GTA'S VEHICLE ANIMATIONS ARE NAMED BY PATTERN -- a family, a seat and a state -- so the
+        // candidates are built from the pieces rather than typed out one at a time. Sixty-four
+        // names cost sixty-four calls, once, on a native that only answers a question.
+        private static readonly string[] Families = { "veh@low@", "veh@std@", "veh@lowrider@", "anim@veh@low@" };
+        private static readonly string[] Seats = { "front_ds@", "ds@", "front_ps@", "ps@" };
+        private static readonly string[] States = { "base", "idle_a", "idle_b", "sit" };
+
+        /// <summary>Clip names worth asking a dictionary about, once it is known to exist.</summary>
+        private static readonly string[] Clips =
+        {
+            "sit", "base", "idle_a", "idle_b", "idle_c", "still", "hangout", "arm_out", "sit_arm",
+        };
 
         public Lowrider(Settings cfg)
         {
@@ -110,9 +88,6 @@ namespace VehicleTweaks.Driving
 
                 var car = me == null ? null : me.CurrentVehicle;
 
-                // HIS SEAT, WHICH DURING THE CLIMB-IN IS A SEAT NOBODY IS IN YET. Waiting for a
-                // driver to exist would be waiting until after the seat animation has been
-                // decided, and that is the one thing this must not be late for.
                 if (car == null || !car.Exists() || !Mine(car, me))
                 {
                     Release(me);
@@ -122,17 +97,14 @@ namespace VehicleTweaks.Driving
                 if (car.Handle != _car)
                 {
                     Release(me);
-
                     _car = car.Handle;
-                    _since = Game.GameTime;
-                    _step = 0;
-                    _was = Clipset(car);
                 }
 
-                // HE WINDS IT UP ON HIS WAY OUT. Sat in the car a moment ago, not sat in it
-                // now, still attached to it: that is the climb-out, and it is the moment a person
-                // would reach for the handle -- not two seconds later once he is stood beside it,
-                // which is when the release below would otherwise get to it.
+                Probe();
+
+                // HE WINDS IT UP ON HIS WAY OUT. Sat in the car a moment ago, not sat in it now,
+                // still attached to it: that is the climb-out, and it is the moment a person would
+                // reach for the handle rather than two seconds later stood beside it.
                 if (_sat && !Seated(me))
                 {
                     _sat = false;
@@ -149,59 +121,13 @@ namespace VehicleTweaks.Driving
                     _sat = true;
                 }
 
-                if (_step >= Attempts.Length) return;
+                if (!Seated(me) || _posed) return;
 
-                var context = (_cfg.LowriderContext ?? string.Empty).Trim();
-
-                if (context.Length == 0)
-                {
-                    _step = Attempts.Length;
-                    return;
-                }
-
-                if (Game.GameTime - _since < Attempts[_step]) return;
-
-                _step++;
-
-                // StringHash.AtStringHash, not Game.GenerateHash: the latter is obsolete, and
-                // this is the fifth time on this mod that SHVDN's own deprecation warning has
-                // been the thing that caught an out-of-date call. They are worth reading.
-                var hash = StringHash.AtStringHash(context);
-
-                try
-                {
-                    Function.Call(Hash.SET_PED_IN_VEHICLE_CONTEXT, me.Handle, hash);
-                    _posed = true;
-                }
-                catch
-                {
-                    // Nothing to put back: it either took or it did not.
-                }
+                _posed = true;
 
                 if (_cfg.LowriderWindow && !_wound) _wound = Wind(car, down: true);
 
-                if (_said != context)
-                {
-                    _said = context;
-
-                    // THE HASH AS WELL AS THE NAME. A context that does nothing looks identical
-                    // to a context that was never applied, and the number is the only way to tell
-                    // a typo from a name the game simply does not have.
-                    Log.Info("Lowrider pose: asking for '" + context + "' (" + hash + ").");
-                }
-
-                // AFTER THE LAST ATTEMPT, THE VERDICT. The game's own answer to which seat
-                // animation he is using, before and after -- so "it did nothing" and "it was
-                // never applied" stop looking like each other.
-                if (_step >= Attempts.Length)
-                {
-                    var now = Clipset(car);
-
-                    Log.Debug("Lowrider pose: seat clipset " + _was +
-                              (now == _was ? " unchanged - this vehicle's layout has no '" +
-                                             context + "'."
-                                           : " became " + now + " - the context took."));
-                }
+                Pose(me);
             }
             catch (Exception ex)
             {
@@ -211,32 +137,194 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Puts him back the way the game sits him, and winds our own window up.
+        /// The animation, on his top half only.
         ///
-        /// BY HANDLE FOR THE WINDOW, like every other override in here -- stepping straight out
-        /// of one car and into another has to close the first one's window, and that car stopped
-        /// being anybody's CurrentVehicle a frame ago.
+        /// UpperBodyOnly AND Secondary TOGETHER. Upper body leaves the legs and the seated base
+        /// animation to the game; secondary means it plays ALONGSIDE whatever the game is doing
+        /// rather than replacing the task -- so he is still driving, and the arm is laid over the
+        /// top of it. Looped, and given no duration, because a pose is a state.
         ///
-        /// The context goes back on the PED, which is why this takes one. There is no per-car
-        /// version of it to release: it is how he sits, not something done to the car.
+        /// CHECKED BEFORE IT IS ASKED FOR. Both names are settings, and a clip that does not exist
+        /// makes TASK_PLAY_ANIM do nothing at all -- the same silent failure the seat context had,
+        /// and the reason that one went unnoticed. GET_ANIM_DURATION turns it into a log line.
+        /// </summary>
+        private void Pose(Ped me)
+        {
+            var dict = (_cfg.LowriderAnimDict ?? string.Empty).Trim();
+            var clip = (_cfg.LowriderAnimClip ?? string.Empty).Trim();
+
+            if (dict.Length == 0 || clip.Length == 0) return;
+
+            try
+            {
+                if (!Function.Call<bool>(Hash.DOES_ANIM_DICT_EXIST, dict))
+                {
+                    Log.Once("lowrider-dict", "Lowrider pose: this build has no animation " +
+                                              "dictionary called '" + dict + "'. The probe lines " +
+                                              "list the ones it does have.");
+                    return;
+                }
+
+                Function.Call(Hash.REQUEST_ANIM_DICT, dict);
+
+                if (!Function.Call<bool>(Hash.HAS_ANIM_DICT_LOADED, dict))
+                {
+                    // Still loading. Tried again on the next pass rather than given up on, which
+                    // is what clearing the flag here does.
+                    _posed = false;
+                    return;
+                }
+
+                var seconds = Function.Call<float>(Hash.GET_ANIM_DURATION, dict, clip);
+
+                if (seconds <= 0f)
+                {
+                    Log.Once("lowrider-clip", "Lowrider pose: '" + dict + "' has no clip called '" +
+                                              clip + "'. The probe lines list what it does have.");
+                    return;
+                }
+
+                me.Task.PlayAnimation(dict, clip, 4f, -1,
+                                      AnimationFlags.Loop |
+                                      AnimationFlags.UpperBodyOnly |
+                                      AnimationFlags.Secondary);
+
+                _playing = dict;
+                _clip = clip;
+
+                Log.Info("Lowrider pose: playing '" + dict + "' / '" + clip + "' (" +
+                         seconds.ToString("0.00") + "s) on the upper body.");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("lowrider-play", "Lowrider pose: could not play it: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Which animation dictionaries and clips this build actually has.
+        ///
+        /// THE WHOLE REASON THE LAST ATTEMPT FAILED SILENTLY was that nothing could tell a name the
+        /// game has from a name it does not. Animations are not like that: DOES_ANIM_DICT_EXIST
+        /// answers for a dictionary and GET_ANIM_DURATION answers for a clip inside one. So the
+        /// names stop being a guess and become a question the game answers.
+        ///
+        /// TWO PASSES, BECAUSE LOADING IS NOT INSTANT. A dictionary has to be requested and given a
+        /// moment before its contents can be asked about, so the first pass finds and requests and
+        /// the second, two seconds later, reads. Doing both at once reports every dictionary as
+        /// empty -- which looks exactly like a wrong answer and is not one.
+        /// </summary>
+        private void Probe()
+        {
+            if (!_cfg.LowriderProbe || _probe > 1) return;
+
+            try
+            {
+                if (_probe == 0)
+                {
+                    var found = new List<string>();
+
+                    foreach (var family in Families)
+                    {
+                        foreach (var seat in Seats)
+                        {
+                            foreach (var state in States)
+                            {
+                                var dict = family + seat + state;
+
+                                if (!Function.Call<bool>(Hash.DOES_ANIM_DICT_EXIST, dict)) continue;
+
+                                found.Add(dict);
+                                Function.Call(Hash.REQUEST_ANIM_DICT, dict);
+                            }
+                        }
+                    }
+
+                    _found = found.ToArray();
+                    _probe = 1;
+                    _probedAt = Game.GameTime;
+
+                    Log.Info("Lowrider probe: " + _found.Length + " of " +
+                             (Families.Length * Seats.Length * States.Length) +
+                             " candidate dictionaries exist in this build.");
+
+                    if (_found.Length == 0)
+                    {
+                        Log.Info("Lowrider probe: none of the guessed families are right, so the " +
+                                 "names are not veh@low@ / veh@std@ shaped on this build.");
+                        _probe = 2;
+                    }
+
+                    return;
+                }
+
+                if (Game.GameTime - _probedAt < LoadMs) return;
+
+                _probe = 2;
+
+                foreach (var dict in _found)
+                {
+                    if (!Function.Call<bool>(Hash.HAS_ANIM_DICT_LOADED, dict))
+                    {
+                        Log.Info("Lowrider probe: '" + dict + "' exists but did not load in time.");
+                        continue;
+                    }
+
+                    var clips = string.Empty;
+
+                    foreach (var clip in Clips)
+                    {
+                        var seconds = Function.Call<float>(Hash.GET_ANIM_DURATION, dict, clip);
+                        if (seconds > 0f) clips += (clips.Length > 0 ? ", " : "") + clip;
+                    }
+
+                    Log.Info("Lowrider probe: '" + dict + "' -> " +
+                             (clips.Length == 0 ? "exists, but none of the guessed clip names." : clips));
+                }
+
+                Log.Info("Lowrider probe: done. Put a dictionary and a clip from the lines above " +
+                         "into LowriderAnimDict and LowriderAnimClip, then set LowriderProbe false.");
+            }
+            catch (Exception ex)
+            {
+                _probe = 2;
+                Log.Once("lowrider-probe", "The probe fell over: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Stops the animation, and winds our own window up.
+        ///
+        /// THE ANIMATION IS STOPPED BY NAME. ClearAnimation takes the dictionary and clip that were
+        /// started, which is why both are remembered rather than read back out of the settings --
+        /// somebody who changed the setting while sat in the car would otherwise be asking the game
+        /// to stop something that was never started, and the arm would stay out for good.
         /// </summary>
         public void Release(Ped me)
         {
             var handle = _car;
             var wound = _wound;
-            var posed = _posed;
+            var dict = _playing;
+            var clip = _clip;
 
             _car = 0;
             _posed = false;
             _wound = false;
-            _since = 0;
-            _step = 0;
-            _was = 0;
             _sat = false;
+            _playing = null;
+            _clip = null;
 
-            if (posed && me != null)
+            if (me != null && dict != null && clip != null)
             {
-                try { Function.Call(Hash.RESET_PED_IN_VEHICLE_CONTEXT, me.Handle); }
+                // STOP_ANIM_TASK, through the native rather than the wrapper. ClearAnimation is
+                // obsolete and its replacement takes a CrClipAsset, which is a type this file
+                // would have to construct to say the two strings it already has. The native takes
+                // the strings. Seventh time SHVDN's deprecation warnings have caught something
+                // here, and the first time the tidier call is the worse one.
+                try
+                {
+                    Function.Call(Hash.STOP_ANIM_TASK, me.Handle, dict, clip, -4f);
+                }
                 catch { /* he is out of the car either way */ }
             }
 
@@ -275,27 +363,6 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Which seat animation the game has actually put him in.
-        ///
-        /// THE ONLY HONEST TEST THERE IS. There is no native that reads back a ped's vehicle
-        /// context, so the way to find out whether asking for one changed anything is to look at
-        /// what it was supposed to change. Nought comes back for anything that has no such
-        /// answer, which compares equal to itself and reports as unchanged -- which is correct.
-        /// </summary>
-        private static uint Clipset(Vehicle car)
-        {
-            try
-            {
-                return Function.Call<uint>(Hash.GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT,
-                                           car.Handle, Driver);
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        /// <summary>
         /// Actually IN the seat, rather than part way through a door in either direction.
         ///
         /// CurrentVehicle answers yes for the whole climb-in AND the whole climb-out. This is the
@@ -312,8 +379,7 @@ namespace VehicleTweaks.Driving
         /// Whether that car is his to sit in, INCLUDING while he is still climbing into it.
         ///
         /// An empty driver's seat counts, because during the entry animation that is exactly what
-        /// it is: CurrentVehicle already names the car and Driver is still nobody. Asking only
-        /// whether he IS the driver would mean never asking until the way in was over.
+        /// it is: CurrentVehicle already names the car and Driver is still nobody.
         /// </summary>
         private static bool Mine(Vehicle car, Ped me)
         {

@@ -386,50 +386,35 @@ being part of what you were already looking at.
 
 ## The lowrider pose
 
-**He drives everything the way he drives a lowrider** — sat back, one arm through the window.
-Off by default, because it changes how the character *looks* in every car rather than how any car
+**He drives everything the way he drives a lowrider** — sat back, one arm through the window. Off
+by default, because it changes how the character *looks* in every car rather than how any car
 behaves.
 
-The game already **has** this pose and only ever gives it to you in the cars Benny built. It is
-not an animation anybody has to author: it is a seat context, chosen per vehicle in the game's own
-layout data, and a script can ask for a different one. So nothing is bolted on — it is the pose
-that already exists, applied to the car you are actually in.
+**The first attempt was wrong, and the log is why we know.** It asked the game to change his seat
+*context* — the mechanism the game itself uses to pick which animation a ped sits in — and read the
+resulting clipset back before and after to see whether anything changed. It never did: clipsets
+`2462687501` and `3332998045` across two cars, unchanged every single time, `MINI_LOWRIDER` asked
+for and ignored. The documented context list turns out to be mission-specific entries like
+`MISSFBI5_TREVOR_DRIVING`, with no lowrider among them.
 
-**The window goes down with it**, because an arm hanging through glass is worse than no arm. That
-is most of why the pose reads right in a lowrider and wrong everywhere else: those cars are driven
-with the window down. Only the window *this* put down is wound back up.
+That readout is the only reason this is a settled question rather than an argument. It was wrong in
+the way that is hardest to see: **a call that succeeds and does nothing.**
 
-**And he winds it up as he gets out**, rather than the car doing it once he has gone. Both versions
-put the window back; only one of them looks like a person doing it. The signal is
-`IsSittingInVehicle` going false while `CurrentVehicle` still names the car — which is the
-climb-out, and is the same pair of properties that has to be told apart for the radio and for the
-pose itself on the way in. Climbing in and climbing out look identical from outside; what separates
-them is which came first.
+**So the pose is played, not selected.** `TASK_PLAY_ANIM` with `UpperBodyOnly | Secondary` lays an
+animation over his top half while the game keeps driving the rest of him — which is how every
+custom driving pose in this game is actually done. The steering still works, because the steering
+is not his arms, it is the car.
 
-**Every vehicle.** No lowrider check, no convertible check, no cars-only filter — one whose seat
-layout has no such clipset simply ignores the context and sits him normally, so a filter would not
-be preventing a broken pose, it would be preventing an attempt.
+**And the names are tested rather than guessed**, which is the part that matters. A dictionary can
+be checked with `DOES_ANIM_DICT_EXIST` and a clip inside it with `GET_ANIM_DURATION`, so a wrong
+name is a line in the log rather than a feature that quietly does nothing. `LowriderProbe` walks
+sixty-four candidate names, reports which exist, waits two seconds for them to load and then
+reports which clips are inside them. One drive replaces the guess with a fact; the answer goes in
+`LowriderAnimDict` and `LowriderAnimClip`.
 
-**Asked for early, and again a few times.** The seat clipset is resolved as he gets in, so a
-context set after he has landed in the seat can be a context set *too late* — which looks exactly
-like a context the game does not have. It starts the moment the car becomes his, before there is
-even a driver in the seat, and is re-asserted at four points across the first second and a half.
-Four, not every frame: this is a state, and hammering a state gives you an animation that restarts
-sixty times a second and never plays.
-
-**And it says whether it worked.** `GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT` is the game's own answer
-to which seat animation he is actually using, read before the context goes on and again after the
-last attempt. There is no native that reads a ped's context back, so this is the only honest test
-there is — and without it, "the context did nothing" and "the context was never applied" look
-identical.
-
-**The context name is a setting, and that is the honest part.** Everything else in this mod was
-checked against SHVDN by reflection before it was relied on. A context cannot be — it is a *name*,
-hashed at runtime, with no list to check against from outside the running game. Baking a guess into
-the build would mean a rebuild to try the next candidate; in the ini it is one line and a reload.
-`MINI_LOWRIDER` is the first candidate; `LOWRIDER`, `MINI_LOWRIDER_ARM` and `MINI` are the others
-worth trying. The log prints the name **and the hash**, because a context the game does not have
-looks exactly like one that was never applied.
+**The window goes down with it** and he winds it up on his way out — the signal being
+`IsSittingInVehicle` going false while `CurrentVehicle` still names the car, which is the climb-out.
+Climbing in and climbing out look identical from outside; what separates them is which came first.
 
 ## Crashes, and the dash
 

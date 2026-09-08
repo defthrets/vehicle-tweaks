@@ -650,7 +650,32 @@ namespace VehicleTweaks.Core
         /// it generated, because a context the game does not have looks exactly like one that was
         /// never applied.
         /// </summary>
-        public string LowriderContext = "MINI_LOWRIDER";
+        /// <summary>
+        /// The animation played over his top half, by dictionary and clip.
+        ///
+        /// PLAYED, NOT SELECTED, and that is the second attempt at this. The first asked the game
+        /// to change his SEAT CONTEXT, which is how the game itself picks a sitting animation --
+        /// and the log proved it does nothing: the seat clipset came back unchanged on every car,
+        /// every time. The documented contexts are mission-specific things like
+        /// MISSFBI5_TREVOR_DRIVING, and there is no lowrider among them.
+        ///
+        /// NAMES THAT CAN BE CHECKED, which is why this route is better than the last one.
+        /// DOES_ANIM_DICT_EXIST answers for a dictionary and GET_ANIM_DURATION answers for a clip,
+        /// so a wrong name here is a line in the log rather than a feature that quietly does
+        /// nothing. Turn LowriderProbe on and the log lists what this build actually has.
+        /// </summary>
+        public string LowriderAnimDict = "veh@low@front_ds@base";
+        public string LowriderAnimClip = "sit";
+
+        /// <summary>
+        /// Ask the game which animation dictionaries and clips it has, and write them to the log.
+        ///
+        /// ON, because the two names above are the best guess rather than a known answer, and one
+        /// drive with this on replaces the guess with a fact. Turn it off once the names are set:
+        /// it is sixty-four questions asked once per car, which is nothing, but the log lines are
+        /// only interesting the first time.
+        /// </summary>
+        public bool LowriderProbe = true;
 
         /// <summary>
         /// The driver's window goes down with the pose.
@@ -998,7 +1023,9 @@ namespace VehicleTweaks.Core
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
                 s.LowriderPose = ini.GetBool("Driving", "LowriderPose", s.LowriderPose);
-                s.LowriderContext = ini.GetString("Driving", "LowriderContext", s.LowriderContext);
+                s.LowriderAnimDict = ini.GetString("Driving", "LowriderAnimDict", s.LowriderAnimDict);
+                s.LowriderAnimClip = ini.GetString("Driving", "LowriderAnimClip", s.LowriderAnimClip);
+                s.LowriderProbe = ini.GetBool("Driving", "LowriderProbe", s.LowriderProbe);
                 s.LowriderWindow = ini.GetBool("Driving", "LowriderWindow", s.LowriderWindow);
                 s.DashLightKey = ini.GetKey("Driving", "DashLightKey", s.DashLightKey);
                 s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
