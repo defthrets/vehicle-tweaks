@@ -171,5 +171,14 @@ namespace VehicleTweaks.Core
 
         /// <summary>WRITTEN, so it follows the writability fallback rather than sitting next to the dll.</summary>
         public static string LogFile => Path.Combine(Writable, "VehicleTweaks.log");
+
+        /// <summary>
+        /// A picture shipped with the mod, next to the log.
+        ///
+        /// NEXT TO THE DLL'S OWN FOLDER, NOT THE WRITABLE ONE. Writable can fall back to Documents
+        /// when scripts\ is locked down, and an asset that came out of the zip is where the zip
+        /// put it regardless of where the log has to go.
+        /// </summary>
+        public static string Asset(string file) => Path.Combine(Scripts, "VehicleTweaks", file);
     }
 }

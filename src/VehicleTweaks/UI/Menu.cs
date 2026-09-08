@@ -213,6 +213,17 @@ namespace VehicleTweaks.UI
         private static readonly Color Panel = Color.FromArgb(234, 15, 15, 18);
         private static readonly Color Head = Color.FromArgb(242, 26, 26, 31);
 
+        /// <summary>
+        /// The name, in blackletter, as a picture.
+        ///
+        /// THE GAME HAS NO SUCH FONT. Chalet, House Script, Pricedown and a monospace are what
+        /// SET_TEXT_FONT offers, and none of them is a Fraktur. So the title is rendered once,
+        /// outside the game, in UnifrakturCook -- the same face Fumes keeps in its tools -- to a
+        /// white-on-transparent PNG, and drawn here through the same CustomSprite path Fumes draws
+        /// its pump with. The aspect is the one the render reported: 1308 by 241.
+        /// </summary>
+        private readonly Sprite _title = new Sprite("title.png", 5.4274f);
+
         /// <summary>The chord that opens this on a pad.</summary>
         private readonly Chord _openChord;
 
@@ -2059,10 +2070,7 @@ namespace VehicleTweaks.UI
             // the width it takes depends on the aspect ratio it is read at -- and the panel got
             // narrower the day it got a size of its own, which is exactly the change that turns
             // a title that just fitted into one that does not.
-            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
-
-            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.005f * Zoom, titleScale,
-                      Fade(Amber), Plain);
+            Title(x);
 
             // THE PAGE, NAMED WHERE THERE IS ROOM FOR A NAME. It used to sit in the tab strip
             // beside its icon and squash the other eight; the title bar has a whole line spare to
@@ -2365,6 +2373,27 @@ namespace VehicleTweaks.UI
                      Fade(face));
 
             Draw.Text(text, right - pad, ty, RowText, Fade(door ? Ink : value), Plain, false, true);
+        }
+
+        /// <summary>
+        /// The title, drawn as the picture when there is one and as text when there is not.
+        ///
+        /// A TOUCH ABOVE THE BAR'S TOP EDGE, on purpose. Text sat inside the bar because text has
+        /// to; a blackletter word is a badge, and a badge that clears the edge it is pinned to by
+        /// a hair reads as pinned to it rather than printed on it. Its colour goes through Fade,
+        /// so it arrives and leaves with the panel the same as everything else does.
+        /// </summary>
+        private void Title(float x)
+        {
+            var h = 0.032f * Zoom;
+            var top = PanelTop - 0.0020f * Zoom;
+
+            if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
+
+            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
+
+            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.005f * Zoom, titleScale,
+                      Fade(Amber), Plain);
         }
 
         /// <summary>How lit a just-changed value should be, one down to nought.</summary>

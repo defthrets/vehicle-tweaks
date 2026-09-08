@@ -431,6 +431,16 @@ function Deploy-To([string]$gameDir, [string]$label) {
     $pdb = Join-Path $outDir 'VehicleTweaks.pdb'
     if (-not $locked -and (Test-Path $pdb)) {
         try { Copy-Item $pdb $scripts -Force -ErrorAction Stop } catch { }
+
+        # THE ARTWORK, in the mod's own folder next to the log. CustomSprite loads an ordinary
+        # PNG off disk, which is the only reason a title in a font the game does not have can
+        # ship in a scripts\ folder at all -- but only if the PNG is actually put there.
+        $art = Join-Path $root 'assets'
+        if (Test-Path $art) {
+            $artDst = Join-Path $scripts 'VehicleTweaks'
+            New-Item -ItemType Directory -Force $artDst | Out-Null
+            Get-ChildItem $art -Filter '*.png' | ForEach-Object { Copy-Item $_.FullName $artDst -Force }
+        }
     }
 
     if (-not $locked -and (Get-Process GTA5, GTA5_Enhanced -ErrorAction SilentlyContinue)) {
@@ -539,6 +549,13 @@ if ($Package) {
     New-Item -ItemType Directory -Force -Path $scripts | Out-Null
 
     Copy-Item $outDll (Join-Path $scripts 'VehicleTweaks.dll')
+
+    $art = Join-Path $root 'assets'
+    if (Test-Path $art) {
+        $artDst = Join-Path $scripts 'VehicleTweaks'
+        New-Item -ItemType Directory -Force $artDst | Out-Null
+        Get-ChildItem $art -Filter '*.png' | ForEach-Object { Copy-Item $_.FullName $artDst }
+    }
     Copy-Item (Join-Path $root 'VehicleTweaks.ini') (Join-Path $scripts 'VehicleTweaks.ini')
 
     foreach ($doc in @('README.txt', 'CHANGES.txt')) {
