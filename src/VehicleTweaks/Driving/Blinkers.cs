@@ -45,8 +45,6 @@ namespace VehicleTweaks.Driving
 
         public void Update(Ped me, Vehicle car, bool driving)
         {
-            if (!_cfg.Blinkers) return;
-
             try
             {
                 if (!driving || car == null || !car.Exists())
@@ -67,7 +65,15 @@ namespace VehicleTweaks.Driving
 
                 if (Pressed()) Flip(car);
 
-                _rules.Step(Game.GameTime, Wheel(), Speed(car));
+                // THE HAZARDS ARE NOT THE STEERING INDICATORS. The master switch on the panel is
+                // labelled "Steering indicators", and that is the thing it turns off. A hazard key
+                // is a thing you press, and it has to keep working with the master off -- or a car
+                // whose hazards were on when the master went off is a car whose hazards are on for
+                // good, which is how they got reported as stuck. With the master off the rules are
+                // fed a straight wheel at the real speed: that starts nothing the steering would,
+                // cancels any steering blinker the way straightening up does, and puts out nothing
+                // the hazards hold. The rules are the same tested rules either way.
+                _rules.Step(Game.GameTime, _cfg.Blinkers ? Wheel() : 0f, Speed(car));
 
                 Apply(car);
             }

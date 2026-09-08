@@ -119,7 +119,7 @@ namespace VehicleTweaks.Core
         /// "Off" on PadOpen means the pad cannot open the panel. "None" on PadModifier means the
         /// single button does it on its own.
         /// </summary>
-        public string PadOpen = "PhoneRight";
+        public string PadOpen = "PhoneLeft";
         public string PadModifier = "ScriptLB";
 
         /// <summary>
@@ -913,7 +913,7 @@ namespace VehicleTweaks.Core
         public bool Seatbelt = true;
 
         public Keys SeatbeltKey = Keys.K;
-        public string PadSeatbelt = "PhoneLeft";
+        public string PadSeatbelt = "PhoneRight";
 
         /// <summary>
         /// How long after getting in before it goes on.
