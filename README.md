@@ -81,6 +81,18 @@ scales — is a fraction of a single `Zoom` constant, so it can be made bigger o
 anyone having to get thirty ratios right by hand. That is how a menu ends up with a title that no
 longer fits its own bar.
 
+### The title
+
+"Vehicle Tweaks" is set in blackletter — UnifrakturCook, the same face Fumes keeps in its tools. The
+game has no such font: `SET_TEXT_FONT` offers Chalet, House Script, Pricedown and a monospace, and
+none is a Fraktur. So the title is rendered once, outside the game, to a white-on-transparent PNG
+in `assets\`, and drawn through `CustomSprite` — the same path Fumes draws its pump with, and the
+only way a font the game does not have can ship in a `scripts\` folder at all. Deploy copies it
+beside the log; the colour is applied at draw time so it fades with the panel; and if the file is
+missing the title falls back to text with one line in the log. It sits a hair above the bar's top
+edge on purpose — a blackletter word is a badge, and a badge that clears the edge it is pinned to
+reads as pinned to it rather than printed on it.
+
 ### Each row drawn as the thing it is
 
 A row of text on the right said `ON` or `0.35 s` and left you to know what that meant. Now:

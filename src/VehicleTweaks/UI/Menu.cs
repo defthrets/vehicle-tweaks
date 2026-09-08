@@ -2532,6 +2532,19 @@ namespace VehicleTweaks.UI
 
                 if (mine) lit = Mix(lit, Color.FromArgb(255, 255, 255, 255), Flash());
 
+                // THE PROBE. The bars go through the same DRAW_RECT as every switch and slider on
+                // the other pages, which draw; on this page they did not, and nothing about the
+                // maths says why. So the numbers the first bar is asked to be are written down
+                // once, and the answer comes from a log rather than from staring at a screenshot.
+                if (i == 0)
+                {
+                    Log.Once("chart-probe", "Chart: top " + top.ToString("0.0000") +
+                             " bottom " + bottom.ToString("0.0000") + " barW " + barW.ToString("0.0000") +
+                             " part " + part.ToString("0.00") + " litA " + lit.A +
+                             " show " + _show.ToString("0.00") + " dip " + _dip.ToString("0.00") +
+                             " turn " + _turn.ToString("0.00") + " rowTall " + _rowTall.ToString("0.0") + ".");
+                }
+
                 Draw.Bar(bx, top, barW, bottom - top, Fade(Color.FromArgb(22, 255, 255, 255)));
                 Draw.Bar(bx, bottom - bh, barW, bh, Fade(lit));
 
