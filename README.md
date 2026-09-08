@@ -155,15 +155,20 @@ go stale. Each is checked against `IsInCdImage` before it is offered — the gam
 whether that model is actually installed. A menu that offers a car it cannot spawn is worse than a
 shorter menu.
 
-**The preview *is* the car.** A script cannot render a model to a picture, so rather than fake one,
-the highlighted vehicle is spawned in front of you and turned side-on. It is a preview in the sense
-that matters: the actual thing, at actual size, in the actual light.
+**The picture is the game's own.** GTA ships a streamed texture per model for the vehicle websites
+you buy cars from in game, named after the model — so there is no image to render and none to fake.
+It is asked for by name and drawn on the card, and handed back when you move on, because a streamed
+dictionary is memory the game has been told to hold.
 
-**It waits before it spawns.** Holding `DOWN` through forty cars would otherwise be forty models
-loaded and forty vehicles created and destroyed — a stutter for each. Nothing loads until the
-highlight has been still for a fifth of a second, so scrolling is free and stopping is what costs.
-The previous preview is deleted and its model marked as no longer needed before the next arrives;
-eight hundred models the game has been told to keep is a crash with somebody else's name on it.
+Not every car has one. The websites only ever sold a fraction of them and add-on cars bring no
+artwork at all, so a missing picture is the ordinary case rather than a fault; the box says so.
+
+**It used to spawn the car in front of you instead**, on the argument that a script cannot render a
+model to a picture, so the real thing is the honest preview. That was true and it was still the
+wrong answer: browsing littered the street, loaded a model for every row, and put whatever you were
+pointing at between you and the menu. A picture is what a person means by a preview. The car now
+arrives only when it is asked for — which also means nothing is streamed for the eight hundred you
+scrolled past on the way.
 
 **The stats come from the game, and the bars are relative to the best in it.** Top speed,
 acceleration, braking and grip, plus seats, price and — the one thing you might actually want to

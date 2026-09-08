@@ -22,15 +22,15 @@ namespace VehicleTweaks.UI
     /// game saying whether that model is actually installed. A menu that offers a car it cannot
     /// spawn is worse than a shorter menu.
     ///
-    /// THE PREVIEW IS THE CAR. There is no way to render a model to a picture from a script, so
-    /// rather than fake one, the highlighted vehicle is spawned in front of you and turned side-on.
-    /// It is a preview in the sense that matters: it is the actual thing, at actual size, in the
-    /// actual light.
+    /// THE PICTURE IS THE GAME'S OWN. GTA ships a streamed texture per model for the vehicle
+    /// websites you buy cars from in game, named after the model, so there is no image to render
+    /// and none to fake -- it is asked for by name and drawn on the card.
     ///
-    /// AND IT WAITS BEFORE IT SPAWNS. Holding DOWN through forty cars would otherwise be forty
-    /// models loaded and forty vehicles created and destroyed, which is a stutter for every one of
-    /// them. Nothing is loaded until the highlight has been still for a moment, so scrolling is
-    /// free and stopping is what costs.
+    /// IT USED TO SPAWN THE CAR IN FRONT OF YOU INSTEAD, on the argument that a script cannot
+    /// render a model to a picture so the real thing is the honest preview. That was true and it
+    /// was still the wrong answer: browsing littered the street, loaded a model for every row, and
+    /// put whatever you were pointing at between you and the menu. A picture is what a person
+    /// means by a preview. Now the car only arrives when it is asked for.
     ///
     /// THE STAT BARS ARE RELATIVE TO THE FASTEST THING IN THE GAME, worked out from the catalogue
     /// as it is built rather than against numbers I would have had to invent. The game hands back
@@ -40,9 +40,6 @@ namespace VehicleTweaks.UI
     /// </summary>
     internal sealed class Spawner
     {
-        /// <summary>How long the highlight has to be still before its car is fetched.</summary>
-        private const int SettleMs = 220;
-
         /// <summary>How many models to examine per frame while the catalogue is being built.</summary>
         private const int PerFrame = 60;
 
@@ -95,9 +92,10 @@ namespace VehicleTweaks.UI
         private int _row;
         private int _scroll;
 
-        private int _movedAt;
-        private Entry _showing;
-        private Vehicle _preview;
+
+        /// <summary>The texture dictionary asked for, so it can be handed back when we move on.</summary>
+        private string _txd;
+        private bool _txdReady;
 
         private bool _keyDown;
 
@@ -119,7 +117,6 @@ namespace VehicleTweaks.UI
         public void Open()
         {
             _open = true;
-            _movedAt = Game.GameTime;
 
             // THE SAME TRAP AS THE PANEL'S, arriving through the same door. This is opened from a
             // row on the panel, so A or ENTER is held at the moment it appears -- and A is this
@@ -162,11 +159,7 @@ namespace VehicleTweaks.UI
 
                 Deafen();
 
-                if (_built >= (_all == null ? 1 : _all.Length))
-                {
-                    Navigate(me);
-                    Preview(me);
-                }
+                if (_built >= (_all == null ? 1 : _all.Length)) Navigate(me);
 
                 Render();
             }
@@ -306,8 +299,8 @@ namespace VehicleTweaks.UI
 
             if (list.Count > 0)
             {
-                if (_up.Fired) { _row--; Moved(); }
-                if (_down.Fired) { _row++; Moved(); }
+                if (_up.Fired) _row--;
+                if (_down.Fired) _row++;
 
                 if (_row < 0) _row = list.Count - 1;
                 if (_row >= list.Count) _row = 0;
@@ -316,7 +309,7 @@ namespace VehicleTweaks.UI
                 if (_row >= _scroll + Rows) _scroll = _row - Rows + 1;
             }
 
-            if (_accept.Fired && _preview != null) Keep(me);
+            if (_accept.Fired) Spawn(me);
             if (_back.Fired) Close();
         }
 
@@ -331,7 +324,6 @@ namespace VehicleTweaks.UI
 
                 _row = 0;
                 _scroll = 0;
-                Moved();
                 return;
             }
         }
@@ -339,12 +331,6 @@ namespace VehicleTweaks.UI
         private void Settle()
         {
             if (Current.Count == 0) Turn(1);
-            Moved();
-        }
-
-        private void Moved()
-        {
-            _movedAt = Game.GameTime;
         }
 
         // ==================================================================
@@ -352,104 +338,71 @@ namespace VehicleTweaks.UI
         // ==================================================================
 
         /// <summary>
-        /// Puts the highlighted vehicle on the ground beside the player, and takes the last one away.
+        /// Puts the chosen vehicle on the ground beside the player, once, when it is asked for.
         ///
-        /// ONLY ONCE THE HIGHLIGHT HAS SETTLED. Scrolling is meant to be free; a model loaded for
-        /// every row passed through would make the list stutter in proportion to how fast you moved
-        /// through it, which is exactly backwards.
+        /// THIS USED TO HAPPEN AS YOU SCROLLED, and it was the wrong idea dressed up as a clever
+        /// one. "The preview IS the car" sounded good and meant that browsing the list littered
+        /// the street, loaded a model per row, and put whatever you were pointing at between you
+        /// and the menu. A picture is what a person means by a preview, and the picture is on the
+        /// card. This is now simply what the spawner does.
         ///
-        /// THE OLD ONE GOES FIRST AND ITS MODEL IS RELEASED. A preview that is not deleted is a car
-        /// left in the street, and a model that is never marked as no longer needed is memory this
-        /// script has told the game to hold on to forever -- eight hundred of those is a crash with
-        /// somebody else's name on it.
+        /// THE MODEL IS LOADED HERE, NOT EARLIER, so nothing is streamed for the eight hundred
+        /// cars you scrolled past on the way. It is marked as no longer needed the moment the car
+        /// exists -- the game keeps it as long as the vehicle does, and a model this script never
+        /// released is memory nothing will ever give back.
         /// </summary>
-        private void Preview(Ped me)
+        private void Spawn(Ped me)
         {
             var list = Current;
 
             if (list.Count == 0 || _row < 0 || _row >= list.Count) return;
 
             var want = list[_row];
-
-            if (_showing == want) return;
-            if (Game.GameTime - _movedAt < SettleMs) return;
-
             var model = new Model(want.Hash);
-
-            model.Request();
-
-            if (!model.IsLoaded) return;
-
-            Remove();
 
             try
             {
-                var where = me.Position + me.ForwardVector * 6f + Vector3.WorldUp * 0.5f;
+                // A SECOND, WHICH IS A LONG TIME FOR A MODEL AND NOT LONG FOR A PERSON. Waiting
+                // forever on a model that will never load would hang the game on a menu press.
+                model.Request(1000);
 
-                _preview = World.CreateVehicle(model, where, me.Heading + 90f);
-
-                if (_preview != null)
+                if (!model.IsLoaded)
                 {
-                    _preview.IsPersistent = true;
-                    _preview.PlaceOnGround();
+                    Log.Warn("Spawner: " + want.Name + " (" + want.Code + ") would not load.");
+                    return;
                 }
 
-                _showing = want;
+                var where = me.Position + me.ForwardVector * 5.5f + Vector3.WorldUp * 0.5f;
+                var car = World.CreateVehicle(model, where, me.Heading + 90f);
+
+                if (car == null)
+                {
+                    // SAID OUT LOUD, because a car that never arrives is otherwise identical to
+                    // one that arrived somewhere you were not looking.
+                    Log.Warn("Spawner: " + want.Name + " (" + want.Code + ") loaded but would " +
+                             "not spawn -- there may be no room where you are stood.");
+                    return;
+                }
+
+                car.PlaceOnGround();
+
+                Log.Info("Spawner: spawned " + want.Name + " (" + want.Code + ").");
             }
-            catch
+            catch (Exception ex)
             {
-                _preview = null;
+                Log.Once("spawn", "Spawning fell over: " + ex.Message);
             }
             finally
             {
                 model.MarkAsNoLongerNeeded();
-            }
-        }
-
-        /// <summary>Stops it being a preview, and closes. The car is now simply a car.</summary>
-        private void Keep(Ped me)
-        {
-            var kept = _preview;
-
-            _preview = null;
-            _showing = null;
-
-            if (kept != null && kept.Exists())
-            {
-                Log.Info("Spawner: spawned " + kept.DisplayName + ".");
-                kept.IsPersistent = false;
-            }
-
-            Close();
-        }
-
-        private void Remove()
-        {
-            var old = _preview;
-
-            _preview = null;
-            _showing = null;
-
-            if (old == null) return;
-
-            try
-            {
-                if (old.Exists())
-                {
-                    old.IsPersistent = false;
-                    old.Delete();
-                }
-            }
-            catch
-            {
-                // It was going to be cleaned up by the game eventually anyway.
+                Close();
             }
         }
 
         public void Close()
         {
             _open = false;
-            Remove();
+            Forget();
         }
 
         // ==================================================================
@@ -538,7 +491,9 @@ namespace VehicleTweaks.UI
             Draw.Text(Draw.Ellipsis(entry.Name.ToUpperInvariant(), 0.36f, StatW - 0.020f, Plain),
                       x + 0.010f, Y + 0.007f, 0.36f, Ink, Plain);
 
-            var y = Y + TitleH + 0.010f;
+            var y = Y + TitleH + 0.008f;
+
+            y += Picture(x, y, entry);
 
             // THE MODEL NAME, WHICH IS THE ONE THING HERE YOU MIGHT WANT TO TYPE. Every other
             // trainer, every ini, every add-on car readme talks in these, not in display names.
@@ -563,6 +518,83 @@ namespace VehicleTweaks.UI
             Bar(x, ref y, "ACCELERATION", entry.Accel, _best[1], null);
             Bar(x, ref y, "BRAKING", entry.Brake, _best[2], null);
             Bar(x, ref y, "GRIP", entry.Grip, _best[3], null);
+        }
+
+        /// <summary>
+        /// The game's own picture of this car, if it has one. Returns the height it used.
+        ///
+        /// GTA SHIPS THESE ALREADY, for the vehicle websites you buy cars from in game -- one
+        /// streamed texture dictionary per model, named after the model. So there is no image to
+        /// render and none to fake: it is asked for by name and drawn.
+        ///
+        /// AND NOT EVERY CAR HAS ONE. The websites only ever sold a fraction of them, and add-on
+        /// cars bring no artwork at all, so a missing picture is the ordinary case rather than a
+        /// fault. When there is nothing to draw, the box says so and the car standing outside is
+        /// the preview -- which is what it always was.
+        ///
+        /// HANDED BACK WHEN WE MOVE ON. A streamed dictionary is memory the game has been told to
+        /// hold; eight hundred of those left requested is somebody else's crash.
+        /// </summary>
+        private float Picture(float x, float y, Entry entry)
+        {
+            var want = entry.Code.ToLowerInvariant();
+            var w = StatW - 0.020f;
+            var h = w * 0.62f;
+
+            try
+            {
+                if (_txd != want)
+                {
+                    Forget();
+
+                    _txd = want;
+                    _txdReady = false;
+
+                    Function.Call(Hash.REQUEST_STREAMED_TEXTURE_DICT, want, false);
+                }
+
+                if (!_txdReady)
+                {
+                    _txdReady = Function.Call<bool>(Hash.HAS_STREAMED_TEXTURE_DICT_LOADED, want);
+                }
+
+                Draw.Bar(x + 0.010f, y, w, h, Color.FromArgb(120, 0, 0, 0));
+
+                if (_txdReady)
+                {
+                    // CENTRED, WHICH DRAW_SPRITE MEANS BY x AND y -- unlike every rectangle in
+                    // this file, which is drawn from its top left. Getting that the wrong way
+                    // round puts the picture a quarter of the screen away from its own box.
+                    Function.Call(Hash.DRAW_SPRITE, want, want,
+                                  x + 0.010f + w * 0.5f, y + h * 0.5f, w, h, 0f, 255, 255, 255, 255);
+                }
+                else
+                {
+                    Draw.Text("NO PICTURE - SEE THE CAR OUTSIDE",
+                              x + 0.010f + w * 0.5f, y + h * 0.5f - 0.006f, 0.22f, Faint, Plain,
+                              true);
+                }
+            }
+            catch
+            {
+                // A picture is the one thing here nobody needs.
+            }
+
+            return h + 0.010f;
+        }
+
+        /// <summary>Gives back the streamed dictionary, if one was asked for.</summary>
+        private void Forget()
+        {
+            var had = _txd;
+
+            _txd = null;
+            _txdReady = false;
+
+            if (string.IsNullOrEmpty(had)) return;
+
+            try { Function.Call(Hash.SET_STREAMED_TEXTURE_DICT_AS_NO_LONGER_NEEDED, had); }
+            catch { /* it will be dropped with the session either way */ }
         }
 
         /// <summary>
