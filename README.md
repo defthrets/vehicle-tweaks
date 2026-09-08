@@ -81,6 +81,20 @@ scales — is a fraction of a single `Zoom` constant, so it can be made bigger o
 anyone having to get thirty ratios right by hand. That is how a menu ends up with a title that no
 longer fits its own bar.
 
+### Pictures, because rectangles are rationed
+
+The game keeps a budget of immediate draws per frame that **every script shares**. When another mod
+puts up a big menu, the draw calls that arrive after it are dropped without a word — which on a
+seven-segment display is a digit with one bar lit and a rev strip that is not there, and on the
+GEARS page is a chart with labels and no bars. That is what "the speedo glitches when something else
+is open" was.
+
+So the things that were many rectangles are now one picture each: the eleven digit glyphs (two
+sets, with and without the faint unlit segments, made from the exact geometry the rectangles used)
+and the nine tab icons. A picture is one draw; the icons alone were about two hundred. The
+rectangles stay as the fallback for a `scripts\` folder the pictures did not reach. Same trick
+Fumes uses for its digits, for the same reason.
+
 ### The title
 
 "Vehicle Tweaks" is set in blackletter — UnifrakturCook, the same face Fumes keeps in its tools. The

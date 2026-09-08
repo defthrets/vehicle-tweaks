@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using GTA;
 using VehicleTweaks.Core;
@@ -31,6 +32,20 @@ namespace VehicleTweaks.UI
     internal sealed class Speedo
     {
         private readonly Settings _cfg;
+
+        /// <summary>
+        /// One picture per digit, in two sets: with the unlit segments faintly there, and without.
+        ///
+        /// THE DIGITS WERE TWENTY-ONE RECTANGLES, AND RECTANGLES ARE RATIONED. The game keeps a
+        /// budget of immediate draws per frame that every script shares, and when another mod puts
+        /// up a big menu the calls that arrive after it are dropped without a word -- which on a
+        /// seven-segment display is a digit with one bar lit and a rev strip that is not there.
+        /// A picture is one draw. It is the same trick Fumes uses for the same reason, and the
+        /// files are made from the exact geometry Digit draws, so nothing moved.
+        ///
+        /// The rectangles stay as the fallback, for a scripts folder the pictures did not reach.
+        /// </summary>
+        private readonly Dictionary<string, Sprite> _glyphs = new Dictionary<string, Sprite>();
 
         /// <summary>Whether something other than the driver's right foot is setting the speed.</summary>
         private bool _cruising;
@@ -410,6 +425,25 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Digit(float x, float y, float w, float h, float tx, float ty, int on, Color lit)
         {
+            // THE PICTURE FIRST. One draw instead of seven, out of the budget every script shares.
+            var name = on == 0 ? (_cfg.SpeedoGhost ? "blank" : null)
+                     : on == 0x50 ? "R"
+                     : Which(on);
+
+            if (name == null) return;
+
+            var file = (_cfg.SpeedoGhost ? "g" : "n") + name + ".png";
+
+            Sprite glyph;
+
+            if (!_glyphs.TryGetValue(file, out glyph))
+            {
+                glyph = new Sprite(file, 0.6f);
+                _glyphs[file] = glyph;
+            }
+
+            if (glyph.DrawBox(x, y, w, h, lit)) return;
+
             var ghost = _cfg.SpeedoGhost
                             ? Color.FromArgb(Math.Max(6, lit.A / 9), lit.R, lit.G, lit.B)
                             : Color.FromArgb(0, 0, 0, 0);
@@ -532,6 +566,17 @@ namespace VehicleTweaks.UI
             return _cfg.SpeedoGhost
                        ? Color.FromArgb(Math.Max(6, lit.A / 9), lit.R, lit.G, lit.B)
                        : Color.FromArgb(0, 0, 0, 0);
+        }
+
+        /// <summary>The numeral a segment pattern is, or null for a pattern that is not one.</summary>
+        private static string Which(int on)
+        {
+            for (var i = 0; i < Numerals.Length; i++)
+            {
+                if (Numerals[i] == on) return i.ToString();
+            }
+
+            return null;
         }
 
         private static void Bar(float x, float y, float w, float h, bool on, Color lit, Color ghost)

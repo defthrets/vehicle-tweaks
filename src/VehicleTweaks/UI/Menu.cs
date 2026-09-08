@@ -345,6 +345,22 @@ namespace VehicleTweaks.UI
             "..#.#..",
         };
 
+        /// <summary>Which picture is a given icon, by which bitmap it is.</summary>
+        private static string IconFile(string[] icon)
+        {
+            if (icon == null) return null;
+            if (ReferenceEquals(icon, IconKey)) return "icon_key.png";
+            if (ReferenceEquals(icon, IconCog)) return "icon_cog.png";
+            if (ReferenceEquals(icon, IconWrench)) return "icon_wrench.png";
+            if (ReferenceEquals(icon, IconTyre)) return "icon_tyre.png";
+            if (ReferenceEquals(icon, IconDoor)) return "icon_door.png";
+            if (ReferenceEquals(icon, IconWheel)) return "icon_wheel.png";
+            if (ReferenceEquals(icon, IconArrow)) return "icon_arrow.png";
+            if (ReferenceEquals(icon, IconGauge)) return "icon_gauge.png";
+            if (ReferenceEquals(icon, IconSliders)) return "icon_sliders.png";
+            return null;
+        }
+
         private static readonly string[] IconSliders =
         {
             ".......",
@@ -364,6 +380,9 @@ namespace VehicleTweaks.UI
         {
             public string Title;
             public string[] Icon;
+
+            /// <summary>The icon as a picture, one draw, with the cells as the fallback.</summary>
+            public Sprite Art;
             public readonly List<Item> Items = new List<Item>();
         }
 
@@ -504,6 +523,14 @@ namespace VehicleTweaks.UI
         private Page Add(string title, string[] icon = null)
         {
             var p = new Page { Title = title, Icon = icon };
+
+            // THE TAB ICONS WERE TWO HUNDRED RECTANGLES A FRAME, which is most of what this panel
+            // spent from a budget every script shares -- and when Hoodrich put a menu up beside
+            // it, the draws that came after the icons were the ones dropped: the chart bars, on
+            // the page where the bars are the point. The same cells, drawn once each as a
+            // picture, cost nine.
+            var file = IconFile(icon);
+            if (file != null) p.Art = new Sprite(file, 1f);
             _pages.Add(p);
             return p;
         }
@@ -2456,7 +2483,13 @@ namespace VehicleTweaks.UI
 
                 if (on) wantX = x;
 
-                Draw.Icon(_pages[i].Icon, x, y, cell, cellAcross, Fade(on ? Amber : Faint));
+                var tint = Fade(on ? Amber : Faint);
+                var art = _pages[i].Art;
+
+                if (art == null || !art.DrawBox(x, y, iconW, 7f * cell, tint))
+                {
+                    Draw.Icon(_pages[i].Icon, x, y, cell, cellAcross, tint);
+                }
 
                 x += iconW + gap;
             }
