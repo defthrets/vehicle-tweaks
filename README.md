@@ -140,8 +140,14 @@ not.
 ## The car spawner — F7
 
 Every vehicle in the game, browsable by class, with the highlighted one stood in front of you.
-`F7`, or the **Open it** row on the panel's GENERAL page — which is how a pad reaches it, because
-the D-pad has four directions and all four are already spoken for.
+`F7`, or the **first row of the panel** — top of the DRIVING page, where the highlight already is
+when it opens, so it is the one row you can reach without moving at all. That is how a pad gets
+there, because the D-pad has four directions and all four are spoken for.
+
+A door rather than a setting, and that is also why it is safe at the top. A held chord used to
+nudge whatever row the highlight landed on, which made the first row the most dangerous seat in the
+panel — manual ignition sat there and switched itself off. Buttons are disarmed until released now,
+and a door has no value to nudge in any case: `LEFT` and `RIGHT` do nothing to it.
 
 **The list is the game's own.** SHVDN's `VehicleHash` enumeration is **843 entries** covering the
 base game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to

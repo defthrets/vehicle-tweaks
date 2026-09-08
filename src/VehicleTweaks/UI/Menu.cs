@@ -263,7 +263,7 @@ namespace VehicleTweaks.UI
         /// This one is a door, so it shows an arrow instead of a value and nothing is written to
         /// the ini when the panel closes -- there is nothing to write.
         /// </summary>
-        private static Item Go(string label, Action press, string hint)
+        private static Item Go(string label, Action press, string hint, Func<bool> live = null)
         {
             return new Item
             {
@@ -271,6 +271,7 @@ namespace VehicleTweaks.UI
                 Hint = hint,
                 Show = () => ">",
                 Press = press,
+                Live = live,
             };
         }
 
@@ -480,6 +481,26 @@ namespace VehicleTweaks.UI
         private void Build()
         {
             var drive = Add("DRIVING");
+
+            // THE FIRST ROW OF THE FIRST PAGE, which is where the highlight lands when the panel
+            // opens -- so it is the one row you can reach without moving at all. That is the right
+            // place for the only row here that is a door rather than a setting.
+            //
+            // AND IT IS SAFE THERE NOW, which it would not have been last week. A held chord used
+            // to nudge whatever the highlight had landed on, so the top row was the most dangerous
+            // seat in the panel; manual ignition sat there and turned itself off. Buttons are
+            // disarmed until released now, and a door has no value to nudge in any case -- LEFT
+            // and RIGHT do nothing to it.
+            drive.Items.Add(Go("Car spawner", () =>
+                               {
+                                   // Two menus reading the same D-pad is the second one to look
+                                   // winning every press, so this one gets out of the way.
+                                   Close();
+
+                                   if (OpenSpawner != null) OpenSpawner();
+                               },
+                               "Every vehicle in the game. Press A or ENTER.",
+                               () => _cfg.Spawner));
 
             drive.Items.Add(Header("THE IGNITION"));
 
@@ -994,18 +1015,7 @@ namespace VehicleTweaks.UI
 
             gen.Items.Add(Toggle("Car spawner", () => _cfg.Spawner, v => _cfg.Spawner = v,
                                  "General", "Spawner",
-                                 "Every vehicle in the game, one at a time, in front of you."));
-
-            gen.Items.Add(Go("Open it", () =>
-                             {
-                                 // CLOSED ON THE WAY THROUGH. Two menus open at once is two things
-                                 // drawing and two things reading the same D-pad, and the second to
-                                 // look would win every press.
-                                 Close();
-
-                                 if (OpenSpawner != null) OpenSpawner();
-                             },
-                             "Both cannot be open at once, so this one closes."));
+                                 "Off hides the row at the top of DRIVING that opens it."));
 
             gen.Items.Add(Bind("Spawner key", () => _cfg.SpawnerKey, v => _cfg.SpawnerKey = v,
                                "General", "SpawnerKey",
