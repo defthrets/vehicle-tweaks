@@ -75,6 +75,23 @@ namespace VehicleTweaks.Input
             try { return Game.IsControlPressed(control); }
             catch { return false; }
         }
+
+        /// <summary>The weapon wheel, if it is showing.</summary>
+        private const int WeaponWheel = 19;
+
+        /// <summary>
+        /// Whether the weapon wheel is up.
+        ///
+        /// LB IS THE WEAPON WHEEL, and LB is also the modifier every chord in this mod hangs
+        /// off. Hold it to choose a gun, touch the D-pad while the wheel is showing, and a chord
+        /// fires: the settings panel over the wheel, or the hazards, or the lock. The wheel is a
+        /// HUD component the game will say is active, and that is the whole test.
+        /// </summary>
+        public static bool WheelUp()
+        {
+            try { return Function.Call<bool>(Hash.IS_HUD_COMPONENT_ACTIVE, WeaponWheel); }
+            catch { return false; }
+        }
     }
 
     /// <summary>
@@ -144,7 +161,9 @@ namespace VehicleTweaks.Input
                 var held = _modifier == null || Pad.Held(_modifier.Value);
                 var down = held && Pad.Held(_button.Value);
 
-                fired = down && !_down;
+                // NOT WHILE THE WEAPON WHEEL IS SHOWING. The edge memory still records the button
+                // as down, so letting go of everything afterwards is not read as a fresh press.
+                fired = down && !_down && !Pad.WheelUp();
                 _down = down;
             }
             catch

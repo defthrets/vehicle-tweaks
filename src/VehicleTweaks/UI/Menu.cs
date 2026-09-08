@@ -2386,7 +2386,7 @@ namespace VehicleTweaks.UI
         private void Title(float x)
         {
             var h = 0.032f * Zoom;
-            var top = PanelTop - 0.0020f * Zoom;
+            var top = PanelTop - 0.0060f * Zoom;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
