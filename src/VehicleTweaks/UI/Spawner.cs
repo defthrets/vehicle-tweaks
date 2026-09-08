@@ -79,6 +79,12 @@ namespace VehicleTweaks.UI
             public float Grip;
             public int Seats;
             public int Price;
+
+            /// <summary>The maker, lower-case, which is how mpcarhud names its badges.</summary>
+            public string Make;
+
+            /// <summary>The transport icon for its class, which everything has.</summary>
+            public string Icon;
         }
 
         private readonly Settings _cfg;
@@ -105,13 +111,18 @@ namespace VehicleTweaks.UI
         private Entry _showing;
         private Vehicle _demo;
 
-        /// <summary>The texture dictionary asked for, so it can be handed back when we move on.</summary>
-        private string _txd;
-        private bool _txdReady;
+        /// <summary>How long to wait for each try to load before looking past it.</summary>
+        private const int WaitMs = 500;
 
-        /// <summary>Said once each way, so the log answers "do pictures work here at all".</summary>
-        private bool _saidHit;
-        private bool _saidMiss;
+        /// <summary>The card being pictured, what was asked for on its behalf, and which one answered.</summary>
+        private Entry _want;
+        private string[][] _tries = new string[0][];
+        private int _hit = -1;
+        private int _since;
+        private Vector3 _size;
+
+        /// <summary>Said once per kind of picture, so the log answers which kinds this build has.</summary>
+        private readonly bool[] _said = new bool[3];
 
         private bool _keyDown;
 
@@ -244,6 +255,8 @@ namespace VehicleTweaks.UI
                         Grip = Stat(Hash.GET_VEHICLE_MODEL_MAX_TRACTION, hash),
                         Seats = Function.Call<int>(Hash.GET_VEHICLE_MODEL_NUMBER_OF_SEATS, (uint)hash),
                         Price = Function.Call<int>(Hash.GET_VEHICLE_MODEL_VALUE, (uint)hash),
+                        Make = MakeOf(hash),
+                        Icon = IconOf(group),
                     };
 
                     if (entry.Speed > _best[0]) _best[0] = entry.Speed;
@@ -293,6 +306,34 @@ namespace VehicleTweaks.UI
             catch
             {
                 return hash.ToString();
+            }
+        }
+
+        /// <summary>The maker's name as mpcarhud spells it, or nothing for a car with no maker.</summary>
+        private static string MakeOf(VehicleHash hash)
+        {
+            try
+            {
+                var make = Function.Call<string>(Hash.GET_MAKE_NAME_FROM_VEHICLE_MODEL, (uint)hash);
+                return string.IsNullOrEmpty(make) ? null : make.ToLowerInvariant();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>The transport icon mpcarhud keeps for this sort of thing.</summary>
+        private static string IconOf(int group)
+        {
+            switch ((VehicleClass)group)
+            {
+                case VehicleClass.Motorcycles: return "transport_bike_icon";
+                case VehicleClass.Cycles: return "transport_bicycle_icon";
+                case VehicleClass.Boats: return "transport_boat_icon";
+                case VehicleClass.Helicopters: return "transport_heli_icon";
+                case VehicleClass.Planes: return "transport_plane_icon";
+                default: return "transport_car_icon";
             }
         }
 
@@ -652,31 +693,26 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// The game's own picture of this car, if it has one. Returns the height it used.
+        /// A picture for the card: the car itself if the game has one, its maker's badge if not,
+        /// and what sort of thing it is failing that. Returns the height it used.
         ///
-        /// GTA SHIPS THESE ALREADY, for the vehicle websites you buy cars from in game -- one
-        /// streamed texture dictionary per model, named after the model. So there is no image to
-        /// render and none to fake: it is asked for by name and drawn.
+        /// THE GAME DOES NOT SHIP CAR PHOTOS A SCRIPT CAN DRAW. That was the assumption behind the
+        /// first version, and two separate texture inventories say the same thing: the only
+        /// per-vehicle artwork in a streamable dictionary is the MANUFACTURER'S BADGE, in
+        /// mpcarhud, named after the make -- annis, pegassi, vapid. The pictures on the in-game
+        /// websites live inside their web pages, not in anything DRAW_SPRITE can be handed.
         ///
-        /// HAS_STREAMED_TEXTURE_DICT_LOADED IS NOT AN EXISTENCE CHECK, which is what the first
-        /// version of this got wrong and got wrong in the worst way. Requesting a dictionary that
-        /// does not exist succeeds, and asking whether it loaded then says YES -- so the fallback
-        /// never ran and DRAW_SPRITE was handed a texture nobody has, which it draws as a solid
-        /// white rectangle. A blank white box is not a missing picture; it is a missing picture
-        /// wearing the costume of a present one.
+        /// SO IT TRIES IN ORDER, AND SAYS WHICH ONE IT FOUND. A dictionary named after the model is
+        /// still asked for first, because an add-on car can ship one and a future update might;
+        /// then the badge, which nearly every car has; then the class icon, which everything has.
+        /// The tries are walked in priority, waiting a moment for each to load before giving up on
+        /// it, so a slow car picture is not beaten by a fast badge.
         ///
-        /// GET_TEXTURE_RESOLUTION IS the existence check. A texture that is really there has a
-        /// size; one that is not comes back at nothing. That also gives the SHAPE of the picture,
-        /// so it is drawn at its own proportions inside the box rather than stretched to fill it.
-        ///
-        /// AND NOT EVERY CAR HAS ONE. The websites only ever sold a fraction of them, and add-on
-        /// cars bring no artwork at all, so a missing picture is the ordinary case rather than a
-        /// fault. The log says, once each way, whether any of them are being found at all -- which
-        /// is the difference between "this car has no picture" and "the naming is wrong".
+        /// HANDED BACK WHEN WE MOVE ON. A streamed dictionary is memory the game has been told to
+        /// hold; eight hundred of those left requested is somebody else's crash.
         /// </summary>
         private float Picture(float x, float y, Entry entry)
         {
-            var want = entry.Code.ToLowerInvariant();
             var w = StatW - 0.020f;
             var h = w * 0.62f;
 
@@ -684,65 +720,51 @@ namespace VehicleTweaks.UI
 
             try
             {
-                if (_txd != want)
+                if (_want != entry)
                 {
                     Forget();
 
-                    _txd = want;
-                    _txdReady = false;
+                    _want = entry;
+                    _tries = Tries(entry);
+                    _hit = -1;
+                    _since = Game.GameTime;
 
-                    Function.Call(Hash.REQUEST_STREAMED_TEXTURE_DICT, want, false);
+                    foreach (var t in _tries) Function.Call(Hash.REQUEST_STREAMED_TEXTURE_DICT, t[0], false);
                 }
 
-                if (!_txdReady)
+                if (_hit < 0) Resolve();
+
+                if (_hit < 0)
                 {
-                    _txdReady = Function.Call<bool>(Hash.HAS_STREAMED_TEXTURE_DICT_LOADED, want);
-                }
+                    var over = Game.GameTime - _since > WaitMs * _tries.Length;
 
-                var size = _txdReady
-                               ? Function.Call<Vector3>(Hash.GET_TEXTURE_RESOLUTION, want, want)
-                               : Vector3.Zero;
-
-                if (size.X <= 0f || size.Y <= 0f)
-                {
-                    if (_txdReady && !_saidMiss)
-                    {
-                        _saidMiss = true;
-                        Log.Debug("Spawner: no picture for '" + want + "'. If nothing ever has " +
-                                  "one, the dictionary naming is wrong rather than the car.");
-                    }
-
-                    Draw.Text("NO PICTURE", x + 0.010f + w * 0.5f, y + h * 0.5f - 0.007f,
+                    Draw.Text(over ? "NO PICTURE" : "...", x + 0.010f + w * 0.5f, y + h * 0.5f - 0.007f,
                               0.26f, Faint, Plain, true);
 
                     return h + 0.010f;
                 }
 
-                if (!_saidHit)
-                {
-                    _saidHit = true;
-                    Log.Info("Spawner: pictures work - '" + want + "' is " + (int)size.X + " by " +
-                             (int)size.Y + ".");
-                }
+                var dict = _tries[_hit][0];
+                var tex = _tries[_hit][1];
 
                 // ITS OWN SHAPE, INSIDE THE BOX. A fraction of the screen's width and a fraction
                 // of its height are not the same size, so a picture drawn at equal fractions is
                 // stretched by the aspect ratio -- the same trap the speedo's digits fell into.
-                var aspect = Across();
-                var wants = size.X / size.Y / aspect;
+                // A badge is drawn smaller than a photo would be: a logo filling a photo's frame
+                // reads as a mistake, and a logo sat in the middle of one reads as a badge.
+                var room = _hit == 0 ? 1f : 0.55f;
+                var wants = _size.X / _size.Y / Across();
 
-                var fw = w;
-                var fh = w / wants;
+                var fw = w * room;
+                var fh = fw / wants;
 
-                if (fh > h)
+                if (fh > h * room)
                 {
-                    fh = h;
-                    fw = h * wants;
+                    fh = h * room;
+                    fw = fh * wants;
                 }
 
-                // CENTRED, WHICH IS WHAT DRAW_SPRITE MEANS BY x AND y -- unlike every rectangle in
-                // this file, which is drawn from its top left.
-                Function.Call(Hash.DRAW_SPRITE, want, want,
+                Function.Call(Hash.DRAW_SPRITE, dict, tex,
                               x + 0.010f + w * 0.5f, y + h * 0.5f, fw, fh, 0f, 255, 255, 255, 255);
             }
             catch
@@ -751,6 +773,84 @@ namespace VehicleTweaks.UI
             }
 
             return h + 0.010f;
+        }
+
+        /// <summary>
+        /// Walks the tries in priority and settles on the first that is really there.
+        ///
+        /// HAS_STREAMED_TEXTURE_DICT_LOADED IS NOT AN EXISTENCE CHECK -- it answers yes for a
+        /// dictionary that does not exist, which is how the first version drew a white box.
+        /// GET_TEXTURE_RESOLUTION is: a texture that is there has a size. A try that has not
+        /// loaded yet is waited for, up to a moment, so the badge cannot beat the car picture
+        /// merely by loading faster; a try that has loaded and has no such texture is a miss
+        /// and the next is looked at on the same frame.
+        /// </summary>
+        private void Resolve()
+        {
+            var waited = Game.GameTime - _since;
+
+            for (var i = 0; i < _tries.Length; i++)
+            {
+                var dict = _tries[i][0];
+                var tex = _tries[i][1];
+
+                if (string.IsNullOrEmpty(tex)) continue;
+
+                if (!Function.Call<bool>(Hash.HAS_STREAMED_TEXTURE_DICT_LOADED, dict))
+                {
+                    if (waited < WaitMs * (i + 1)) return;
+                    continue;
+                }
+
+                var size = Function.Call<Vector3>(Hash.GET_TEXTURE_RESOLUTION, dict, tex);
+
+                if (size.X <= 0f || size.Y <= 0f) continue;
+
+                _hit = i;
+                _size = size;
+
+                if (!_said[i])
+                {
+                    _said[i] = true;
+                    Log.Info("Spawner: " + Which[i] + " found for " + _want.Code + " in '" + dict +
+                             "' / '" + tex + "' (" + (int)size.X + " by " + (int)size.Y + ").");
+                }
+
+                return;
+            }
+        }
+
+        /// <summary>What to ask for, most specific first.</summary>
+        private static string[][] Tries(Entry entry)
+        {
+            var model = entry.Code.ToLowerInvariant();
+
+            return new[]
+            {
+                new[] { model, model },
+                new[] { "mpcarhud", entry.Make },
+                new[] { "mpcarhud", entry.Icon },
+            };
+        }
+
+        private static readonly string[] Which = { "a picture of the car", "the maker's badge", "a class icon" };
+
+        /// <summary>Gives back every dictionary asked for on the last card.</summary>
+        private void Forget()
+        {
+            var had = _tries;
+
+            _want = null;
+            _tries = new string[0][];
+            _hit = -1;
+
+            if (had == null) return;
+
+            foreach (var t in had)
+            {
+                try { Function.Call(Hash.SET_STREAMED_TEXTURE_DICT_AS_NO_LONGER_NEEDED, t[0]); }
+                catch { /* it will be dropped with the session either way */ }
+            }
         }
 
         private static float Across()
@@ -764,20 +864,6 @@ namespace VehicleTweaks.UI
             {
                 return 16f / 9f;
             }
-        }
-
-        /// <summary>Gives back the streamed dictionary, if one was asked for.</summary>
-        private void Forget()
-        {
-            var had = _txd;
-
-            _txd = null;
-            _txdReady = false;
-
-            if (string.IsNullOrEmpty(had)) return;
-
-            try { Function.Call(Hash.SET_STREAMED_TEXTURE_DICT_AS_NO_LONGER_NEEDED, had); }
-            catch { /* it will be dropped with the session either way */ }
         }
 
         /// <summary>

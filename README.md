@@ -188,13 +188,17 @@ go stale. Each is checked against `IsInCdImage` before it is offered — the gam
 whether that model is actually installed. A menu that offers a car it cannot spawn is worse than a
 shorter menu.
 
-**The picture is the game's own.** GTA ships a streamed texture per model for the vehicle websites
-you buy cars from in game, named after the model — so there is no image to render and none to fake.
-It is asked for by name and drawn on the card, and handed back when you move on, because a streamed
-dictionary is memory the game has been told to hold.
+**The picture is the maker's badge, because the game ships no car photos a script can draw.** Two
+separate texture inventories agree: the only per-vehicle artwork in a streamable dictionary is the
+manufacturer badge in `mpcarhud`, named after the make — `annis`, `pegassi`, `vapid`. The pictures
+on the in-game websites live inside their web pages, not in anything `DRAW_SPRITE` can be handed.
 
-Not every car has one. The websites only ever sold a fraction of them and add-on cars bring no
-artwork at all, so a missing picture is the ordinary case rather than a fault; the box says so.
+So the card tries in order and says in the log which it found: a dictionary named after the model
+first, because an add-on car can ship one; then the badge, which nearly every car has; then the
+class icon, which everything has. Walked in priority with a moment allowed for each to load, so a
+fast badge cannot beat a slow car picture. A badge is drawn smaller than a photo would be — a logo
+filling a photo frame reads as a mistake, and a logo in the middle of one reads as a badge. Every
+dictionary asked for is handed back when the card moves on.
 
 **It used to spawn the car in front of you instead**, on the argument that a script cannot render a
 model to a picture, so the real thing is the honest preview. That was true and it was still the
