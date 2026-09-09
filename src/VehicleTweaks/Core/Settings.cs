@@ -88,17 +88,22 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// The key that opens the settings panel, and what has to be held with it.
         ///
-        /// NO MODIFIER, BECAUSE F8 DOES NOT NEED ONE. A modifier is what a LETTER needs: a bare
+        /// NO MODIFIER, BECAUSE A FUNCTION KEY DOES NOT NEED ONE. A modifier is what a LETTER needs: a bare
         /// letter is one keystroke from whatever else the player has bound it to, this game has
         /// mods on most of the alphabet, and the vanilla letters are all spoken for -- V, the
         /// obvious first choice for a vehicle mod, is the camera key. A function key is none of
-        /// those things. Vanilla binds nothing to F8, so there is no conflict for a modifier to
+        /// those things. Vanilla binds nothing to F10, so there is no conflict for a modifier to
         /// resolve, and adding one would only make the panel harder to open than it needs to be.
         ///
         /// Both halves stay configurable, and both are rows in the panel, so a player whose
-        /// other mods have claimed F8 can move it without touching this file.
+        /// other mods have claimed F10 can move it without touching this file.
         /// </summary>
-        public Keys MenuKey = Keys.F8;
+        /// <summary>
+        /// F10, HAVING BEEN F8. F8 is what Menyoo opens on out of the box, and a panel that opens
+        /// underneath another mod's menu is a panel nobody can read. F10 is bound to nothing by
+        /// the game and claimed by none of the common trainers.
+        /// </summary>
+        public Keys MenuKey = Keys.F10;
         public MenuModifier MenuModifier = MenuModifier.None;
 
         /// <summary>
@@ -792,18 +797,21 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// Every vehicle in the game, browsable, with the highlighted one stood in front of you.
         ///
-        /// THE LIST IS THE GAME'S OWN -- 843 entries covering the base game and every DLC and
-        /// multiplayer pack, each checked against the model actually being installed here. There
-        /// is no list to maintain and nothing to go stale.
+        /// THE LIST IS SHIPPED WITH THE MOD -- 921 model names covering the base game and every
+        /// DLC and multiplayer pack up to the 2025 ones, each checked against the model actually
+        /// being installed here. It is not SHVDN's enumeration, which stops eighty vehicles short
+        /// of the game as it stands; see UI\Models.cs.
         /// </summary>
         public bool Spawner = true;
 
         /// <summary>
         /// The key it opens on. There is a row on the panel too, which is how a pad reaches it.
         ///
-        /// F7 BECAUSE F8 IS THE PANEL, and the two belong beside each other. No pad binding of its
-        /// own: the D-pad has four directions and they are all spoken for, so the pad route is the
-        /// panel row rather than a chord nobody could guess.
+        /// F7 BECAUSE NOTHING ELSE WANTS IT. The panel used to be on F8 next door; it is on F10
+        /// now, and moving this as well would be changing a binding that works to preserve a
+        /// tidiness nobody can see. No pad binding of its own: the D-pad has four directions and
+        /// they are all spoken for, so the pad route is the panel row rather than a chord nobody
+        /// could guess.
         /// </summary>
         public Keys SpawnerKey = Keys.F7;
 

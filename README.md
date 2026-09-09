@@ -56,17 +56,17 @@ same time, which is exactly why a real car puts hazards on a separate switch rat
 stalk. They belong to the car, not to you — leave one on its hazards and it is still on them
 when you come back.
 
-## Settings panel — F8
+## Settings panel — F10
 
 Everything is on one panel, in the game, drawn out of rectangles with no UI library behind it.
 
 | | keyboard | controller |
 |---|---|---|
-| open / close | `F8` | hold **R3**, press **D-pad left** |
+| open / close | `F10` | hold **R3**, press **D-pad left** |
 | move | `UP` `DOWN` | **D-pad up / down** |
 | change a setting | `LEFT` `RIGHT` | **D-pad left / right** |
 | work a row | `ENTER` | **A** |
-| save and close | `BACKSPACE` or `F8` | **B** |
+| save and close | `BACKSPACE` or `F10` | **B** |
 | jump to a page | `TAB` | **LB** / **RB** |
 
 **Seven pages**, grouped by *when* a setting applies rather than by which feature owns it:
@@ -238,11 +238,17 @@ nudge whatever row the highlight landed on, which made the first row the most da
 panel — manual ignition sat there and switched itself off. Buttons are disarmed until released now,
 and a door has no value to nudge in any case: `LEFT` and `RIGHT` do nothing to it.
 
-**The list is the game's own.** SHVDN's `VehicleHash` enumeration is **843 entries** covering the
-base game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to
-go stale. Each is checked against `IsInCdImage` before it is offered — the game's own answer to
-whether that model is actually installed. A menu that offers a car it cannot spawn is worse than a
-shorter menu.
+**The list ships with the mod, and it is not SHVDN's.** `GTA.VehicleHash` is frozen at whatever the
+wrapper last shipped — 843 names, 841 distinct, and nothing added by a game update since. That was
+**eighty vehicles short**: the whole of the 2024 and 2025 packs, the drift cars, the Christmas 2023
+additions. So the spawner carries its own list of **921 model names**, taken from the community's
+dump of the game's own vehicle metadata, every one verified to hash back to the hash that dump
+records for it.
+
+Each is still checked against `IsInCdImage` before it is offered — the game's own answer to whether
+that model is actually installed — so the list is allowed to run ahead of a Legacy install without
+the menu ever lying about what it can spawn. A menu that offers a car it cannot spawn is worse than
+a shorter menu; one that cannot offer the car you just bought is worse than both.
 
 **The pictures are the mod's own, because the game's are out of reach.** Two separate texture
 inventories agree: the only per-vehicle artwork in a streamable dictionary is the manufacturer
@@ -251,8 +257,8 @@ in anything `DRAW_SPRITE` can be handed. So the mod ships one PNG per model — 
 transparent, 512×288, about 20 KB each and 16 MB the lot — in `scripts\VehicleTweaks\cars\`, drawn
 through the same `CustomSprite` path as the title. They are the shots from the
 [FiveM vehicle reference](https://docs.fivem.net/docs/game-references/vehicle-models/), which
-are renders of the game's own models; every one of the 841 models (the enum has 843 names, two of
-them aliases). A model with no file there — an add-on car — falls through to the badge:
+are renders of the game's own models; 914 of the 921. A model with no file there — an add-on car,
+or one of the seven newest, which the reference has not shot yet — falls through to the badge:
 a dictionary named after the model first, in case the add-on shipped one, then the badge, then the
 class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 
@@ -261,11 +267,11 @@ loaded stays loaded until the scripts reload — there is no handing one back �
 scrolled would leave every car you passed in memory. What is loaded is what you stopped on, at
 about half a megabyte each; the log says at start-up how many of the catalogue have a picture.
 
-**Ten of SHVDN's enum names are not the model name**, and the model name is what the picture is
-called and what you would type. `FireTruck` is `firetruk` in the files, `RE7B` is `le7b`, `Khanjari`
-is `khanjali`, `HotringSabre` is `hotring`, `Terrorbyte` is `terbyte`, `EntityXXR` and `EntityMT`
-are `entity2` and `entity3`, the three `UtilityTruck`s are `utillitruck`. Each was found by hashing
-the name and comparing with the enum's own value, and the MODEL line on the card shows the real one.
+**The model name is the name, because the list is names.** It used to be SHVDN's enum names, ten of
+which are not what the files call the car — `FireTruck` is `firetruk`, `RE7B` is `le7b`, `Khanjari`
+is `khanjali` — and each had to be corrected by hand against its own hash. Building from a list of
+names instead makes that whole class of mistake impossible: the MODEL row, the picture filename and
+the string you would type into another mod's ini are one and the same thing.
 
 **There is no live view any more, and that is what having pictures is for.** The highlighted car
 used to be spawned as well — first straight ahead, where it sat behind the panels, then stood beside
@@ -282,7 +288,7 @@ units nobody has ever explained; what you want to know is whether this one is qu
 means anything next to something else. So the maximum of each stat is worked out while the
 catalogue is read, and every bar is drawn against it.
 
-Reading 843 models is a couple of thousand native calls, so it is done sixty a frame with a
+Reading 921 models is a couple of thousand native calls, so it is done sixty a frame with a
 progress bar rather than in one tick — it finishes in about a quarter of a second and nobody sees
 it happen.
 

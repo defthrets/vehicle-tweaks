@@ -17,10 +17,12 @@ namespace VehicleTweaks.UI
     /// <summary>
     /// Every vehicle in the game, browsable, with a picture of the one it is pointing at.
     ///
-    /// THE LIST IS THE GAME'S OWN. SHVDN's VehicleHash enumeration is 843 entries covering the base
-    /// game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to
-    /// go stale -- and each one is checked against IsInCdImage before it is offered, which is the
-    /// game saying whether that model is actually installed. A menu that offers a car it cannot
+    /// THE LIST IS SHIPPED, AND CHECKED AGAINST THE GAME. 921 model names covering the base game
+    /// and every DLC and multiplayer pack up to the 2025 ones -- see Models, and see there for why
+    /// it is not SHVDN's enumeration, which stops eighty vehicles short. Each is checked against
+    /// IsInCdImage before it is offered, which is the game saying whether that model is actually
+    /// installed here, so the list may run ahead of a Legacy install without the menu lying about
+    /// it. A menu that offers a car it cannot
     /// spawn is worse than a shorter menu.
     ///
     /// THE PICTURE IS THE GAME'S OWN. GTA ships a streamed texture per model for the vehicle
@@ -95,9 +97,9 @@ namespace VehicleTweaks.UI
 
         private readonly float[] _best = new float[4];
 
-        private VehicleHash[] _all;
+        private string[] _all;
 
-        /// <summary>Hashes already catalogued: an enum can name one value twice, and the list must not.</summary>
+        /// <summary>Hashes already catalogued, so a name the list happens to repeat is listed once.</summary>
         private readonly HashSet<uint> _seen = new HashSet<uint>();
         private int _built;
 
@@ -229,7 +231,7 @@ namespace VehicleTweaks.UI
         {
             if (_all == null)
             {
-                _all = (VehicleHash[])Enum.GetValues(typeof(VehicleHash));
+                _all = Models.All;
 
                 for (var i = 0; i < 23; i++) _classes.Add(new List<Entry>());
             }
@@ -240,15 +242,19 @@ namespace VehicleTweaks.UI
 
             for (; _built < end; _built++)
             {
-                var hash = _all[_built];
+                var name = _all[_built];
 
                 try
                 {
-                    if (!_seen.Add((uint)hash)) continue;
-
-                    var model = new Model(hash);
+                    // MODEL DOES THE HASHING, with the game's own joaat, so a name out of the
+                    // shipped list needs nothing from the enumeration to become a vehicle.
+                    var model = new Model(name);
 
                     if (!model.IsValid || !model.IsInCdImage || !model.IsVehicle) continue;
+
+                    var hash = (VehicleHash)model.Hash;
+
+                    if (!_seen.Add((uint)model.Hash)) continue;
 
                     var group = Function.Call<int>(Hash.GET_VEHICLE_CLASS_FROM_NAME, (uint)hash);
                     if (group < 0 || group >= _classes.Count) continue;
@@ -256,7 +262,7 @@ namespace VehicleTweaks.UI
                     var entry = new Entry
                     {
                         Hash = hash,
-                        Code = CodeOf(hash),
+                        Code = name,
                         Name = Label(hash),
                         Speed = Stat(Hash.GET_VEHICLE_MODEL_ESTIMATED_MAX_SPEED, hash),
                         Accel = Stat(Hash.GET_VEHICLE_MODEL_ACCELERATION, hash),
@@ -294,32 +300,6 @@ namespace VehicleTweaks.UI
                      _pictured + " with a picture beside the log.");
 
             Settle();
-        }
-
-        /// <summary>
-        /// The model's name in the files, which is what the picture is called and what you type.
-        ///
-        /// SHVDN'S ENUMERATION IS NOT ALWAYS THE MODEL NAME. Its values are the right hashes, but
-        /// ten of its names are tidied-up spellings that hash to nothing: FireTruck is firetruk
-        /// in the files, RE7B is le7b, Khanjari is khanjali. Every name here was checked by
-        /// hashing it and comparing with the enumeration's own value, so the ten are the ten.
-        /// </summary>
-        private static string CodeOf(VehicleHash hash)
-        {
-            switch (hash)
-            {
-                case VehicleHash.UtilityTruck: return "utillitruck";
-                case VehicleHash.UtilityTruck2: return "utillitruck2";
-                case VehicleHash.UtilityTruck3: return "utillitruck3";
-                case VehicleHash.HotringSabre: return "hotring";
-                case VehicleHash.EntityMT: return "entity3";
-                case VehicleHash.EntityXXR: return "entity2";
-                case VehicleHash.FireTruck: return "firetruk";
-                case VehicleHash.Terrorbyte: return "terbyte";
-                case VehicleHash.Khanjali: return "khanjali";
-                case VehicleHash.RE7B: return "le7b";
-                default: return hash.ToString();
-            }
         }
 
         /// <summary>
