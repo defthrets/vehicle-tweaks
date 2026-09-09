@@ -173,6 +173,15 @@ namespace VehicleTweaks.Core
         public static string LogFile => Path.Combine(Writable, "VehicleTweaks.log");
 
         /// <summary>
+        /// The stances the mod has been told to remember, per vehicle model.
+        ///
+        /// BESIDE THE LOG RATHER THAN BESIDE THE DLL, because this one is WRITTEN. Writable falls
+        /// back to Documents when scripts\ cannot be written to, and a stance nobody can save is
+        /// worse than one nobody can read.
+        /// </summary>
+        public static string StanceFile => Path.Combine(Writable, "VehicleTweaks.stances.ini");
+
+        /// <summary>
         /// A picture shipped with the mod, next to the log.
         ///
         /// NEXT TO THE DLL'S OWN FOLDER, NOT THE WRITABLE ONE. Writable can fall back to Documents

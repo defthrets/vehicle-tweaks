@@ -47,7 +47,15 @@ namespace VehicleTweaks.Driving
     /// wheel, which SHVDN exposes properly -- so it is the safest of the three and the least
     /// certain, because a car with no hydraulics may simply ignore it. Said in the log either way.
     ///
-    /// HANDED BACK BY HANDLE when you get out or change car, like every other override here.
+    /// AND IT IS NOT HANDED BACK, WHICH IS THIS FILE'S ONE EXCEPTION TO THE HOUSE RULE. Every
+    /// other override here is given back by handle when you get out, because the others are how a
+    /// car BEHAVES while you are in it -- power, torque, grip -- and none of them should outlive
+    /// the drive. A stance is what the car LOOKS like. It is meant to outlive the drive, and a car
+    /// that straightens up the moment you step out of it is not stanced, it is borrowed. Restore
+    /// still exists and still runs when the sliders go back to nought, which is how one is undone.
+    ///
+    /// REMEMBERED PER MODEL, in a file of its own beside the log -- see Core\Stances.cs for why a
+    /// model and not a car, which is the honest limit of it.
     /// </summary>
     internal sealed class Stance
     {
@@ -76,10 +84,18 @@ namespace VehicleTweaks.Driving
         private bool _applied;
         private bool _said;
 
-        /// <summary>What was written to the front left last frame, and whether anything was.</summary>
-        private float _lastCamber;
-        private bool _wrote;
-        private bool _checked;
+        /// <summary>How long the sliders have to sit still before the stance is written down.</summary>
+        private const int SettleMs = 900;
+
+        /// <summary>Where remembered stances live, and what this car is called in there.</summary>
+        private readonly Stances _store;
+        private string _model;
+
+        private float[] _pending;
+        private int _changedAt;
+
+        /// <summary>Every model by its hash, worked out once for the session.</summary>
+        private static Dictionary<int, string> _names;
 
         /// <summary>Camber, track and raise as the car came, per wheel, by bone id.</summary>
         private readonly Dictionary<int, float[]> _stock = new Dictionary<int, float[]>();
@@ -87,6 +103,9 @@ namespace VehicleTweaks.Driving
         public Stance(Settings cfg)
         {
             _cfg = cfg;
+
+            try { _store = new Stances(Paths.StanceFile); }
+            catch (Exception ex) { Log.Warn("Stances cannot be remembered: " + ex.Message); }
         }
 
         public void Update(Ped me)
@@ -103,29 +122,140 @@ namespace VehicleTweaks.Driving
 
                 if (car.Handle != _car)
                 {
-                    Release();
+                    // NOT Release(). Getting out of a car used to put its wheels back, on the
+                    // house rule that an override is handed back by handle -- and that rule is
+                    // right for power, torque and grip, which are how a car BEHAVES while you
+                    // are in it. A stance is not that. It is what the car looks like, it is
+                    // meant to outlive the drive, and a car that straightens up the moment you
+                    // step out of it is the fault this feature was reported for.
+                    Forget();
 
                     _car = car.Handle;
                     _last = car;
                     _said = false;
+                    _model = Name(car);
 
                     Capture(car);
+                    Recall();
                 }
 
                 if (Flat())
                 {
                     if (_applied) Restore();
+
+                    Remember(Game.GameTime);
                     return;
                 }
 
                 Apply(car);
+                Remember(Game.GameTime);
 
                 _applied = true;
             }
             catch (Exception ex)
             {
-                Release();
+                Forget();
                 Log.Once("stance", "The stance fell over: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Loads what this model was last given, if anything, into the sliders.
+        ///
+        /// A CAR NOBODY HAS STANCED KEEPS WHAT IS ALREADY ON THEM rather than snapping to nought.
+        /// Zeroing would make switching this on look like the feature breaking: every car you got
+        /// into would wipe the six numbers you had set, and the one you were sitting in when you
+        /// turned it on would be the first.
+        /// </summary>
+        private void Recall()
+        {
+            _pending = null;
+            _changedAt = 0;
+
+            if (!_cfg.StanceRemember || _store == null || _model == null) return;
+
+            var kept = _store.Get(_model);
+
+            if (kept == null) return;
+
+            _cfg.CamberFront = kept[0];
+            _cfg.CamberRear = kept[1];
+            _cfg.TrackFront = kept[2];
+            _cfg.TrackRear = kept[3];
+            _cfg.HeightFront = kept[4];
+            _cfg.HeightRear = kept[5];
+
+            Log.Info("Stance: gave " + _model + " back the one it had (" +
+                     kept[0].ToString("0.0") + " deg front, " + kept[2].ToString("0.00") + " m).");
+        }
+
+        /// <summary>
+        /// Writes the stance down for this model, a moment after you stop changing it.
+        ///
+        /// NOT ON EVERY NUDGE. A slider held down on a D-pad moves twenty times a second and each
+        /// one of those would rewrite the file; waiting for the numbers to sit still turns a
+        /// held button into one write.
+        /// </summary>
+        private void Remember(int now)
+        {
+            if (!_cfg.StanceRemember || _store == null || _model == null) return;
+
+            var live = new[]
+            {
+                _cfg.CamberFront, _cfg.CamberRear, _cfg.TrackFront,
+                _cfg.TrackRear, _cfg.HeightFront, _cfg.HeightRear,
+            };
+
+            if (_pending == null || Moved(live, _pending))
+            {
+                _pending = live;
+                _changedAt = now;
+                return;
+            }
+
+            if (_changedAt == 0 || now - _changedAt < SettleMs) return;
+
+            _changedAt = 0;
+            _store.Put(_model, live);
+        }
+
+        private static bool Moved(float[] a, float[] b)
+        {
+            for (var i = 0; i < a.Length && i < b.Length; i++)
+            {
+                if (Math.Abs(a[i] - b[i]) >= 0.0005f) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The model's own name, which is the only thing about a car that survives a save.
+        ///
+        /// The catalogue is 921 names and the hash of each is worked out once, on the first car
+        /// of the session, rather than 921 times per car.
+        /// </summary>
+        private static string Name(Vehicle car)
+        {
+            try
+            {
+                if (_names == null)
+                {
+                    _names = new Dictionary<int, string>();
+
+                    foreach (var name in Models.All)
+                    {
+                        _names[unchecked((int)StringHash.AtStringHash(name))] = name;
+                    }
+                }
+
+                string found;
+
+                return _names.TryGetValue(car.Model.Hash, out found) ? found : null;
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -143,7 +273,6 @@ namespace VehicleTweaks.Driving
         private void Capture(Vehicle car)
         {
             _stock.Clear();
-            _wrote = false;
 
             // EVERY WHEEL, ONCE, WITH ITS ADDRESS. Four numbers that mirror across the car --
             // one side negative, the other positive, both about half a track apart -- are proof
@@ -181,7 +310,7 @@ namespace VehicleTweaks.Driving
                 _stock[(int)wheel.BoneId] = new[] { camber, track, raise };
             }
 
-            Log.Info(say.ToString());
+            Log.Debug(say.ToString());
         }
 
         /// <summary>
@@ -214,31 +343,6 @@ namespace VehicleTweaks.Driving
                 var up = front ? _cfg.HeightFront : _cfg.HeightRear;
 
                 var camber = stock[0] + side * lean;
-
-                // DID LAST FRAME'S WRITE SURVIVE? Said once, and it is the whole question. If it
-                // reads back as what we wrote, the field holds and the fault is that this build
-                // does not draw wheels from it -- a wrong offset. If it reads back as the value
-                // the car came with, the game is putting it back every frame and the fault is
-                // WHEN we write, not where. Those two look identical from the driver's seat and
-                // want opposite fixes, which is why the mod is asked rather than guessed at.
-                if (_wrote && !_checked && id == (int)VehicleWheelBoneId.WheelLeftFront)
-                {
-                    _checked = true;
-
-                    var now = Read(at, Camber);
-                    var held = Math.Abs(now - _lastCamber) < 0.0001f;
-
-                    Log.Info("Stance: wrote " + _lastCamber.ToString("0.0000") + " last frame, " +
-                             "reads " + now.ToString("0.0000") + " this one -- " +
-                             (held ? "it holds, so the field is not where this build draws from." :
-                                     "the game put it back, so it is being written too early."));
-                }
-
-                if (id == (int)VehicleWheelBoneId.WheelLeftFront)
-                {
-                    _lastCamber = camber;
-                    _wrote = true;
-                }
 
                 Write(at, Camber, camber);
                 Write(at, CamberBack, -camber);
@@ -288,16 +392,28 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        public void Release()
+        /// <summary>
+        /// Lets go of the car without touching it.
+        ///
+        /// THE STANCE STAYS ON THE CAR. Restore is still there and still called when the sliders
+        /// go back to nought, which is how you undo one -- but getting out, changing car, or the
+        /// mod being reloaded no longer straightens anything up. That is what "permanently" asks
+        /// for, and it is a deliberate exception to the rule the rest of this mod follows.
+        /// </summary>
+        private void Forget()
         {
-            if (_applied) Restore();
-
             _applied = false;
-            _wrote = false;
-            _checked = false;
             _car = 0;
             _last = null;
+            _model = null;
+            _pending = null;
+            _changedAt = 0;
             _stock.Clear();
+        }
+
+        public void Release()
+        {
+            Forget();
         }
 
         /// <summary>

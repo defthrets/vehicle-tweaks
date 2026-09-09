@@ -581,6 +581,23 @@ wider track. This takes the sign out of the setting.
 which SHVDN exposes properly — so it is the safest of the three and the least certain, because a car
 with no hydraulics in its handling may simply ignore it. The log says what was asked for either way.
 
+**It stays on the car, and it is remembered.** Getting out used to put the wheels back, on the house
+rule that an override is handed back by handle — right for power, torque and grip, which are how a
+car *behaves* while you are in it, and wrong for a stance, which is what the car *looks like* and is
+meant to outlive the drive. So nothing straightens up when you step out, and what you set is written
+to `VehicleTweaks.stances.ini` beside the log and given back to that car when you get in again —
+through a save, through closing the game, through anything.
+
+**By model, which is the honest limit.** A vehicle's handle is made up when the car is created and
+thrown away when it is not, so nothing about one *individual* car survives a save. What survives is
+what it **is** — so every Panto you drive gets the stance you gave a Panto. A car nobody has stanced
+keeps whatever is already on the sliders rather than snapping to nought, or switching this on would
+look like the feature breaking. `StanceRemember = false` turns the whole of it off and the six
+sliders go back to being ordinary settings.
+
+The file is written a moment after the numbers stop moving, not on every nudge — a slider held down
+on a D-pad moves twenty times a second, and each of those would otherwise be a write.
+
 The one thing that cannot be checked from outside the game is which sign counts as leaning *in*. The
 log reports the front left wheel's camber and track before and after, once per car; if it leans the
 wrong way, use the other sign.

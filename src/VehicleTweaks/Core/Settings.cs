@@ -572,6 +572,26 @@ namespace VehicleTweaks.Core
         public float HeightRear = 0f;
 
         /// <summary>
+        /// The stance you set on a car is remembered for that car, and given back to it.
+        ///
+        /// ON, BECAUSE A STANCE IS A PROPERTY OF THE CAR AND NOT OF THE MOD. You set it once and
+        /// it is that car's, through getting out, through walking away, and through the game
+        /// being closed and opened again -- kept in VehicleTweaks.stances.ini next to the log.
+        ///
+        /// BY MODEL, WHICH IS THE HONEST LIMIT. A vehicle's handle is made up when it is created
+        /// and thrown away when it is not, so nothing about one individual car survives a save.
+        /// What survives is what it IS, so every Panto gets the stance you gave a Panto.
+        ///
+        /// A CAR NOBODY HAS STANCED KEEPS WHAT IS ON THE SLIDERS, rather than snapping to nought.
+        /// Otherwise turning this on would look like the stance breaking: every car you got into
+        /// would zero the six numbers you had set globally.
+        ///
+        /// Off, and the six sliders go back to being ordinary settings that apply to whatever you
+        /// are driving. Nothing is read and nothing is written.
+        /// </summary>
+        public bool StanceRemember = true;
+
+        /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
         /// GTA bogs a car down the moment it stops pointing where it is going, which is what
@@ -1173,6 +1193,7 @@ namespace VehicleTweaks.Core
                 s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
                 s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -1f, 1f);
                 s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -1f, 1f);
+                s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);

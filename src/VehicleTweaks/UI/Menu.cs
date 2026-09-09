@@ -936,6 +936,10 @@ namespace VehicleTweaks.UI
                                   "Driving", "HeightRear",
                                   "A car with no hydraulics in its handling may ignore this."));
 
+            tune.Items.Add(Toggle("Remember it per car", () => _cfg.StanceRemember,
+                                  v => _cfg.StanceRemember = v, "Driving", "StanceRemember",
+                                  "Kept by model, in its own file, through saves."));
+
             var gears = Add("GEARS", IconCog);
 
             gears.Items.Add(Header("TORQUE, GEAR BY GEAR"));

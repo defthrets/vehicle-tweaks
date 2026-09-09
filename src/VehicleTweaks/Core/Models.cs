@@ -1,7 +1,11 @@
-namespace VehicleTweaks.UI
+namespace VehicleTweaks.Core
 {
     /// <summary>
     /// Every vehicle model in the game, by the name the files call it.
+    ///
+    /// IN CORE, BECAUSE TWO THINGS WANT IT NOW. The spawner builds its catalogue from this,
+    /// and the stance uses it to turn the car you are sitting in back into a name it can
+    /// write in a file. A list of strings is data, not a menu.
     ///
     /// NOT SHVDN'S ENUMERATION, AND THAT IS THE WHOLE POINT OF THE FILE. GTA.VehicleHash is
     /// frozen at whatever the wrapper last shipped -- 843 names, 841 of them distinct, and not
