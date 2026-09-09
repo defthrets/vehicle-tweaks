@@ -581,6 +581,18 @@ wider track. This takes the sign out of the setting.
 which SHVDN exposes properly — so it is the safest of the three and the least certain, because a car
 with no hydraulics in its handling may simply ignore it. The log says what was asked for either way.
 
+**The game puts the wheels back, which is why this holds on to cars it is not driving.** Writing the
+stance once is not enough, and neither is writing it only while you are sat in the car — something in
+the game restores those fields, so a car straightened up the moment you walked away from it. So a
+stance is not an event, it is a **lease**: every car this has stanced is written again every frame
+for as long as it exists, in it or not, parked or driven. That is the same thing VStancer does by
+patching the game's reset code, done the way a script is allowed to do it.
+
+Once a second it also looks at what is nearby, and any car carrying a stance in its own decorators is
+adopted and held like the rest — which is what makes one survive a save, a reload of the mod, and
+driving something else for an hour. A car put back to nought gets its stock values written one last
+time and is then let go, so the lease ends when you end it.
+
 **It stays on the car, and it is remembered.** Getting out used to put the wheels back, on the house
 rule that an override is handed back by handle — right for power, torque and grip, which are how a
 car *behaves* while you are in it, and wrong for a stance, which is what the car *looks like* and is
