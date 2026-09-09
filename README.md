@@ -596,6 +596,12 @@ five centimetres of tyre does not. That makes stock `1` rather than `0`, so the 
 the difference — a car stanced before these existed carries six decorators, and reading the seventh
 as the nought the game hands back for an absent one would shrink its wheels to nothing.
 
+**Nothing overlaps, because the row is measured rather than assumed.** A column is only a column
+while everything fits in it: the value column is wide enough for `0.35 s` and not for `-20.0 deg`,
+and the chip is wide enough for `ON` and not for a key called `OEM_PERIOD`. So labels ran under
+sliders and values ran over them. The slider now sits where the value leaves it, and the label is cut
+to what is actually left — one text measurement per row, right for every string there will ever be.
+
 **The sliders fill from stock, not from the left end.** Camber runs from twenty degrees one way to
 twenty the other, and a bar filled from the end showed the most negative camber you can have as an
 *empty* bar — which reads as "minimum", or as nothing set, and is the opposite of what it is. The

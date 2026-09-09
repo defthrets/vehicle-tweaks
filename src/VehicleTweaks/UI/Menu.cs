@@ -2290,15 +2290,14 @@ namespace VehicleTweaks.UI
 
                 var ty = rowY + 0.0076f * Zoom;
 
-                // CUT TO THE ROOM IT HAS. A label used to be drawn at whatever length it was and
-                // run underneath the slider, which nothing noticed while the sliders were narrow.
-                // The room depends on what the row carries on its right, so it is worked out per
-                // kind rather than assumed to be the widest of them.
-                var room = kind == Kind.Number ? PanelW - LabelX - ValueX - ValueCol - TrackW
-                         : kind == Kind.Choice ? PanelW - LabelX - ValueX - ValueCol
-                         : PanelW - LabelX - ValueX - ChipW;
+                // CUT TO THE ROOM THE RIGHT-HAND SIDE LEAVES, and that room is MEASURED rather
+                // than assumed. It used to be worked out from the column widths, which is only
+                // right while every value fits in its column: "-20.0 deg" does not, and neither
+                // does a key called OEM_PERIOD, so the label ran under the slider and the value
+                // ran over it. Ask how wide the thing on the right actually is.
+                var room = PanelW - LabelX - ValueX - Cluster(kind, Shown(item)) - 0.006f * Zoom;
 
-                Draw.Text(Draw.Ellipsis(item.Label, RowText, room - 0.006f * Zoom, Plain),
+                Draw.Text(Draw.Ellipsis(item.Label, RowText, room, Plain),
                           bx + LabelX, ty, RowText, Fade(label), Plain);
 
                 var right = bx + PanelW - ValueX;
@@ -2311,7 +2310,7 @@ namespace VehicleTweaks.UI
                 switch (kind)
                 {
                     case Kind.Toggle: Pill(item, right, rowY, ty, live); break;
-                    case Kind.Number: Track(item, right, rowY, ty, live, selected, value); break;
+                    case Kind.Number: Track(item, right, rowY, ty, live, value); break;
                     case Kind.Choice: Chevrons(item, right, ty, selected, value); break;
                     case Kind.Bind: Keycap(item.Show(), right, rowY, ty, value, live, false); break;
                     case Kind.Go: Keycap("OPEN", right, rowY, ty, value, true, true); break;
@@ -2469,8 +2468,7 @@ namespace VehicleTweaks.UI
         /// the thing you actually want to know when you are deciding whether to nudge it. The
         /// fill eases, so a held D-pad reads as the bar sliding rather than stepping.
         /// </summary>
-        private void Track(Item item, float right, float rowY, float ty, bool live, bool selected,
-                           Color value)
+        private void Track(Item item, float right, float rowY, float ty, bool live, Color value)
         {
             var part = 0f;
 
@@ -2486,7 +2484,7 @@ namespace VehicleTweaks.UI
 
             item.Anim = Toward(item.Anim, part, FillTau, Delta());
 
-            var tx = right - ValueCol - TrackW;
+            var tx = right - Room(item.Show()) - TrackW;
             var tyy = rowY + (RowH - TrackH) * 0.5f;
 
             // WHERE STOCK SITS ON THIS RANGE. Nought for a number that runs both ways -- camber,
@@ -2497,14 +2495,16 @@ namespace VehicleTweaks.UI
             if (stock < 0f) stock = 0f;
             if (stock > 1f) stock = 1f;
 
-            // ON THE SELECTED ROW EVERYTHING IS INVERTED, because the row itself has gone amber
-            // and an amber bar on an amber row is not a bar.
-            var rail = selected ? Color.FromArgb(70, 0, 0, 0)
-                                : Color.FromArgb(live ? 55 : 25, 255, 255, 255);
-            var fill = selected ? Color.FromArgb(230, 20, 18, 12)
-                                : Color.FromArgb(live ? 225 : 90, 245, 196, 60);
-            var pin = selected ? Color.FromArgb(120, 0, 0, 0)
-                               : Color.FromArgb(live ? 90 : 40, 255, 255, 255);
+            // NO INVERSION ON THE SELECTED ROW, AND THAT WAS A MISTAKE MADE OUTSIDE THE GAME.
+            // The selected row is amber at an alpha of thirty-four over a near-black panel -- a
+            // warm tint, not a block of colour -- and a slider drawn in near-black on it is a
+            // slider you cannot see. It went in because the mock-up this was designed in drew
+            // that thirty-four as solid amber, which is what ImageDraw does to an alpha it is
+            // asked to composite onto an RGBA image: it replaces the pixel rather than blending
+            // it. The panel is amber on dark on every row, selected or not.
+            var rail = Color.FromArgb(live ? 55 : 25, 255, 255, 255);
+            var fill = Color.FromArgb(live ? 235 : 90, 245, 196, 60);
+            var pin = Color.FromArgb(live ? 90 : 40, 255, 255, 255);
 
             Draw.Bar(tx, tyy, TrackW, TrackH, Fade(rail));
 
@@ -2531,10 +2531,54 @@ namespace VehicleTweaks.UI
             var hh = TrackH * 3.6f;
 
             Draw.Bar(tx + TrackW * item.Anim - hw * 0.5f, rowY + (RowH - hh) * 0.5f, hw, hh,
-                     Fade(selected ? Color.FromArgb(255, 20, 18, 12)
-                                   : Color.FromArgb(live ? 235 : 90, 232, 228, 231)));
+                     Fade(Color.FromArgb(live ? 245 : 90, 232, 228, 231)));
 
             Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+        }
+
+        /// <summary>What a row shows on its right, or an empty string when it shows nothing.</summary>
+        private static string Shown(Item item)
+        {
+            try { return item.Show == null ? "" : item.Show() ?? ""; }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// How much of the right-hand side a row needs, measured rather than assumed.
+        ///
+        /// A COLUMN IS ONLY A COLUMN WHILE EVERYTHING FITS IN IT. ValueCol is wide enough for
+        /// "1.00" and for "0.35 s" and not for "-20.0 deg"; ChipW is wide enough for ON and not
+        /// for a key called OEM_PERIOD. Asking the string how wide it is costs one measure a row
+        /// and is right for every string there will ever be.
+        /// </summary>
+        private static float Cluster(Kind kind, string shown)
+        {
+            switch (kind)
+            {
+                case Kind.Toggle:
+                case Kind.Go:
+                    return ChipW;
+
+                case Kind.Number:
+                    return TrackW + Room(shown);
+
+                case Kind.Choice:
+                    // The value with an arrow either side of it, and the gaps they sit in.
+                    return Draw.Width(shown, RowText, Plain) + 0.026f * Zoom;
+
+                case Kind.Bind:
+                    return Math.Max(Draw.Width(shown, RowText, Plain), ChipW * 0.55f) +
+                           0.010f * Zoom;
+
+                default:
+                    return Draw.Width(shown, RowText, Plain) + 0.004f * Zoom;
+            }
+        }
+
+        /// <summary>The room a number's own text needs, never less than the column it sits in.</summary>
+        private static float Room(string shown)
+        {
+            return Math.Max(ValueCol, Draw.Width(shown, RowText, Plain) + 0.005f * Zoom);
         }
 
         /// <summary>
