@@ -1724,12 +1724,21 @@ namespace VehicleTweaks.UI
         {
             try
             {
+                // WALKING AND DRIVING ARE LEFT ALONE, WHICH IS WHY THEY ARE NOT IN THIS LIST.
+                // The panel used to take the whole car off you: no throttle, no brake, no
+                // steering, no handbrake, on the reasoning that the arrow keys would otherwise
+                // be steering something nobody was looking at. They would not. On a keyboard the
+                // panel is the arrows and driving is WASD; on a pad the panel is the D-pad and
+                // driving is the sticks and triggers. Nothing collides, and a tuning panel you
+                // have to close before you can feel the change is a tuning panel that makes you
+                // guess. Power, camber and grip all apply live now -- see Main.
+                //
+                // What stays deafened is what the panel would fight over or be read past:
+                // shooting, the phone, the weapon and character wheels, the camera, and getting
+                // out of the car.
                 Game.DisableControlThisFrame(Control.Attack);
                 Game.DisableControlThisFrame(Control.Attack2);
                 Game.DisableControlThisFrame(Control.Aim);
-                Game.DisableControlThisFrame(Control.MoveLeftRight);
-                Game.DisableControlThisFrame(Control.MoveUpDown);
-                Game.DisableControlThisFrame(Control.Jump);
                 Game.DisableControlThisFrame(Control.Enter);
                 Game.DisableControlThisFrame(Control.Context);
                 Game.DisableControlThisFrame(Control.Phone);
@@ -1742,11 +1751,10 @@ namespace VehicleTweaks.UI
                 // somebody might rebind the panel to.
                 Game.DisableControlThisFrame(Control.NextCamera);
 
+                // GETTING OUT STAYS BLOCKED even though driving does not: the ignition's
+                // hold-to-stop is one of the things that stands down while the panel is up, and
+                // an exit that skips it would leave the engine in a state nothing was watching.
                 Game.DisableControlThisFrame(Control.VehicleExit);
-                Game.DisableControlThisFrame(Control.VehicleMoveLeftRight);
-                Game.DisableControlThisFrame(Control.VehicleAccelerate);
-                Game.DisableControlThisFrame(Control.VehicleBrake);
-                Game.DisableControlThisFrame(Control.VehicleHandbrake);
                 Game.DisableControlThisFrame(Control.VehicleRadioWheel);
 
                 // R3, BOTH HALVES OF IT. The chord modifier is R3, and R3 is also look-behind --

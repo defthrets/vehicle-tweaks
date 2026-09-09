@@ -76,6 +76,11 @@ namespace VehicleTweaks.Driving
         private bool _applied;
         private bool _said;
 
+        /// <summary>What was written to the front left last frame, and whether anything was.</summary>
+        private float _lastCamber;
+        private bool _wrote;
+        private bool _checked;
+
         /// <summary>Camber, track and raise as the car came, per wheel, by bone id.</summary>
         private readonly Dictionary<int, float[]> _stock = new Dictionary<int, float[]>();
 
@@ -138,6 +143,14 @@ namespace VehicleTweaks.Driving
         private void Capture(Vehicle car)
         {
             _stock.Clear();
+            _wrote = false;
+
+            // EVERY WHEEL, ONCE, WITH ITS ADDRESS. Four numbers that mirror across the car --
+            // one side negative, the other positive, both about half a track apart -- are proof
+            // that 0x030 is the X offset on THIS build. Four numbers that do not are proof that
+            // it is not, which is the other thing this could be and cannot be told apart from a
+            // write that is simply ignored.
+            var say = new System.Text.StringBuilder("Stance: ");
 
             foreach (var wheel in car.Wheels)
             {
@@ -147,6 +160,10 @@ namespace VehicleTweaks.Driving
 
                 var camber = Read(at, Camber);
                 var track = Read(at, Track);
+
+                say.Append(wheel.BoneId).Append(" @").Append(at.ToString("X")).Append(" camber ")
+                   .Append(camber.ToString("0.0000")).Append(" track ")
+                   .Append(track.ToString("0.0000")).Append("; ");
 
                 if (!Sound(camber) || !Sound(track))
                 {
@@ -163,6 +180,8 @@ namespace VehicleTweaks.Driving
 
                 _stock[(int)wheel.BoneId] = new[] { camber, track, raise };
             }
+
+            Log.Info(say.ToString());
         }
 
         /// <summary>
@@ -195,6 +214,31 @@ namespace VehicleTweaks.Driving
                 var up = front ? _cfg.HeightFront : _cfg.HeightRear;
 
                 var camber = stock[0] + side * lean;
+
+                // DID LAST FRAME'S WRITE SURVIVE? Said once, and it is the whole question. If it
+                // reads back as what we wrote, the field holds and the fault is that this build
+                // does not draw wheels from it -- a wrong offset. If it reads back as the value
+                // the car came with, the game is putting it back every frame and the fault is
+                // WHEN we write, not where. Those two look identical from the driver's seat and
+                // want opposite fixes, which is why the mod is asked rather than guessed at.
+                if (_wrote && !_checked && id == (int)VehicleWheelBoneId.WheelLeftFront)
+                {
+                    _checked = true;
+
+                    var now = Read(at, Camber);
+                    var held = Math.Abs(now - _lastCamber) < 0.0001f;
+
+                    Log.Info("Stance: wrote " + _lastCamber.ToString("0.0000") + " last frame, " +
+                             "reads " + now.ToString("0.0000") + " this one -- " +
+                             (held ? "it holds, so the field is not where this build draws from." :
+                                     "the game put it back, so it is being written too early."));
+                }
+
+                if (id == (int)VehicleWheelBoneId.WheelLeftFront)
+                {
+                    _lastCamber = camber;
+                    _wrote = true;
+                }
 
                 Write(at, Camber, camber);
                 Write(at, CamberBack, -camber);
@@ -249,6 +293,8 @@ namespace VehicleTweaks.Driving
             if (_applied) Restore();
 
             _applied = false;
+            _wrote = false;
+            _checked = false;
             _car = 0;
             _last = null;
             _stock.Clear();

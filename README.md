@@ -251,6 +251,23 @@ place if anyone sets `PadModifier` back to LB.
 Moving off LB also **gives the shoulders back**: `LB` and `RB` turn the page again, which they had
 stood down from while the chord was using LB.
 
+### You can drive with it open
+
+The panel used to take the whole car off you — no throttle, brake, steering or handbrake — on the
+reasoning that the arrow keys would otherwise be steering something nobody was looking at. They
+would not: on a keyboard the panel is the **arrows** and driving is **WASD**; on a pad the panel is
+the **D-pad** and driving is the **sticks and triggers**. Nothing collides.
+
+So walking and driving are left alone, and with them the eight features that only *write* to the car
+— power, torque, camber, track, ride height, drift grip, repairs, the brake flash — which now run
+with the panel up. That is what a tuning panel is for: a slider you cannot feel move is a slider you
+have to guess at, and the next corner is the test.
+
+The seven that *read* a key or a chord still wait for it to shut, or moving the highlight down a
+page would toggle the hazards underneath it. Getting out stays blocked, because the ignition's
+hold-to-stop is one of the things standing down while the panel is up. The spawner still stops
+everything — it is a browser, not a tuning surface, and the car it is about does not exist yet.
+
 ### Saving
 
 A change applies the instant you make it, so you can try it on the next corner rather than
@@ -293,12 +310,19 @@ rate the setting says at 30 fps and at 144 — the bug every version of this in 
 least once. Nothing is forced between flashes: the game goes back to deciding, which it does
 correctly, so there is nothing to hand back when it ends.
 
-## The car spawner — F7
+## The car spawner
 
 Every vehicle in the game, browsable by class, with a picture of the highlighted one.
-`F7`, or the **first row of the panel** — top of the DRIVING page, where the highlight already is
-when it opens, so it is the one row you can reach without moving at all. That is how a pad gets
-there, because the D-pad has four directions and all four are spoken for.
+
+**The first row of the panel** — top of the DRIVING page, where the highlight already is when it
+opens, so it is the one row you can reach without moving at all. `F10`, then `ENTER`. That has
+always been how a pad gets there, because the D-pad has four directions and all four are spoken
+for.
+
+It used to have `F7` as well. [Weapon Tweaks](../weapon-tweaks) opens its panel on F7 now, and two
+mods on one key is both of them answering it — so this one let go, because it is the one with a
+door already. `SpawnerKey` is still a row on the GENERAL page and still in the ini: press `ENTER`
+on it and choose a key if you want the shortcut back. `F9` is free.
 
 A door rather than a setting, and that is also why it is safe at the top. A held chord used to
 nudge whatever row the highlight landed on, which made the first row the most dangerous seat in the

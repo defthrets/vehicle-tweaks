@@ -157,15 +157,15 @@ namespace VehicleTweaks
                     return;
                 }
 
-                // Not while the panel has the keyboard, or the arrow keys would be steering a
-                // car nobody is looking at.
-                if (!_menu.IsOpen && !_spawner.IsOpen)
+                // THE ONES THAT ONLY WRITE TO THE CAR RUN WITH THE PANEL OPEN, and that is the
+                // point of the panel: it is a tuning surface, and a slider you cannot feel move
+                // is a slider you cannot set. Power, torque, camber, grip and ride height all
+                // apply while you are driving with it up, so the next corner is the test.
+                //
+                // The spawner is different and still stops everything: it is a browser, not a
+                // tuning surface, and the car it is about does not exist yet.
+                if (!_spawner.IsOpen)
                 {
-                    _ignition.Update(me);
-                    Indicate(me);
-                    _seatbelt.Update(me);
-                    _locks.Update(me);
-                    _dash.Update(me);
                     _lowrider.Update(me);
                     _crashes.Update(me);
                     _repairs.Update(me);
@@ -173,10 +173,24 @@ namespace VehicleTweaks
                     _drift.Update(me);
                     _myCar.Update(me);
                     _stations.Update(me);
-                    _cruise.Update(me);
-                    _chauffeur.Update(me);
                     _tuning.Update(me);
                     _stance.Update(me);
+                }
+
+                // THE ONES THAT READ THE PAD OR THE KEYBOARD WAIT FOR IT TO SHUT. Every one of
+                // these watches for a key or a chord, and the panel is being driven with the
+                // same D-pad -- so without this, moving the highlight down a page would toggle
+                // the hazards underneath it and holding the modifier would arm four things at
+                // once. The driving controls themselves are left alone; see Menu.Deafen.
+                if (!_menu.IsOpen && !_spawner.IsOpen)
+                {
+                    _ignition.Update(me);
+                    Indicate(me);
+                    _seatbelt.Update(me);
+                    _locks.Update(me);
+                    _dash.Update(me);
+                    _cruise.Update(me);
+                    _chauffeur.Update(me);
                 }
 
                 // LAST, AND NOT GATED ON THE PANEL BEING SHUT. It is a readout, not an input:

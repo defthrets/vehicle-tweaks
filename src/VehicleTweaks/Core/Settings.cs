@@ -822,15 +822,22 @@ namespace VehicleTweaks.Core
         public bool Spawner = true;
 
         /// <summary>
-        /// The key it opens on. There is a row on the panel too, which is how a pad reaches it.
+        /// The key it opens on, and by default there is not one.
         ///
-        /// F7 BECAUSE NOTHING ELSE WANTS IT. The panel used to be on F8 next door; it is on F12
-        /// now, and moving this as well would be changing a binding that works to preserve a
-        /// tidiness nobody can see. No pad binding of its own: the D-pad has four directions and
-        /// they are all spoken for, so the pad route is the panel row rather than a chord nobody
-        /// could guess.
+        /// NONE, HAVING BEEN F7, AND IT WAS GIVEN UP RATHER THAN MOVED. Weapon Tweaks opens its
+        /// own panel on F7, and two mods on one key is both of them answering it -- so one of
+        /// them had to let go.
+        ///
+        /// THIS ONE, BECAUSE IT IS THE ONE WITH A DOOR ALREADY. The spawner is the first row of
+        /// the DRIVING page, which is where the highlight lands when this mod's panel opens on
+        /// F10 -- so it is reachable in two keystrokes without a binding of its own, and that row
+        /// is also the only route a pad has ever had to it. A second key was a shortcut, and a
+        /// shortcut is exactly the thing to give up when a key is contested.
+        ///
+        /// STILL A ROW ON THE GENERAL PAGE, so anybody who wants the shortcut back can press
+        /// ENTER on it and choose a key. F9 is free on this machine.
         /// </summary>
-        public Keys SpawnerKey = Keys.F7;
+        public Keys SpawnerKey = Keys.None;
 
         public bool CrashSlowMo = false;
 

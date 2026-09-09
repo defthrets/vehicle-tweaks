@@ -178,7 +178,11 @@ namespace VehicleTweaks.UI
                     return;
                 }
 
-                if (Edge(_cfg.SpawnerKey, ref _keyDown))
+                // NOT BOUND IS NOT A KEY, AND IT IS ASKED BEFORE IT IS READ. The spawner's key
+                // defaults to None now that Weapon Tweaks has F7, and Keys.None is nought --
+                // what Game.IsKeyPressed does with a virtual key code of nought is not documented
+                // and not something to find out sixty times a second. The panel row is the door.
+                if (_cfg.SpawnerKey != Keys.None && Edge(_cfg.SpawnerKey, ref _keyDown))
                 {
                     if (_open) Close();
                     else Open();
