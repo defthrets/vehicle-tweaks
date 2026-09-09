@@ -108,7 +108,7 @@ namespace VehicleTweaks.Core
         /// library every time. That is the one cost, it is a real one, and it is undone either in
         /// Steam's in-game settings or by putting another key in here.
         /// </summary>
-        public Keys MenuKey = Keys.F2;
+        public Keys MenuKey = Keys.F5;
         public MenuModifier MenuModifier = MenuModifier.None;
 
         /// <summary>
@@ -570,6 +570,26 @@ namespace VehicleTweaks.Core
         /// </summary>
         public float HeightFront = 0f;
         public float HeightRear = 0f;
+
+        /// <summary>
+        /// How big the wheels actually are, as a proportion of the ones the car came with.
+        ///
+        /// THE TYRE, THE RIM INSIDE IT, AND HOW WIDE IT IS -- the three the game itself keeps per
+        /// wheel, which is what the car rolls on and stands at. Bigger tyres lift the car and fill
+        /// the arch; a bigger rim inside the same tyre is a lower profile; width is width.
+        ///
+        /// MULTIPLIED RATHER THAN ADDED, which is the one place this feature changes its mind
+        /// about how a number works. Five centimetres of camber means the same thing on a Panto
+        /// and on a Barracks; five centimetres of tyre does not. One is the car as it came.
+        ///
+        /// THESE ARE THE COLLIDERS -- the wheel the physics uses. The visual wheel follows the
+        /// tyre because the car is stood on it; what this does NOT do is scale the wheel MODEL
+        /// separately, which lives on the vehicle rather than the wheel and is found by scanning
+        /// the executable for a code pattern. This mod does not scan for anything.
+        /// </summary>
+        public float WheelSize = 1f;
+        public float RimSize = 1f;
+        public float WheelWidth = 1f;
 
         /// <summary>
         /// The stance you set on a car is remembered for that car, and given back to it.
@@ -1198,6 +1218,9 @@ namespace VehicleTweaks.Core
                 s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
                 s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -1f, 1f);
                 s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -1f, 1f);
+                s.WheelSize = ini.GetFloat("Driving", "WheelSize", s.WheelSize, 0.4f, 2.5f);
+                s.RimSize = ini.GetFloat("Driving", "RimSize", s.RimSize, 0.4f, 2.5f);
+                s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);

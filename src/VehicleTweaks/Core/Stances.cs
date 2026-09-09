@@ -28,13 +28,38 @@ namespace VehicleTweaks.Core
     /// </summary>
     internal sealed class Stances
     {
-        /// <summary>Camber, track and height, front then rear -- the order the file writes them.</summary>
-        public const int Values = 6;
+        /// <summary>The nine, in the order the file writes them and the car remembers them.</summary>
+        public const int Values = 9;
 
         private static readonly string[] Keys =
         {
             "CamberFront", "CamberRear", "TrackFront", "TrackRear", "HeightFront", "HeightRear",
+            "WheelSize", "RimSize", "WheelWidth",
         };
+
+        /// <summary>
+        /// What each of them means "as the car came".
+        ///
+        /// NOT ALL NOUGHTS, WHICH IS WHY THIS EXISTS. The first six are amounts ADDED to what the
+        /// car has, so nothing is nought. The last three are what the wheel is MULTIPLIED by, so
+        /// nothing is one -- and a file written before they existed, or a car stanced before they
+        /// existed, has to read back as a wheel of the size it already is rather than one of no
+        /// size at all.
+        /// </summary>
+        public static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f };
+
+        /// <summary>Whether these are the values that change nothing.</summary>
+        public static bool Flat(float[] values)
+        {
+            if (values == null) return true;
+
+            for (var i = 0; i < Values && i < values.Length; i++)
+            {
+                if (Math.Abs(values[i] - Stock[i]) >= 0.0005f) return false;
+            }
+
+            return true;
+        }
 
         private readonly Dictionary<string, float[]> _stances =
             new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
@@ -67,14 +92,7 @@ namespace VehicleTweaks.Core
         {
             if (string.IsNullOrEmpty(model) || values == null || values.Length != Values) return;
 
-            var flat = true;
-
-            foreach (var v in values)
-            {
-                if (Math.Abs(v) >= 0.0005f) flat = false;
-            }
-
-            if (flat)
+            if (Flat(values))
             {
                 if (!_stances.Remove(model)) return;
             }
@@ -106,7 +124,7 @@ namespace VehicleTweaks.Core
                         Keep(model, values);
 
                         model = line.Substring(1, line.Length - 2).Trim();
-                        values = new float[Values];
+                        values = (float[])Stock.Clone();
                         continue;
                     }
 

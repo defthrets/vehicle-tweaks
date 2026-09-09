@@ -569,6 +569,27 @@ reading that is not a finite number in a sane range means the address is not wha
 value *plus* the setting, so `0` is genuinely the car as it came and a car with camber from the
 factory keeps it. Everything is handed back by handle when you get out or change car.
 
+**And the wheels have a size.** The tyre, the rim inside it and how wide it is — the three the game
+keeps per wheel, at `0x110`, `0x114` and `0x118`, from the same file and the same provenance as the
+three already proven. Bigger tyres lift the car and fill the arch; a bigger rim inside the same tyre
+is a lower profile. These are the **colliders** — the wheel the physics uses, which the visual
+follows because the car is stood on it. Scaling the wheel *model* on top of that lives on the
+vehicle rather than the wheel and is found by scanning the executable for a code pattern, which this
+mod does not do.
+
+They are **multiplied** rather than added, which is the one place this feature changes its mind about
+how a number works: five centimetres of camber means the same thing on a Panto and on a Barracks, and
+five centimetres of tyre does not. That makes stock `1` rather than `0`, so the store had to learn
+the difference — a car stanced before these existed carries six decorators, and reading the seventh
+as the nought the game hands back for an absent one would shrink its wheels to nothing.
+
+**The sliders fill from stock, not from the left end.** Camber runs from twenty degrees one way to
+twenty the other, and a bar filled from the end showed the most negative camber you can have as an
+*empty* bar — which reads as "minimum", or as nothing set, and is the opposite of what it is. The
+bar is now the amount you have **changed** and the side it is on is which way, with a mark at stock
+and a handle at the value. On the selected row the rail, fill and handle all invert, because an
+amber bar on an amber row is not a bar.
+
 **Per axle rather than per wheel** — which is both what stance actually is and what VStancer's own
 menu offers. The two sides are mirrored, because one slider has to become two opposite numbers or a
 wider track is one wheel out and one wheel in. Odd bone ids are the left of each axle.

@@ -150,7 +150,7 @@ namespace VehicleTweaks.UI
         // The pictures on the right of a row: how wide the value's own column is, and the
         // switch and the slider that sit to its left.
         private const float ValueCol = 0.052f * Zoom;
-        private const float TrackW = 0.040f * Zoom;
+        private const float TrackW = 0.050f * Zoom;
         private const float TrackH = 0.0030f * Zoom;
 
         /// <summary>
@@ -935,6 +935,18 @@ namespace VehicleTweaks.UI
                                   v => _cfg.HeightRear = v, 0.05f, -1f, 1f, "0.00", "",
                                   "Driving", "HeightRear",
                                   "A car with no hydraulics in its handling may ignore this."));
+
+            tune.Items.Add(Number("Wheel size", () => _cfg.WheelSize, v => _cfg.WheelSize = v,
+                                  0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelSize",
+                                  "The tyre. Bigger lifts the car and fills the arch."));
+
+            tune.Items.Add(Number("Rim size", () => _cfg.RimSize, v => _cfg.RimSize = v,
+                                  0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "RimSize",
+                                  "The rim inside the tyre. Bigger is a lower profile."));
+
+            tune.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
+                                  0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
+                                  "How wide. 1.00 is the wheel the car came with."));
 
             tune.Items.Add(Toggle("Remember it per car", () => _cfg.StanceRemember,
                                   v => _cfg.StanceRemember = v, "Driving", "StanceRemember",
@@ -2267,7 +2279,16 @@ namespace VehicleTweaks.UI
 
                 var ty = rowY + 0.0076f * Zoom;
 
-                Draw.Text(item.Label, bx + LabelX, ty, RowText, Fade(label), Plain);
+                // CUT TO THE ROOM IT HAS. A label used to be drawn at whatever length it was and
+                // run underneath the slider, which nothing noticed while the sliders were narrow.
+                // The room depends on what the row carries on its right, so it is worked out per
+                // kind rather than assumed to be the widest of them.
+                var room = kind == Kind.Number ? PanelW - LabelX - ValueX - ValueCol - TrackW
+                         : kind == Kind.Choice ? PanelW - LabelX - ValueX - ValueCol
+                         : PanelW - LabelX - ValueX - ChipW;
+
+                Draw.Text(Draw.Ellipsis(item.Label, RowText, room - 0.006f * Zoom, Plain),
+                          bx + LabelX, ty, RowText, Fade(label), Plain);
 
                 var right = bx + PanelW - ValueX;
 
@@ -2279,7 +2300,7 @@ namespace VehicleTweaks.UI
                 switch (kind)
                 {
                     case Kind.Toggle: Pill(item, right, rowY, ty, live); break;
-                    case Kind.Number: Track(item, right, rowY, ty, live, value); break;
+                    case Kind.Number: Track(item, right, rowY, ty, live, selected, value); break;
                     case Kind.Choice: Chevrons(item, right, ty, selected, value); break;
                     case Kind.Bind: Keycap(item.Show(), right, rowY, ty, value, live, false); break;
                     case Kind.Go: Keycap("OPEN", right, rowY, ty, value, true, true); break;
@@ -2437,7 +2458,8 @@ namespace VehicleTweaks.UI
         /// the thing you actually want to know when you are deciding whether to nudge it. The
         /// fill eases, so a held D-pad reads as the bar sliding rather than stepping.
         /// </summary>
-        private void Track(Item item, float right, float rowY, float ty, bool live, Color value)
+        private void Track(Item item, float right, float rowY, float ty, bool live, bool selected,
+                           Color value)
         {
             var part = 0f;
 
@@ -2456,14 +2478,70 @@ namespace VehicleTweaks.UI
             var tx = right - ValueCol - TrackW;
             var tyy = rowY + (RowH - TrackH) * 0.5f;
 
-            Draw.Bar(tx, tyy, TrackW, TrackH, Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
-            Draw.Bar(tx, tyy, TrackW * item.Anim, TrackH,
-                     Fade(Color.FromArgb(live ? 225 : 90, 245, 196, 60)));
+            // WHERE STOCK SITS ON THIS RANGE. Nought for a number that runs both ways -- camber,
+            // track, ride height -- and the bottom of the range for one that only goes up.
+            var range = item.Max - item.Min;
+            var stock = range > 0f ? (Stock(item) - item.Min) / range : 0f;
 
-            // THE KNOB IS GONE. A tick standing three times the height of the track was the
-            // loudest thing on a row whose point is the number, and the end of the fill already
-            // says where the value sits.
+            if (stock < 0f) stock = 0f;
+            if (stock > 1f) stock = 1f;
+
+            // ON THE SELECTED ROW EVERYTHING IS INVERTED, because the row itself has gone amber
+            // and an amber bar on an amber row is not a bar.
+            var rail = selected ? Color.FromArgb(70, 0, 0, 0)
+                                : Color.FromArgb(live ? 55 : 25, 255, 255, 255);
+            var fill = selected ? Color.FromArgb(230, 20, 18, 12)
+                                : Color.FromArgb(live ? 225 : 90, 245, 196, 60);
+            var pin = selected ? Color.FromArgb(120, 0, 0, 0)
+                               : Color.FromArgb(live ? 90 : 40, 255, 255, 255);
+
+            Draw.Bar(tx, tyy, TrackW, TrackH, Fade(rail));
+
+            // FILLED FROM STOCK, NOT FROM THE LEFT END. Camber runs from twenty degrees one way
+            // to twenty the other, and a bar that filled from the end said "minimum" for the
+            // most negative camber you can have -- which is the opposite of what it is. From the
+            // middle out, the bar is the amount you have CHANGED and the side it is on says
+            // which way.
+            var from = Math.Min(stock, item.Anim);
+            var wide = Math.Abs(item.Anim - stock);
+
+            if (wide > 0.0005f) Draw.Bar(tx + TrackW * from, tyy, TrackW * wide, TrackH, Fade(fill));
+
+            // The mark for stock, so nought is somewhere you can find without reading the number.
+            var tick = 0.0012f * Zoom;
+
+            Draw.Bar(tx + TrackW * stock - tick * 0.5f, tyy - TrackH * 0.9f, tick, TrackH * 2.8f,
+                     Fade(pin));
+
+            // AND THE HANDLE, which is the thing that makes it read as a slider rather than as a
+            // bar chart. It went once, for being the loudest thing on the row; it comes back
+            // because a bar that starts in the middle needs an end you can point at.
+            var hw = 0.0022f * Zoom;
+            var hh = TrackH * 3.6f;
+
+            Draw.Bar(tx + TrackW * item.Anim - hw * 0.5f, rowY + (RowH - hh) * 0.5f, hw, hh,
+                     Fade(selected ? Color.FromArgb(255, 20, 18, 12)
+                                   : Color.FromArgb(live ? 235 : 90, 232, 228, 231)));
+
             Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+        }
+
+        /// <summary>
+        /// The value on this row that means "as the car came".
+        ///
+        /// NOUGHT FOR A NUMBER THAT RUNS BOTH WAYS and the bottom of the range for one that only
+        /// goes up. That covers every row here without a table to maintain: camber, track and
+        /// ride height straddle nought and are amounts ADDED to what the car has, while a wheel
+        /// size is a proportion and its stock is one -- which is where its range would put the
+        /// middle anyway, and is why the rule is written as "the middle of a range that contains
+        /// one" rather than as a list of setting names.
+        /// </summary>
+        private static float Stock(Item item)
+        {
+            if (item.Min < 0f && item.Max > 0f) return 0f;
+            if (item.Min < 1f && item.Max > 1f) return 1f;
+
+            return item.Min;
         }
 
         /// <summary>

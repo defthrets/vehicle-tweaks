@@ -61,6 +61,19 @@ namespace VehicleTweaks.Driving
         private const int CamberBack = 0x010;
         private const int Track = 0x030;
 
+        /// <summary>
+        /// And how big the wheel actually is: the tyre, the rim inside it, and how wide it is.
+        ///
+        /// THE SAME PROVENANCE AS THE OTHER THREE, from the same file: these are what FiveM's
+        /// SET_VEHICLE_WHEEL_TIRE_COLLIDER_SIZE, _RIM_COLLIDER_SIZE and _TIRE_COLLIDER_WIDTH
+        /// write, hardcoded rather than scanned for. They are the wheel the CAR uses -- what it
+        /// rolls on and what it stands at -- which is why a bigger number lifts the car as well
+        /// as filling the arch.
+        /// </summary>
+        private const int Tyre = 0x110;
+        private const int Rim = 0x114;
+        private const int Width = 0x118;
+
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
@@ -166,17 +179,13 @@ namespace VehicleTweaks.Driving
             {
                 _cfg.CamberFront, _cfg.CamberRear, _cfg.TrackFront,
                 _cfg.TrackRear, _cfg.HeightFront, _cfg.HeightRear,
+                _cfg.WheelSize, _cfg.RimSize, _cfg.WheelWidth,
             };
         }
 
         private static bool Flat(float[] values)
         {
-            foreach (var v in values)
-            {
-                if (Math.Abs(v) >= Nothing) return false;
-            }
-
-            return true;
+            return Stances.Flat(values);
         }
 
         /// <summary>Starts holding a car, reading what it came with the first time.</summary>
@@ -295,11 +304,15 @@ namespace VehicleTweaks.Driving
             _cfg.TrackRear = kept[3];
             _cfg.HeightFront = kept[4];
             _cfg.HeightRear = kept[5];
+            _cfg.WheelSize = kept[6];
+            _cfg.RimSize = kept[7];
+            _cfg.WheelWidth = kept[8];
 
             Log.Info("Stance: gave back the stance remembered for " + whose + " -- camber " +
                      kept[0].ToString("0.0") + " / " + kept[1].ToString("0.0") + " deg, track " +
                      kept[2].ToString("0.00") + " / " + kept[3].ToString("0.00") + " m, height " +
-                     kept[4].ToString("0.00") + " / " + kept[5].ToString("0.00") + ".");
+                     kept[4].ToString("0.00") + " / " + kept[5].ToString("0.00") +
+                     ", wheels x" + kept[6].ToString("0.00") + ".");
         }
 
         /// <summary>
@@ -357,8 +370,12 @@ namespace VehicleTweaks.Driving
 
                     var camber = Read(at, Camber);
                     var track = Read(at, Track);
+                    var tyre = Read(at, Tyre);
+                    var rim = Read(at, Rim);
+                    var wide = Read(at, Width);
 
-                    if (!Sound(camber) || !Sound(track))
+                    if (!Sound(camber) || !Sound(track) || !Sound(tyre) || !Sound(rim) ||
+                        !Sound(wide))
                     {
                         Log.Once("stance-address", "Wheel " + wheel.BoneId + " does not read like " +
                                                    "a wheel (" + camber + ", " + track + "), so " +
@@ -371,7 +388,7 @@ namespace VehicleTweaks.Driving
                     try { raise = wheel.GetHydraulicSuspensionRaiseFactor(); }
                     catch { /* nought is the right assumption and the right thing to put back */ }
 
-                    stock[(int)wheel.BoneId] = new[] { camber, track, raise };
+                    stock[(int)wheel.BoneId] = new[] { camber, track, raise, tyre, rim, wide };
                 }
             }
             catch (Exception ex)
@@ -416,6 +433,14 @@ namespace VehicleTweaks.Driving
                     Write(at, Camber, camber);
                     Write(at, CamberBack, -camber);
                     Write(at, Track, stock[1] - side * wide);
+
+                    // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
+                    // Five centimetres of camber means the same thing on a Panto and on a
+                    // Barracks; five centimetres of tyre does not. A size is a proportion of what
+                    // was there, so it is written as one.
+                    Write(at, Tyre, stock[3] * held.Values[6]);
+                    Write(at, Rim, stock[4] * held.Values[7]);
+                    Write(at, Width, stock[5] * held.Values[8]);
 
                     try { wheel.SetHydraulicSuspensionRaiseFactor(stock[2] + up); }
                     catch { /* the one part of this the car is allowed to refuse */ }
@@ -487,6 +512,7 @@ namespace VehicleTweaks.Driving
         private static readonly string[] Decors =
         {
             "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
+            "vt_size", "vt_rim", "vt_width",
         };
 
         private static bool _registered;
@@ -515,10 +541,16 @@ namespace VehicleTweaks.Driving
             {
                 if (!Function.Call<bool>(Hash.DECOR_EXIST_ON, car, Decors[0])) return null;
 
-                var kept = new float[Stances.Values];
+                // EACH ONE ASKED FOR SEPARATELY, and a missing one left at what it means as
+                // stock. A car stanced before the wheel sizes existed carries six decorators,
+                // and reading the seventh as the nought the game hands back for an absent one
+                // would shrink its wheels to nothing the moment it was picked up again.
+                var kept = (float[])Stances.Stock.Clone();
 
                 for (var i = 0; i < Decors.Length; i++)
                 {
+                    if (!Function.Call<bool>(Hash.DECOR_EXIST_ON, car, Decors[i])) continue;
+
                     kept[i] = Function.Call<float>(Hash.DECOR_GET_FLOAT, car, Decors[i]);
                 }
 
