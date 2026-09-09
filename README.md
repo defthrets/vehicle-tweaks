@@ -131,11 +131,15 @@ a number drew a slider *and* the figure. Two objects per row in two columns — 
 was ragged, because a pill and a track are not the same width. The word is the exact half and the
 picture is the quick half, and a settings row does want both; it does not want them in two places.
 
-The word on a filled chip is drawn **without the outline**, and that took a second pass to find:
-`Draw.Text` sets a drop shadow and an outline by default and both of them draw in *black*, which is
-right for pale text on a dark panel and is a black halo round a near-black `ON` sitting on amber —
-at that size, a chip filled in solid. Everything else on the panel is light on dark and wants the
-outline; the chip is the one caller that does not.
+**The word in the chip is never dark**, and that took two passes to get right. The first chip was a
+solid amber block with a near-black `ON` in it — correct contrast on paper, a black smudge on
+screen. At this size, in this font, the game does not render dark letters cleanly on a light field;
+the black outline and drop shadow it puts round text made it worse, and turning those off was not
+enough. So the state moved off the word and *under* it: an amber bar along the bottom edge of the
+chip says on, the word goes amber with it, and off is the same block with a grey word and no bar.
+The bar's width is the fraction rather than a flag, so a switch caught mid-change still slides. The
+chip itself is *lighter* than the panel, not darker — on a near-black ground a dark block reads as a
+hole rather than as something you can work.
 
 So the word lives **inside** the switch now — one chip, filled amber for on, a hole in the panel for
 off — and every chip is the same width, so the panel has a single right-hand edge to read down. The

@@ -137,7 +137,7 @@ namespace VehicleTweaks.UI
 
         // How big, as fractions of the screen.
         private const float PanelW = 0.278f * Zoom;
-        private const float TitleH = 0.080f * Zoom;
+        private const float TitleH = 0.098f * Zoom;
         private const float RowH = 0.0360f * Zoom;
         private const float FootH = 0.052f * Zoom;
 
@@ -2148,7 +2148,7 @@ namespace VehicleTweaks.UI
             // beside its icon and squash the other eight; the title bar has a whole line spare to
             // the right of the title, and a name on its own line reads as a heading rather than
             // as a wider tab.
-            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0118f * Zoom, TabText * 1.05f,
+            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0175f * Zoom, TabText * 1.05f,
                       Fade(Color.FromArgb(215, 232, 228, 231)), Plain, false, true);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
@@ -2371,11 +2371,23 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// A chip: a small filled block with a word centred in it.
+        /// A chip: a small block, a word in it, and an amber bar under the word when it is on.
         ///
-        /// The fill is a fraction rather than a flag, so a switch can be caught halfway between
-        /// off and on. The word is drawn dark on the filled part and grey on the empty one, and
-        /// the whole of it goes through Fade with the panel.
+        /// THE WORD IS NEVER DARK, AND THAT IS THE WHOLE OF THIS. The chip was a solid amber
+        /// block with a near-black ON in it, which is correct contrast on paper and a black
+        /// smudge on screen: at this size, in this font, the game does not render dark letters
+        /// cleanly on a light field -- the black outline and drop shadow it puts round text made
+        /// it worse, and turning those off was not enough. Everything else on this panel is pale
+        /// text on a dark ground because that is what the engine is good at, and the chip is no
+        /// longer the exception.
+        ///
+        /// SO THE STATE MOVED OFF THE WORD AND UNDER IT. An amber bar along the bottom edge says
+        /// on, the word itself goes amber with it, and off is the same block with a grey word and
+        /// no bar. The bar's width is the fraction rather than a flag, so a switch caught
+        /// mid-change still shows it sliding.
+        ///
+        /// A BLOCK LIGHTER THAN THE PANEL, not darker: a chip is something you can work, and on a
+        /// near-black panel a darker block reads as a hole rather than as a control.
         /// </summary>
         private void Chip(string text, float right, float rowY, float ty, float part, bool live,
                           bool door)
@@ -2386,30 +2398,24 @@ namespace VehicleTweaks.UI
             if (part > 1f) part = 1f;
             if (part < 0f) part = 0f;
 
-            // The empty state is a hole in the panel rather than a lighter block on it: a chip
-            // that is OFF should read as nothing happening, and light means something happening.
-            Draw.Bar(x, top, ChipW, ChipH, Fade(Color.FromArgb(live ? 150 : 90, 0, 0, 0)));
-            Draw.Bar(x, top, ChipW, Hair * 0.6f,
-                     Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
+            Draw.Bar(x, top, ChipW, ChipH, Fade(Color.FromArgb(live ? 20 : 10, 255, 255, 255)));
 
             if (part > 0f)
             {
-                Draw.Bar(x, top, ChipW * part, ChipH,
+                var bar = 0.0016f * Zoom;
+
+                Draw.Bar(x, top + ChipH - bar, ChipW * part, bar,
                          Fade(Color.FromArgb(live ? 235 : 110, 245, 196, 60)));
             }
 
             var lit = door || part > 0.5f;
 
-            var ink = lit ? Color.FromArgb(255, 20, 18, 12)
-                          : Color.FromArgb(live ? 190 : 110, 150, 150, 156);
+            var ink = lit ? Color.FromArgb(live ? 255 : 120, 245, 196, 60)
+                          : Color.FromArgb(live ? 195 : 110, 150, 150, 156);
 
-            // NO OUTLINE ON THE DARK WORD, WHICH IS WHY THE CHIPS LOOKED BLACK. Draw.Text sets a
-            // drop shadow and an outline by default and BOTH OF THEM DRAW IN BLACK -- right for
-            // pale text on a dark panel, and for a near-black ON sat on amber it is a black halo
-            // round black letters, which at this size is a solid black smudge. The switch to
-            // turn them off was already there and this is the one caller that needs it.
-            Draw.Text(text, x + ChipW * 0.5f, ty, RowText * 0.92f, Fade(ink), Plain, true, false,
-                      !lit);
+            // The outline comes back with the pale word: it is a black edge, which is what makes
+            // pale text legible over whatever the panel happens to be sitting on.
+            Draw.Text(text, x + ChipW * 0.5f, ty, RowText * 0.92f, Fade(ink), Plain, true);
         }
 
         /// <summary>
@@ -2492,9 +2498,8 @@ namespace VehicleTweaks.UI
             var x = right - w - pad * 2f;
             var top = rowY + (RowH - ChipH) * 0.5f;
 
-            Draw.Bar(x, top, w + pad * 2f, ChipH, Fade(Color.FromArgb(live ? 150 : 90, 0, 0, 0)));
-            Draw.Bar(x, top, w + pad * 2f, Hair * 0.6f,
-                     Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
+            Draw.Bar(x, top, w + pad * 2f, ChipH,
+                     Fade(Color.FromArgb(live ? 20 : 10, 255, 255, 255)));
 
             Draw.Text(text, x + (w + pad * 2f) * 0.5f, ty, RowText, Fade(value), Plain, true);
         }
@@ -2508,8 +2513,8 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Title(float x)
         {
-            var h = 0.0240f * Zoom;
-            var top = PanelTop + 0.0105f * Zoom;
+            var h = 0.0250f * Zoom;
+            var top = PanelTop + 0.0150f * Zoom;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
@@ -2562,7 +2567,7 @@ namespace VehicleTweaks.UI
             var cellAcross = cell / Aspect();
             var iconW = 7f * cellAcross;
 
-            var y = PanelTop + 0.0430f * Zoom;
+            var y = PanelTop + 0.0560f * Zoom;
 
             // GROUPED AND CENTRED, NOT STRETCHED EDGE TO EDGE. Nine icons pushed to the corners
             // of the panel with the gaps taking up more room than the icons read as nine
