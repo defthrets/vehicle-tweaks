@@ -263,6 +263,32 @@ list, and a row cycling through three hundred and sixty of them would not be a m
 the ini, and the log says what each resolved to at start-up — including, loudly, when it could
 not.
 
+## Brake lights that flash when you stand on it
+
+The **emergency stop signal** — a real thing rather than a game effect. UN regulation ECE R48 lets a
+car flash its stop lamps under heavy braking at four hertz give or take one, and most of what has
+come out of Europe since about 2005 does. The point is the driver *behind*: a steady red lamp says
+"slowing", and by the time they have worked out how fast, the gap has gone. A flashing one says now.
+
+**It fires on the car actually slowing down, not on a key.** The obvious way to build this is a key
+combination — hold brake and handbrake, flash the lights — and that is a different feature wearing
+this one's name, because it fires when you *ask* rather than when you brake hard, which is the one
+moment your hands are busy. The speed is already sampled every frame for the speedometer, so the
+deceleration is free: the difference between two samples over the time between them. Standing on the
+brakes in a road car is around 8 m/s². Lifting off is one or two. The default threshold is **6**,
+above 50 km/h, which sits above anything you do on purpose and below anything you do by accident.
+
+**A crash is not braking.** A wall stops a car an order of magnitude harder than a tyre can, so a
+sample over the ceiling is *thrown away* rather than clamped — an impact reads as no deceleration at
+all instead of as the hardest braking ever recorded. What is left is smoothed, because one frame of
+suspension noise is not a stop either. It lets go at half the force it takes hold at, so a stop that
+is still a hard stop keeps flashing instead of stuttering as the number wobbles over the line.
+
+**Timed in milliseconds, not frames.** The flash phase comes off the game clock, so it blinks at the
+rate the setting says at 30 fps and at 144 — the bug every version of this in every game has had at
+least once. Nothing is forced between flashes: the game goes back to deciding, which it does
+correctly, so there is nothing to hand back when it ends.
+
 ## The car spawner — F7
 
 Every vehicle in the game, browsable by class, with a picture of the highlighted one.

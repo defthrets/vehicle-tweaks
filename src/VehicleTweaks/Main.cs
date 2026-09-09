@@ -52,6 +52,7 @@ namespace VehicleTweaks
         private readonly Lowrider _lowrider;
         private readonly Crashes _crashes;
         private readonly Repairs _repairs;
+        private readonly BrakeLights _brakes;
         private readonly DriftTyres _drift;
         private readonly Parked _myCar;
         private readonly Stations _stations;
@@ -83,6 +84,7 @@ namespace VehicleTweaks
             _lowrider = new Lowrider(_cfg);
             _crashes = new Crashes(_cfg);
             _repairs = new Repairs(_cfg);
+            _brakes = new BrakeLights(_cfg);
             _drift = new DriftTyres(_cfg);
             _myCar = new Parked(_cfg);
             _stations = new Stations(_cfg);
@@ -167,6 +169,7 @@ namespace VehicleTweaks
                     _lowrider.Update(me);
                     _crashes.Update(me);
                     _repairs.Update(me);
+                    _brakes.Update(me);
                     _drift.Update(me);
                     _myCar.Update(me);
                     _stations.Update(me);

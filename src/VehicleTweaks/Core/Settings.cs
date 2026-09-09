@@ -1020,6 +1020,43 @@ namespace VehicleTweaks.Core
         public string PadHazard = "PhoneDown";
 
         /// <summary>
+        /// The brake lights flash under heavy braking, the way a modern car's do.
+        ///
+        /// ON. It is what the car in front of you would do if it were a real one, it costs
+        /// nothing, and it is the one thing on this page that is about the driver BEHIND you.
+        /// UN regulation ECE R48 calls it the emergency stop signal.
+        /// </summary>
+        public bool BrakeLights = true;
+
+        /// <summary>
+        /// How hard is hard, in metres per second per second.
+        ///
+        /// SIX, WHICH IS A GENUINELY HARD STOP AND NOT A PANIC ONE. A road car on dry tarmac
+        /// manages nine or ten flat out; ordinary braking for a junction is two or three. Six
+        /// sits above anything you do on purpose and below anything you do by accident, which
+        /// is roughly where the regulation puts it.
+        /// </summary>
+        public float BrakeFlashForce = 6f;
+
+        /// <summary>
+        /// The speed you have to be doing, in metres per second.
+        ///
+        /// FOURTEEN, WHICH IS FIFTY KILOMETRES AN HOUR. Below that a hard stop is a short one
+        /// and there is nobody to warn; the regulation says much the same, and it keeps the
+        /// lights from strobing every time you shuffle out of a parking space.
+        /// </summary>
+        public float BrakeFlashSpeed = 14f;
+
+        /// <summary>
+        /// Flashes a second.
+        ///
+        /// FOUR. The regulation allows four give or take one, and there is a reason for the
+        /// narrow window: slower than that reads as a fault, and faster reads as a strobe and
+        /// stops meaning "brake" to the eye behind it.
+        /// </summary>
+        public float BrakeFlashRate = 4f;
+
+        /// <summary>
         /// Swap which way the SIGNED steering axis reads.
         ///
         /// Only used on setups where the one-sided steering controls report nothing; the normal
@@ -1164,6 +1201,11 @@ namespace VehicleTweaks.Core
 
                 s.HazardKey = ini.GetKey("Indicators", "HazardKey", s.HazardKey);
                 s.PadHazard = ini.GetString("Indicators", "PadHazard", s.PadHazard);
+
+                s.BrakeLights = ini.GetBool("Indicators", "BrakeLights", s.BrakeLights);
+                s.BrakeFlashForce = ini.GetFloat("Indicators", "BrakeFlashForce", s.BrakeFlashForce, 2f, 15f);
+                s.BrakeFlashSpeed = ini.GetFloat("Indicators", "BrakeFlashSpeed", s.BrakeFlashSpeed, 0f, 60f);
+                s.BrakeFlashRate = ini.GetFloat("Indicators", "BrakeFlashRate", s.BrakeFlashRate, 1f, 12f);
             }
             catch (Exception ex)
             {

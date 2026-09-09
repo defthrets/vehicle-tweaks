@@ -1154,10 +1154,36 @@ namespace VehicleTweaks.UI
 
             ind.Items.Add(Header("HAZARDS"));
 
+            // NOT GATED ON THE STALK. The hazards deliberately keep working with the steering
+            // indicators switched off -- see Blinkers -- so greying this row said the opposite
+            // of what the code does, which is the confusion that got them reported as stuck.
             ind.Items.Add(Bind("Hazards key", () => _cfg.HazardKey, v => _cfg.HazardKey = v,
                                "Indicators", "HazardKey",
-                               "Both sides at once. On a pad it is the modifier and D-pad down.",
-                               () => _cfg.Blinkers));
+                               "Both sides at once. On a pad it is the modifier and D-pad down."));
+
+            ind.Items.Add(Header("THE BRAKE LIGHTS"));
+
+            ind.Items.Add(Toggle("Flash under heavy braking", () => _cfg.BrakeLights,
+                                 v => _cfg.BrakeLights = v, "Indicators", "BrakeLights",
+                                 "What a modern car does to warn the driver behind."));
+
+            ind.Items.Add(Number("Counts as heavy above", () => _cfg.BrakeFlashForce,
+                                 v => _cfg.BrakeFlashForce = v, 0.5f, 2f, 15f, "0.0", "m/s2",
+                                 "Indicators", "BrakeFlashForce",
+                                 "Hard braking is about 8. Slowing for a junction is 2 or 3.",
+                                 () => _cfg.BrakeLights));
+
+            ind.Items.Add(Number("And only above", () => _cfg.BrakeFlashSpeed,
+                                 v => _cfg.BrakeFlashSpeed = v, 1f, 0f, 60f, "0", "m/s",
+                                 "Indicators", "BrakeFlashSpeed",
+                                 "14 m/s is 50 km/h. Below it there is nobody to warn.",
+                                 () => _cfg.BrakeLights));
+
+            ind.Items.Add(Number("Flashes a second", () => _cfg.BrakeFlashRate,
+                                 v => _cfg.BrakeFlashRate = v, 0.5f, 1f, 12f, "0.0", "Hz",
+                                 "Indicators", "BrakeFlashRate",
+                                 "4 is the legal rate. Faster reads as a strobe, not a brake.",
+                                 () => _cfg.BrakeLights));
 
             var speed = Add("SPEEDO", IconGauge);
 
