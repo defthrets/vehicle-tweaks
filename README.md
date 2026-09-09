@@ -56,17 +56,17 @@ same time, which is exactly why a real car puts hazards on a separate switch rat
 stalk. They belong to the car, not to you — leave one on its hazards and it is still on them
 when you come back.
 
-## Settings panel — F12
+## Settings panel — F5
 
 Everything is on one panel, in the game, drawn out of rectangles with no UI library behind it.
 
 | | keyboard | controller |
 |---|---|---|
-| open / close | `F12` | hold **R3**, press **D-pad left** |
+| open / close | `F5` | hold **R3**, press **D-pad left** |
 | move | `UP` `DOWN` | **D-pad up / down** |
 | change a setting | `LEFT` `RIGHT` | **D-pad left / right** |
 | work a row | `ENTER` | **A** |
-| save and close | `BACKSPACE` or `F12` | **B** |
+| save and close | `BACKSPACE` or `F5` | **B** |
 | jump to a page | `TAB` | **LB** / **RB** |
 
 **Seven pages**, grouped by *when* a setting applies rather than by which feature owns it:

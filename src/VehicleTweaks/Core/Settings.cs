@@ -88,25 +88,21 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// The key that opens the settings panel, and what has to be held with it.
         ///
-        /// NO MODIFIER, BECAUSE A FUNCTION KEY DOES NOT NEED ONE. A modifier is what a LETTER needs: a bare
-        /// letter is one keystroke from whatever else the player has bound it to, this game has
-        /// mods on most of the alphabet, and the vanilla letters are all spoken for -- V, the
-        /// obvious first choice for a vehicle mod, is the camera key. A function key is none of
-        /// those things. Vanilla binds nothing to F12, so there is no conflict for a modifier to
-        /// resolve, and adding one would only make the panel harder to open than it needs to be.
+        /// NO MODIFIER, BECAUSE A FUNCTION KEY DOES NOT NEED ONE. A modifier is what a LETTER
+        /// needs: a bare letter is one keystroke from whatever else the player has bound it to,
+        /// this game has mods on most of the alphabet, and the vanilla letters are all spoken for
+        /// -- V, the obvious first choice for a vehicle mod, is the camera key. A function key is
+        /// none of those things. Vanilla binds nothing to F5, so there is no conflict for a
+        /// modifier to resolve, and adding one would only make the panel harder to open.
         ///
-        /// Both halves stay configurable, and both are rows in the panel, so a player whose
-        /// other mods have claimed F12 can move it without touching this file.
-        /// </summary>
-        /// <summary>
-        /// F12, HAVING BEEN F10 AND F8 BEFORE THAT. F8 is what Menyoo opens on out of the box,
-        /// and a panel that opens underneath another mod's menu is a panel nobody can read. The
-        /// game binds nothing to any of the three.
+        /// F5, AND THIS ONE IS NOT A GUESS. It went F8, F10, F12 and then here inside a day, each
+        /// move chasing a clash with something else installed: F8 is what Menyoo opens on out of
+        /// the box, and F12 is Steam's screenshot key, which the overlay takes as well as passing
+        /// on. F5 is where this mod sits in a layout that hands out all twelve function keys at
+        /// once, so it is free by construction rather than by luck.
         ///
-        /// WORTH KNOWING: F12 IS STEAM'S SCREENSHOT KEY. Steam's overlay takes the press as well
-        /// as passing it on, so opening the panel on a Steam copy also drops a screenshot in the
-        /// library every time. That is the one cost, it is a real one, and it is undone either in
-        /// Steam's in-game settings or by putting another key in here.
+        /// Both halves stay configurable, and both are rows in the panel, so a player whose other
+        /// mods have claimed F5 can move it without touching this file.
         /// </summary>
         public Keys MenuKey = Keys.F5;
         public MenuModifier MenuModifier = MenuModifier.None;
@@ -875,7 +871,7 @@ namespace VehicleTweaks.Core
         ///
         /// THIS ONE, BECAUSE IT IS THE ONE WITH A DOOR ALREADY. The spawner is the first row of
         /// the DRIVING page, which is where the highlight lands when this mod's panel opens on
-        /// F10 -- so it is reachable in two keystrokes without a binding of its own, and that row
+        /// F5 -- so it is reachable in two keystrokes without a binding of its own, and that row
         /// is also the only route a pad has ever had to it. A second key was a shortcut, and a
         /// shortcut is exactly the thing to give up when a key is contested.
         ///
