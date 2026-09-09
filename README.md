@@ -107,15 +107,46 @@ slot ScriptHookV would have kept showing is overwritten with nothing.
 
 ### The title
 
-"Vehicle Tweaks" is set in blackletter — UnifrakturCook, the same face Fumes keeps in its tools. The
-game has no such font: `SET_TEXT_FONT` offers Chalet, House Script, Pricedown and a monospace, and
-none is a Fraktur. So the title is rendered once, outside the game, to a white-on-transparent PNG
-in `assets\`, and drawn through `CustomSprite` — the same path Fumes draws its pump with, and the
-only way a font the game does not have can ship in a `scripts\` folder at all. Deploy copies it
-beside the log; the colour is applied at draw time so it fades with the panel; and if the file is
-missing the title falls back to text with one line in the log. It sits a hair above the bar's top
-edge on purpose — a blackletter word is a badge, and a badge that clears the edge it is pinned to
-reads as pinned to it rather than printed on it.
+**"Vehicle Tweaks" is set in Saira** — heaviest weight, widest width, italic: squared off and
+technical, and every letter the shape a person expects it to be.
+
+It was blackletter (UnifrakturCook) first, and that was the right idea badly served by its own
+alphabet. A Fraktur **k** is a shape you have to already know to read, and in a two-word title taken
+in at a glance the one letter nobody could place was the k in *Tweaks*. A wordmark that has to be
+deciphered is not a wordmark.
+
+The game has neither font: `SET_TEXT_FONT` offers Chalet, House Script, Pricedown and a monospace.
+So the title is rendered once, outside the game, to a white-on-transparent PNG in `assets\`, and
+drawn through `CustomSprite` — the same path Fumes draws its pump with, and the only way a font the
+game does not have can ship in a `scripts\` folder at all. Deploy copies it beside the log; the
+colour is applied at draw time so it fades with the panel; and if the file is missing the title
+falls back to text with one line in the log. It sits *inside* the title bar now — the blackletter
+was a badge and stood proud of the edge it was pinned to; an italic wordmark is a name, and a name
+belongs on the line with the page it names.
+
+### One thing on the right of every row
+
+Each row used to say its state **twice**: a switch drew a sliding knob *and* the word ON beside it;
+a number drew a slider *and* the figure. Two objects per row in two columns — and the control column
+was ragged, because a pill and a track are not the same width. The word is the exact half and the
+picture is the quick half, and a settings row does want both; it does not want them in two places.
+
+So the word lives **inside** the switch now — one chip, filled amber for on, a hole in the panel for
+off — and every chip is the same width, so the panel has a single right-hand edge to read down. The
+slider lost its knob, which was the loudest thing on a row whose point is the number. A choice keeps
+its arrows, but they hug the value rather than floating one column away and one off the panel edge.
+A key and a door are the same chip, sized to what they hold.
+
+The caret in front of the selected row is gone too: the amber tint and the bar down the left already
+say which row you are on, and a third mark saying it pushed the label off the line every other row
+sits on.
+
+Headings hang on a rule that starts where their words stop, instead of a bullet with a full-width
+line underneath — a bullet is a list marker and this is not a list, and a line under the words reads
+as a divider belonging to the row below. The tab strip is grouped and centred with the live page on
+a lit block, rather than nine icons pushed to the panel's corners with more gap than icon between
+them. Rows are taller, and every live row's label is brighter: the old grey was legible on a monitor
+two feet away and not from a sofa.
 
 ### Each row drawn as the thing it is
 

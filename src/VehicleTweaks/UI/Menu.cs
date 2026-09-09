@@ -137,23 +137,33 @@ namespace VehicleTweaks.UI
 
         // How big, as fractions of the screen.
         private const float PanelW = 0.262f * Zoom;
-        private const float TitleH = 0.056f * Zoom;
-        private const float RowH = 0.0295f * Zoom;
-        private const float FootH = 0.044f * Zoom;
+        private const float TitleH = 0.062f * Zoom;
+        private const float RowH = 0.0320f * Zoom;
+        private const float FootH = 0.046f * Zoom;
 
         // The margins inside it.
         private const float PadX = 0.012f * Zoom;
-        private const float LabelX = 0.017f * Zoom;
-        private const float ValueX = 0.010f * Zoom;
+        private const float LabelX = 0.014f * Zoom;
+        private const float ValueX = 0.012f * Zoom;
         private const float Hair = 0.0016f * Zoom;
 
         // The pictures on the right of a row: how wide the value's own column is, and the
         // switch and the slider that sit to its left.
-        private const float ValueCol = 0.058f * Zoom;
-        private const float TrackW = 0.050f * Zoom;
-        private const float TrackH = 0.0034f * Zoom;
-        private const float PillW = 0.026f * Zoom;
-        private const float PillH = 0.0115f * Zoom;
+        private const float ValueCol = 0.050f * Zoom;
+        private const float TrackW = 0.040f * Zoom;
+        private const float TrackH = 0.0030f * Zoom;
+
+        /// <summary>
+        /// One width for every chip, so the right-hand edge of the panel is a single line.
+        ///
+        /// A ROW SAID ITS STATE TWICE: a switch with a sliding knob AND the word ON beside it,
+        /// a slider AND the number. Two objects per row, in two columns, with the knob column
+        /// ragged because a pill and a track are not the same width. The word is the exact half
+        /// and the picture is the quick half, so they are now ONE object -- the word inside the
+        /// switch -- and every row has exactly one thing on its right.
+        /// </summary>
+        private const float ChipW = 0.0290f * Zoom;
+        private const float ChipH = RowH * 0.60f;
 
         /// <summary>How far the body steps aside on a page turn, and how fast it settles.</summary>
         private const float Slide = 0.018f * Zoom;
@@ -165,7 +175,7 @@ namespace VehicleTweaks.UI
         private const float TitleText = 0.46f * Zoom;
         private const float TabText = 0.26f * Zoom;
         private const float HeadText = 0.235f * Zoom;
-        private const float RowText = 0.295f * Zoom;
+        private const float RowText = 0.300f * Zoom;
         private const float HintText = 0.255f * Zoom;
         private const float FootText = 0.235f * Zoom;
 
@@ -220,9 +230,15 @@ namespace VehicleTweaks.UI
         /// SET_TEXT_FONT offers, and none of them is a Fraktur. So the title is rendered once,
         /// outside the game, in UnifrakturCook -- the same face Fumes keeps in its tools -- to a
         /// white-on-transparent PNG, and drawn here through the same CustomSprite path Fumes draws
-        /// its pump with. The aspect is the one the render reported: 1308 by 241.
+        /// its pump with. The aspect is the one the render reported: 1689 by 167.
+        ///
+        /// SAIRA, HAVING BEEN A BLACKLETTER. UnifrakturCook was the right idea badly served by
+        /// its own alphabet: a Fraktur k is a shape you have to already know to read, and in a
+        /// two-word title read at a glance the one letter nobody could place was the k in
+        /// Tweaks. This is Saira at its heaviest and widest, italic -- squared off, technical,
+        /// and every letter the shape a person expects it to be.
         /// </summary>
-        private readonly Sprite _title = new Sprite("title.png", 5.4274f);
+        private readonly Sprite _title = new Sprite("title.png", 10.1138f);
 
         /// <summary>The chord that opens this on a pad.</summary>
         private readonly Chord _openChord;
@@ -2106,8 +2122,8 @@ namespace VehicleTweaks.UI
             // beside its icon and squash the other eight; the title bar has a whole line spare to
             // the right of the title, and a name on its own line reads as a heading rather than
             // as a wider tab.
-            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0085f * Zoom, TabText * 1.10f,
-                      Fade(Ink), Plain, false, true);
+            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0062f * Zoom, TabText * 1.05f,
+                      Fade(Color.FromArgb(215, 232, 228, 231)), Plain, false, true);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
             // to the row underneath it; all the names with the current one lit says the same
@@ -2128,21 +2144,17 @@ namespace VehicleTweaks.UI
                 var hy = PanelTop + TitleH + at * RowH;
                 var hh = _rowTall * RowH;
 
-                Draw.Bar(bx, hy, PanelW, hh, Fade(Color.FromArgb(38, 245, 196, 60)));
-                Draw.Bar(bx, hy, 0.0022f * Zoom, hh, Fade(Amber));
+                Draw.Bar(bx, hy, PanelW, hh, Fade(Color.FromArgb(34, 245, 196, 60)));
+                Draw.Bar(bx, hy, 0.0026f * Zoom, hh, Fade(Amber));
 
-                // AN ASCII CARET, because the pretty one does not exist.
-                //
-                // This was U+25B6 BLACK RIGHT-POINTING TRIANGLE, chosen on the house rule of
-                // text symbols over emoji. GTA's Chalet Comprime has no glyph for it and drew
-                // the missing-character box instead -- a small hollow rectangle, which on the
-                // selected row of a settings panel reads as a checkbox. It was decoration and it
-                // survived being wrong, which is exactly why it was made decoration; but a box
-                // that looks like a control is worse than no caret, and ">" is in every font
-                // there has ever been.
-                Draw.Text(">", bx + 0.0055f * Zoom, hy + 0.0052f * Zoom, RowText * 0.88f,
-                          Fade(Amber), Plain);
+                // THE CARET IS GONE, AND THE BAR IS WHY. A tint and an amber edge down the side
+                // already say which row you are on; a ">" in front of the label as well was a
+                // third thing saying it, and it pushed the label off the line every other row
+                // sits on. It had been a triangle before that, which the game's font draws as a
+                // hollow box -- a decoration that looked like a checkbox.
             }
+
+            // THE BODY MOVES ON A PAGE TURN            }
 
             // THE BODY MOVES ON A PAGE TURN, AND DIMS WHILE IT DOES. Everything below the tab
             // strip is drawn a little to one side and faded while _turn eases back to nought, so
@@ -2170,16 +2182,22 @@ namespace VehicleTweaks.UI
 
                 if (kind == Kind.Header)
                 {
-                    // A heading sits low in its row with a square bullet and a hairline under
-                    // it, so the group it opens reads as hanging off it rather than as another
-                    // setting that happens to be in capitals.
-                    var sq = 0.0046f * Zoom;
+                    // A HEADING HUNG ON A RULE THAT STARTS WHERE ITS WORDS STOP. It used to be
+                    // a square bullet and a line that ran the whole width UNDER it -- a bullet
+                    // is a list marker and this is not a list item, and a full-width line under
+                    // the words reads as a divider belonging to the row below.
+                    var hw = Draw.Width(item.Label, HeadText, Plain);
+                    var rule = PanelW - LabelX - PadX - hw - 0.0045f * Zoom;
 
-                    Draw.Bar(bx + PadX, rowY + 0.0102f * Zoom, sq / Aspect(), sq, Fade(Amber));
-                    Draw.Text(item.Label, bx + PadX + sq / Aspect() + 0.0035f * Zoom,
-                              rowY + 0.0082f * Zoom, HeadText, Fade(Amber), Plain);
-                    Draw.Bar(bx + PadX, rowY + RowH - 0.0035f * Zoom, PanelW - PadX * 2f,
-                             0.0011f * Zoom, Fade(Color.FromArgb(45, 245, 196, 60)));
+                    Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0128f * Zoom, HeadText,
+                              Fade(Color.FromArgb(225, 245, 196, 60)), Plain);
+
+                    if (rule > 0f)
+                    {
+                        Draw.Bar(bx + LabelX + hw + 0.0045f * Zoom, rowY + RowH - 0.0072f * Zoom,
+                                 rule, 0.0010f * Zoom, Fade(Color.FromArgb(55, 245, 196, 60)));
+                    }
+
                     continue;
                 }
 
@@ -2190,13 +2208,17 @@ namespace VehicleTweaks.UI
                 // nothing. They stay reachable, because you may be about to turn the thing on.
                 var live = item.Live == null || item.Live();
 
-                var label = selected ? Ink : Color.FromArgb(200, 205, 205, 208);
-                var value = selected ? Amber : Dim;
+                // EVERY LIVE ROW IS READABLE, not only the one you are on. The unselected label
+                // was three-quarters grey against a near-black panel, which is legible on a
+                // monitor two feet away and not from a sofa.
+                var label = selected ? Color.FromArgb(245, 232, 228, 231)
+                                     : Color.FromArgb(205, 232, 228, 231);
+                var value = selected ? Amber : Color.FromArgb(200, 232, 228, 231);
 
                 if (!live)
                 {
-                    label = selected ? Dim : Faint;
-                    value = Faint;
+                    label = selected ? Dim : Color.FromArgb(105, 150, 150, 156);
+                    value = Color.FromArgb(105, 150, 150, 156);
                 }
 
                 // A VALUE LIT FOR A MOMENT AFTER IT CHANGES. On a row whose number moves in
@@ -2205,7 +2227,7 @@ namespace VehicleTweaks.UI
                 // that size. The flash is.
                 if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                var ty = rowY + 0.0044f * Zoom;
+                var ty = rowY + 0.0056f * Zoom;
 
                 Draw.Text(item.Label, bx + LabelX, ty, RowText, Fade(label), Plain);
 
@@ -2218,11 +2240,11 @@ namespace VehicleTweaks.UI
                 // picture is quick, and a settings row wants both.
                 switch (kind)
                 {
-                    case Kind.Toggle: Pill(item, right, rowY, ty, live, value); break;
+                    case Kind.Toggle: Pill(item, right, rowY, ty, live); break;
                     case Kind.Number: Track(item, right, rowY, ty, live, value); break;
                     case Kind.Choice: Chevrons(item, right, ty, selected, value); break;
-                    case Kind.Bind: Keycap(item.Show(), right, rowY, ty, value, false); break;
-                    case Kind.Go: Keycap("OPEN", right, rowY, ty, value, true); break;
+                    case Kind.Bind: Keycap(item.Show(), right, rowY, ty, value, live, false); break;
+                    case Kind.Go: Keycap("OPEN", right, rowY, ty, value, true, true); break;
 
                     default:
                         Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
@@ -2246,7 +2268,7 @@ namespace VehicleTweaks.UI
 
             var foot = PanelTop + TitleH + bodyH;
 
-            Draw.Bar(x, foot, PanelW, Hair, Fade(Color.FromArgb(70, 255, 255, 255)));
+            Draw.Bar(x, foot, PanelW, 0.0010f * Zoom, Fade(Color.FromArgb(55, 255, 255, 255)));
 
             // The hint for the selected row, cut to the panel rather than run out across the
             // game. Falls back to the controls when a row has nothing to say for itself.
@@ -2266,7 +2288,8 @@ namespace VehicleTweaks.UI
             if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
             Draw.Text(Draw.Ellipsis(hint, HintText, PanelW - PadX * 2f, Plain),
-                      x + PadX, foot + 0.008f * Zoom, HintText, Fade(Dim), Plain);
+                      x + PadX, foot + 0.0085f * Zoom, HintText,
+                      Fade(Color.FromArgb(180, 232, 228, 231)), Plain);
 
             // THE CONTROLS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and
             // BACKSPACE to somebody holding a pad is worse than no footer: they are the two
@@ -2276,7 +2299,8 @@ namespace VehicleTweaks.UI
                                  ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
                                  : "D-PAD move & change   A works a row   B saves & closes")
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
-                      x + PadX, foot + 0.026f * Zoom, FootText, Fade(Faint), Plain);
+                      x + PadX, foot + 0.0270f * Zoom, FootText,
+                      Fade(Color.FromArgb(130, 150, 150, 156)), Plain);
         }
 
         /// <summary>
@@ -2297,13 +2321,18 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// A switch: a pill with a knob that slides to the side it is on.
+        /// A switch: the word, inside a chip that fills when it is on.
         ///
-        /// THE KNOB TRAVELS rather than jumping, eased on the row itself so every switch keeps
-        /// its own place mid-slide. Amber is on. The word beside it stays, because a knob on the
-        /// right of a pill is "on" in some countries and "off" in others and the word is exact.
+        /// ONE OBJECT, NOT TWO. It was a sliding knob AND the word beside it -- the knob being
+        /// the quick half and the word the exact half, on the argument that a settings row wants
+        /// both. It does; it does not want them in two places. The word lives in the chip now,
+        /// so the state is legible at a glance from the fill and unambiguous up close from the
+        /// letters, and the chip is one width on every row so the panel has one right-hand edge.
+        ///
+        /// THE FILL EASES rather than snapping, kept on the row itself so every switch holds its
+        /// own place mid-change.
         /// </summary>
-        private void Pill(Item item, float right, float rowY, float ty, bool live, Color value)
+        private void Pill(Item item, float right, float rowY, float ty, bool live)
         {
             var on = false;
 
@@ -2312,22 +2341,42 @@ namespace VehicleTweaks.UI
 
             item.Anim = Toward(item.Anim, on ? 1f : 0f, KnobTau, Delta());
 
-            var px = right - ValueCol - PillW;
-            var py = rowY + (RowH - PillH) * 0.5f;
+            Chip(item.Show(), right, rowY, ty, item.Anim, live, false);
+        }
 
-            var track = on ? Color.FromArgb(150, 245, 196, 60) : Color.FromArgb(60, 255, 255, 255);
-            if (!live) track = Color.FromArgb(track.A / 2, track.R, track.G, track.B);
+        /// <summary>
+        /// A chip: a small filled block with a word centred in it.
+        ///
+        /// The fill is a fraction rather than a flag, so a switch can be caught halfway between
+        /// off and on. The word is drawn dark on the filled part and grey on the empty one, and
+        /// the whole of it goes through Fade with the panel.
+        /// </summary>
+        private void Chip(string text, float right, float rowY, float ty, float part, bool live,
+                          bool door)
+        {
+            var x = right - ChipW;
+            var top = rowY + (RowH - ChipH) * 0.5f;
 
-            Draw.Bar(px, py, PillW, PillH, Fade(track));
+            if (part > 1f) part = 1f;
+            if (part < 0f) part = 0f;
 
-            var pad = PillH * 0.16f;
-            var kh = PillH - pad * 2f;
-            var kw = kh / Aspect();
-            var kx = px + pad / Aspect() + (PillW - kw - pad * 2f / Aspect()) * item.Anim;
+            // The empty state is a hole in the panel rather than a lighter block on it: a chip
+            // that is OFF should read as nothing happening, and light means something happening.
+            Draw.Bar(x, top, ChipW, ChipH, Fade(Color.FromArgb(live ? 150 : 90, 0, 0, 0)));
+            Draw.Bar(x, top, ChipW, Hair * 0.6f,
+                     Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
 
-            Draw.Bar(kx, py + pad, kw, kh, Fade(live ? (on ? Ink : Dim) : Faint));
+            if (part > 0f)
+            {
+                Draw.Bar(x, top, ChipW * part, ChipH,
+                         Fade(Color.FromArgb(live ? 235 : 110, 245, 196, 60)));
+            }
 
-            Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+            var lit = part > 0.5f;
+            var ink = door || lit ? Color.FromArgb(255, 20, 18, 12)
+                                  : Color.FromArgb(live ? 190 : 110, 150, 150, 156);
+
+            Draw.Text(text, x + ChipW * 0.5f, ty, RowText * 0.92f, Fade(ink), Plain, true);
         }
 
         /// <summary>
@@ -2356,14 +2405,13 @@ namespace VehicleTweaks.UI
             var tx = right - ValueCol - TrackW;
             var tyy = rowY + (RowH - TrackH) * 0.5f;
 
-            Draw.Bar(tx, tyy, TrackW, TrackH, Fade(Color.FromArgb(live ? 45 : 25, 255, 255, 255)));
-            Draw.Bar(tx, tyy, TrackW * item.Anim, TrackH, Fade(live ? value : Faint));
+            Draw.Bar(tx, tyy, TrackW, TrackH, Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
+            Draw.Bar(tx, tyy, TrackW * item.Anim, TrackH,
+                     Fade(Color.FromArgb(live ? 225 : 90, 245, 196, 60)));
 
-            var tick = 0.0014f * Zoom;
-
-            Draw.Bar(tx + TrackW * item.Anim - tick * 0.5f, tyy - TrackH * 0.9f, tick, TrackH * 2.8f,
-                     Fade(live ? Ink : Faint));
-
+            // THE KNOB IS GONE. A tick standing three times the height of the track was the
+            // loudest thing on a row whose point is the number, and the end of the fill already
+            // says where the value sits.
             Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
         }
 
@@ -2375,11 +2423,17 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Chevrons(Item item, float right, float ty, bool selected, Color value)
         {
-            var arrow = selected ? Amber : Faint;
+            // THE ARROWS HUG THE VALUE. They used to sit one at a fixed column away on the left
+            // and one off the panel's right edge, so a three-letter value floated between two
+            // marks that belonged to nothing. They are a pair of hands on this value.
+            var arrow = selected ? Amber : Color.FromArgb(120, 150, 150, 156);
+            var gap = 0.0075f * Zoom;
+            var wide = Draw.Width(item.Show(), RowText, Plain);
 
-            Draw.Text("<", right - ValueCol, ty, RowText, Fade(arrow), Plain, false, true);
-            Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
-            Draw.Text(">", right + 0.0012f * Zoom, ty, RowText, Fade(arrow), Plain);
+            Draw.Text(">", right, ty, RowText * 0.9f, Fade(arrow), Plain, false, true);
+            Draw.Text(item.Show(), right - gap, ty, RowText, Fade(value), Plain, false, true);
+            Draw.Text("<", right - gap - wide - 0.0030f * Zoom, ty, RowText * 0.9f, Fade(arrow),
+                      Plain, false, true);
         }
 
         /// <summary>
@@ -2388,41 +2442,47 @@ namespace VehicleTweaks.UI
         /// Also used for the one row that opens something rather than holding a value, lit
         /// amber, so a door reads as a button and not as a setting whose value is "OPEN".
         /// </summary>
-        private void Keycap(string text, float right, float rowY, float ty, Color value, bool door)
+        private void Keycap(string text, float right, float rowY, float ty, Color value, bool live,
+                            bool door)
         {
-            var w = Draw.Width(text, RowText, Plain);
-            var pad = 0.0042f * Zoom;
-            var h = RowH * 0.80f;
-            var top = rowY + (RowH - h) * 0.5f;
+            // A DOOR IS A CHIP, because a door is a button and the chip is what a button looks
+            // like on this panel now. A key is the same chip sized to the key's own name, so
+            // OEM_PERIOD is not squeezed into the width of "I".
+            if (door)
+            {
+                Chip(text, right, rowY, ty, 1f, true, true);
+                return;
+            }
 
-            var edge = door ? Color.FromArgb(160, 245, 196, 60) : Color.FromArgb(70, 255, 255, 255);
-            var face = door ? Color.FromArgb(70, 245, 196, 60) : Color.FromArgb(120, 0, 0, 0);
+            var w = Math.Max(Draw.Width(text, RowText, Plain), ChipW * 0.55f);
+            var pad = 0.0045f * Zoom;
+            var x = right - w - pad * 2f;
+            var top = rowY + (RowH - ChipH) * 0.5f;
 
-            Draw.Bar(right - w - pad * 2f, top, w + pad * 2f, h, Fade(edge));
-            Draw.Bar(right - w - pad * 2f + Hair / 2f, top + Hair / 2f, w + pad * 2f - Hair, h - Hair,
-                     Fade(face));
+            Draw.Bar(x, top, w + pad * 2f, ChipH, Fade(Color.FromArgb(live ? 150 : 90, 0, 0, 0)));
+            Draw.Bar(x, top, w + pad * 2f, Hair * 0.6f,
+                     Fade(Color.FromArgb(live ? 55 : 25, 255, 255, 255)));
 
-            Draw.Text(text, right - pad, ty, RowText, Fade(door ? Ink : value), Plain, false, true);
+            Draw.Text(text, x + (w + pad * 2f) * 0.5f, ty, RowText, Fade(value), Plain, true);
         }
 
         /// <summary>
         /// The title, drawn as the picture when there is one and as text when there is not.
         ///
-        /// A TOUCH ABOVE THE BAR'S TOP EDGE, on purpose. Text sat inside the bar because text has
-        /// to; a blackletter word is a badge, and a badge that clears the edge it is pinned to by
-        /// a hair reads as pinned to it rather than printed on it. Its colour goes through Fade,
-        /// so it arrives and leaves with the panel the same as everything else does.
+        /// INSIDE THE BAR NOW. The blackletter was a badge and sat proud of the edge it was
+        /// pinned to; an italic wordmark is a name, and a name belongs on the line with the page
+        /// it names. Its colour goes through Fade, so it arrives and leaves with the panel.
         /// </summary>
         private void Title(float x)
         {
-            var h = 0.032f * Zoom;
-            var top = PanelTop - 0.0060f * Zoom;
+            var h = 0.0225f * Zoom;
+            var top = PanelTop + 0.0055f * Zoom;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
             var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
 
-            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.005f * Zoom, titleScale,
+            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.007f * Zoom, titleScale,
                       Fade(Amber), Plain);
         }
 
@@ -2465,20 +2525,37 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Tabs()
         {
-            var cell = 0.0028f * Zoom;
+            var cell = 0.0032f * Zoom;
             var cellAcross = cell / Aspect();
             var iconW = 7f * cellAcross;
 
-            var left = _drawX + PadX;
-            var right = _drawX + PanelW - PadX;
             var y = PanelTop + 0.0300f * Zoom;
 
+            // GROUPED AND CENTRED, NOT STRETCHED EDGE TO EDGE. Nine icons pushed to the corners
+            // of the panel with the gaps taking up more room than the icons read as nine
+            // unrelated marks; a row of them with an even, deliberate gap reads as one strip of
+            // pages. The gap is a fixed distance now rather than whatever is left over, so
+            // adding a page moves the strip instead of respacing every icon in it.
             var n = _pages.Count;
-            var gap = n > 1 ? (right - left - n * iconW) / (n - 1) : 0f;
-            if (gap < 0f) gap = 0f;
+            var gap = 0.0052f * Zoom / Aspect();
+            var span = n * iconW + (n > 1 ? (n - 1) * gap : 0f);
+            var left = _drawX + (PanelW - span) * 0.5f;
 
             var x = left;
             var wantX = left;
+
+            // THE PLACE, NOT A LINE UNDER IT. An underline is a fifth small mark on a strip of
+            // small marks; a lit block behind the icon says "you are here" without adding
+            // anything to read. Drawn from where the ease had got to LAST frame, because that is
+            // the only way it can sit behind what this loop is about to draw -- and a frame of
+            // lag on a block that takes sixty milliseconds to slide is not a thing anyone sees.
+            if (_tabWide > 0f)
+            {
+                var chip = 0.0022f * Zoom;
+
+                Draw.Bar(_tabAt - chip / Aspect(), y - chip, _tabWide + chip * 2f / Aspect(),
+                         7f * cell + chip * 2f, Fade(Color.FromArgb(42, 245, 196, 60)));
+            }
 
             for (var i = 0; i < n; i++)
             {
@@ -2511,7 +2588,6 @@ namespace VehicleTweaks.UI
                 _tabWide = Toward(_tabWide, iconW, TabTau, dt);
             }
 
-            Draw.Bar(_tabAt, y + 7f * cell + 0.0024f * Zoom, _tabWide, Hair, Fade(Amber));
         }
 
         /// <summary>
