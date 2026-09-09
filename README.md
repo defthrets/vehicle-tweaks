@@ -131,6 +131,12 @@ a number drew a slider *and* the figure. Two objects per row in two columns — 
 was ragged, because a pill and a track are not the same width. The word is the exact half and the
 picture is the quick half, and a settings row does want both; it does not want them in two places.
 
+The word on a filled chip is drawn **without the outline**, and that took a second pass to find:
+`Draw.Text` sets a drop shadow and an outline by default and both of them draw in *black*, which is
+right for pale text on a dark panel and is a black halo round a near-black `ON` sitting on amber —
+at that size, a chip filled in solid. Everything else on the panel is light on dark and wants the
+outline; the chip is the one caller that does not.
+
 So the word lives **inside** the switch now — one chip, filled amber for on, a hole in the panel for
 off — and every chip is the same width, so the panel has a single right-hand edge to read down. The
 slider lost its knob, which was the loudest thing on a row whose point is the number. A choice keeps

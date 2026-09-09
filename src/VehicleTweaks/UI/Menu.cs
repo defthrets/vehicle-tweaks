@@ -136,20 +136,20 @@ namespace VehicleTweaks.UI
         private const float PanelTop = 0.155f;
 
         // How big, as fractions of the screen.
-        private const float PanelW = 0.262f * Zoom;
-        private const float TitleH = 0.062f * Zoom;
-        private const float RowH = 0.0320f * Zoom;
-        private const float FootH = 0.046f * Zoom;
+        private const float PanelW = 0.278f * Zoom;
+        private const float TitleH = 0.080f * Zoom;
+        private const float RowH = 0.0360f * Zoom;
+        private const float FootH = 0.052f * Zoom;
 
         // The margins inside it.
-        private const float PadX = 0.012f * Zoom;
-        private const float LabelX = 0.014f * Zoom;
-        private const float ValueX = 0.012f * Zoom;
+        private const float PadX = 0.016f * Zoom;
+        private const float LabelX = 0.018f * Zoom;
+        private const float ValueX = 0.016f * Zoom;
         private const float Hair = 0.0016f * Zoom;
 
         // The pictures on the right of a row: how wide the value's own column is, and the
         // switch and the slider that sit to its left.
-        private const float ValueCol = 0.050f * Zoom;
+        private const float ValueCol = 0.052f * Zoom;
         private const float TrackW = 0.040f * Zoom;
         private const float TrackH = 0.0030f * Zoom;
 
@@ -162,8 +162,8 @@ namespace VehicleTweaks.UI
         /// and the picture is the quick half, so they are now ONE object -- the word inside the
         /// switch -- and every row has exactly one thing on its right.
         /// </summary>
-        private const float ChipW = 0.0290f * Zoom;
-        private const float ChipH = RowH * 0.60f;
+        private const float ChipW = 0.0320f * Zoom;
+        private const float ChipH = RowH * 0.58f;
 
         /// <summary>How far the body steps aside on a page turn, and how fast it settles.</summary>
         private const float Slide = 0.018f * Zoom;
@@ -2122,7 +2122,7 @@ namespace VehicleTweaks.UI
             // beside its icon and squash the other eight; the title bar has a whole line spare to
             // the right of the title, and a name on its own line reads as a heading rather than
             // as a wider tab.
-            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0062f * Zoom, TabText * 1.05f,
+            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0118f * Zoom, TabText * 1.05f,
                       Fade(Color.FromArgb(215, 232, 228, 231)), Plain, false, true);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
@@ -2187,14 +2187,14 @@ namespace VehicleTweaks.UI
                     // is a list marker and this is not a list item, and a full-width line under
                     // the words reads as a divider belonging to the row below.
                     var hw = Draw.Width(item.Label, HeadText, Plain);
-                    var rule = PanelW - LabelX - PadX - hw - 0.0045f * Zoom;
+                    var rule = PanelW - LabelX - PadX - hw - 0.0050f * Zoom;
 
-                    Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0128f * Zoom, HeadText,
+                    Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0140f * Zoom, HeadText,
                               Fade(Color.FromArgb(225, 245, 196, 60)), Plain);
 
                     if (rule > 0f)
                     {
-                        Draw.Bar(bx + LabelX + hw + 0.0045f * Zoom, rowY + RowH - 0.0072f * Zoom,
+                        Draw.Bar(bx + LabelX + hw + 0.0050f * Zoom, rowY + RowH - 0.0080f * Zoom,
                                  rule, 0.0010f * Zoom, Fade(Color.FromArgb(55, 245, 196, 60)));
                     }
 
@@ -2227,7 +2227,7 @@ namespace VehicleTweaks.UI
                 // that size. The flash is.
                 if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                var ty = rowY + 0.0056f * Zoom;
+                var ty = rowY + 0.0076f * Zoom;
 
                 Draw.Text(item.Label, bx + LabelX, ty, RowText, Fade(label), Plain);
 
@@ -2288,7 +2288,7 @@ namespace VehicleTweaks.UI
             if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
             Draw.Text(Draw.Ellipsis(hint, HintText, PanelW - PadX * 2f, Plain),
-                      x + PadX, foot + 0.0085f * Zoom, HintText,
+                      x + PadX, foot + 0.0110f * Zoom, HintText,
                       Fade(Color.FromArgb(180, 232, 228, 231)), Plain);
 
             // THE CONTROLS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and
@@ -2299,7 +2299,7 @@ namespace VehicleTweaks.UI
                                  ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
                                  : "D-PAD move & change   A works a row   B saves & closes")
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
-                      x + PadX, foot + 0.0270f * Zoom, FootText,
+                      x + PadX, foot + 0.0310f * Zoom, FootText,
                       Fade(Color.FromArgb(130, 150, 150, 156)), Plain);
         }
 
@@ -2372,11 +2372,18 @@ namespace VehicleTweaks.UI
                          Fade(Color.FromArgb(live ? 235 : 110, 245, 196, 60)));
             }
 
-            var lit = part > 0.5f;
-            var ink = door || lit ? Color.FromArgb(255, 20, 18, 12)
-                                  : Color.FromArgb(live ? 190 : 110, 150, 150, 156);
+            var lit = door || part > 0.5f;
 
-            Draw.Text(text, x + ChipW * 0.5f, ty, RowText * 0.92f, Fade(ink), Plain, true);
+            var ink = lit ? Color.FromArgb(255, 20, 18, 12)
+                          : Color.FromArgb(live ? 190 : 110, 150, 150, 156);
+
+            // NO OUTLINE ON THE DARK WORD, WHICH IS WHY THE CHIPS LOOKED BLACK. Draw.Text sets a
+            // drop shadow and an outline by default and BOTH OF THEM DRAW IN BLACK -- right for
+            // pale text on a dark panel, and for a near-black ON sat on amber it is a black halo
+            // round black letters, which at this size is a solid black smudge. The switch to
+            // turn them off was already there and this is the one caller that needs it.
+            Draw.Text(text, x + ChipW * 0.5f, ty, RowText * 0.92f, Fade(ink), Plain, true, false,
+                      !lit);
         }
 
         /// <summary>
@@ -2427,12 +2434,12 @@ namespace VehicleTweaks.UI
             // and one off the panel's right edge, so a three-letter value floated between two
             // marks that belonged to nothing. They are a pair of hands on this value.
             var arrow = selected ? Amber : Color.FromArgb(120, 150, 150, 156);
-            var gap = 0.0075f * Zoom;
+            var gap = 0.0085f * Zoom;
             var wide = Draw.Width(item.Show(), RowText, Plain);
 
             Draw.Text(">", right, ty, RowText * 0.9f, Fade(arrow), Plain, false, true);
             Draw.Text(item.Show(), right - gap, ty, RowText, Fade(value), Plain, false, true);
-            Draw.Text("<", right - gap - wide - 0.0030f * Zoom, ty, RowText * 0.9f, Fade(arrow),
+            Draw.Text("<", right - gap - wide - 0.0035f * Zoom, ty, RowText * 0.9f, Fade(arrow),
                       Plain, false, true);
         }
 
@@ -2455,7 +2462,7 @@ namespace VehicleTweaks.UI
             }
 
             var w = Math.Max(Draw.Width(text, RowText, Plain), ChipW * 0.55f);
-            var pad = 0.0045f * Zoom;
+            var pad = 0.0050f * Zoom;
             var x = right - w - pad * 2f;
             var top = rowY + (RowH - ChipH) * 0.5f;
 
@@ -2475,8 +2482,8 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Title(float x)
         {
-            var h = 0.0225f * Zoom;
-            var top = PanelTop + 0.0055f * Zoom;
+            var h = 0.0240f * Zoom;
+            var top = PanelTop + 0.0105f * Zoom;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
@@ -2529,7 +2536,7 @@ namespace VehicleTweaks.UI
             var cellAcross = cell / Aspect();
             var iconW = 7f * cellAcross;
 
-            var y = PanelTop + 0.0300f * Zoom;
+            var y = PanelTop + 0.0430f * Zoom;
 
             // GROUPED AND CENTRED, NOT STRETCHED EDGE TO EDGE. Nine icons pushed to the corners
             // of the panel with the gaps taking up more room than the icons read as nine
@@ -2537,7 +2544,7 @@ namespace VehicleTweaks.UI
             // pages. The gap is a fixed distance now rather than whatever is left over, so
             // adding a page moves the strip instead of respacing every icon in it.
             var n = _pages.Count;
-            var gap = 0.0052f * Zoom / Aspect();
+            var gap = 0.0060f * Zoom / Aspect();
             var span = n * iconW + (n > 1 ? (n - 1) * gap : 0f);
             var left = _drawX + (PanelW - span) * 0.5f;
 
