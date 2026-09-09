@@ -291,7 +291,13 @@ namespace VehicleTweaks.UI
 
             if (_built < _all.Length) return;
 
-            foreach (var list in _classes) list.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+            foreach (var list in _classes)
+            {
+                // BEFORE THE SORT, because the mark is part of the name it is sorted by.
+                Distinguish(list);
+
+                list.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+            }
 
             var total = 0;
             foreach (var list in _classes) total += list.Count;
@@ -300,6 +306,71 @@ namespace VehicleTweaks.UI
                      _pictured + " with a picture beside the log.");
 
             Settle();
+        }
+
+        /// <summary>
+        /// Tells apart the rows that would otherwise read exactly the same.
+        ///
+        /// SEVENTY-TWO NAMES ARE SHARED BY A HUNDRED AND EIGHTY-NINE MODELS. The game gives every
+        /// variant of a vehicle ONE display name: two rows called "Sentinel XS", three called
+        /// "Bison", four called "Boxville", ten called "Freight Train" -- and no way to tell which
+        /// was which without spawning one and looking at it. That is a list with a hole in it in
+        /// the same way the missing DLC was.
+        ///
+        /// THE MODEL NAME ALREADY CARRIES THE ANSWER, so it is read rather than invented: a drift
+        /// tune says drift at the front, and a variant says which one it is with the number on the
+        /// end. Only the rows that actually clash are marked, so "Boxville" stays "Boxville" and
+        /// its three variants become (2), (3) and (4).
+        ///
+        /// AND THEN THE CODE ITSELF for whatever is STILL doubled -- freight2 and freightcar2 are
+        /// both "the second of their name", and there the ugly answer is the right one, because a
+        /// row you cannot tell from its neighbour is worse than a row with a model name in it. The
+        /// second pass rebuilds from the plain name rather than stacking a mark on a mark.
+        /// </summary>
+        private static void Distinguish(List<Entry> list)
+        {
+            var plain = new string[list.Count];
+
+            for (var i = 0; i < list.Count; i++) plain[i] = list[i].Name;
+
+            Mark(list, plain, true);
+            Mark(list, plain, false);
+        }
+
+        private static void Mark(List<Entry> list, string[] plain, bool variant)
+        {
+            var count = new Dictionary<string, int>();
+
+            foreach (var entry in list)
+            {
+                int n;
+                count.TryGetValue(entry.Name, out n);
+                count[entry.Name] = n + 1;
+            }
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (count[list[i].Name] < 2) continue;
+
+                var mark = variant ? Variant(list[i].Code) : list[i].Code;
+
+                if (string.IsNullOrEmpty(mark)) continue;
+
+                list[i].Name = plain[i] + " (" + mark + ")";
+            }
+        }
+
+        /// <summary>Which variant a model name says it is, or nothing when it does not say.</summary>
+        private static string Variant(string code)
+        {
+            if (code.StartsWith("drift", StringComparison.Ordinal)) return "Drift";
+
+            var i = code.Length;
+
+            while (i > 0 && code[i - 1] >= '0' && code[i - 1] <= '9') i--;
+
+            // A name that is ALL digits, or has none on the end, says nothing about which it is.
+            return i == 0 || i == code.Length ? null : code.Substring(i);
         }
 
         /// <summary>
@@ -610,7 +681,7 @@ namespace VehicleTweaks.UI
         /// badge; the photographs on the in-game websites live inside their web pages, where
         /// DRAW_SPRITE cannot be pointed. So the mod ships its own: one PNG per model, the car
         /// cut out on transparent, in the cars folder beside the log, drawn through the same
-        /// CustomSprite path as the title, one for every model in the enumeration. A model with
+        /// CustomSprite path as the title, one for every model in the shipped list. A model with
         /// no file there -- an add-on car -- falls through to the badge as before.
         ///
         /// ONLY ONCE THE HIGHLIGHT HAS SETTLED. A texture ScriptHookV has loaded stays loaded

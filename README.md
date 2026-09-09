@@ -257,8 +257,10 @@ in anything `DRAW_SPRITE` can be handed. So the mod ships one PNG per model — 
 transparent, 512×288, about 20 KB each and 16 MB the lot — in `scripts\VehicleTweaks\cars\`, drawn
 through the same `CustomSprite` path as the title. They are the shots from the
 [FiveM vehicle reference](https://docs.fivem.net/docs/game-references/vehicle-models/), which
-are renders of the game's own models; 914 of the 921. A model with no file there — an add-on car,
-or one of the seven newest, which the reference has not shot yet — falls through to the badge:
+are renders of the game's own models — 914 of them. The remaining seven are too new for that
+reference, so those are in-game photographs from [gtacars.net](https://gtacars.net) instead, which
+is why they carry a background where the rest are cut out. **All 921 have a picture.** A model with
+no file there — an add-on car — still falls through to the badge:
 a dictionary named after the model first, in case the add-on shipped one, then the badge, then the
 class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 
@@ -266,6 +268,16 @@ class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 loaded stays loaded until the scripts reload — there is no handing one back — so loading as you
 scrolled would leave every car you passed in memory. What is loaded is what you stopped on, at
 about half a megabyte each; the log says at start-up how many of the catalogue have a picture.
+
+**No two rows read the same.** The game gives every variant of a vehicle one display name, so the
+list had two rows called "Sentinel XS", three called "Bison", four called "Boxville" and ten called
+"Freight Train" — 189 models sharing 72 names, with no way to tell which was which without spawning
+one. The model name already carries the answer, so it is read rather than invented: a drift tune
+says `drift` at the front, a variant says which one it is with the number on the end. Only the rows
+that actually clash are marked, so `Boxville` stays **Boxville** and its variants become **(2)**,
+**(3)** and **(4)**. Whatever is *still* doubled after that — `freight2` and `freightcar2` are both
+"the second of their name" — gets the model code instead, which is ugly and unambiguous, in that
+order of priority.
 
 **The model name is the name, because the list is names.** It used to be SHVDN's enum names, ten of
 which are not what the files call the car — `FireTruck` is `firetruk`, `RE7B` is `le7b`, `Khanjari`
