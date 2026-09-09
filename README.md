@@ -368,6 +368,24 @@ no file there — an add-on car — still falls through to the badge:
 a dictionary named after the model first, in case the add-on shipped one, then the badge, then the
 class icon, each waited for in turn so a fast badge cannot beat a slow picture.
 
+**And it reads the machine, because a shipped list is a photograph.** Ours was cut from a dump last
+updated for `mp2025_02`; this install has `mp2026_01`, so fourteen of Rockstar's own cars were
+missing. They are in the list now — but adding names by hand is the same mistake with a later date
+on it, and the **41 add-on cars** sitting in this machine's `dlcpacks` were never in any published
+list and never will be. So the spawner looks in three more places:
+
+1. **Add-On Vehicle Spawner's cache**, if that mod is installed beside this one. It finds vehicles by
+   hooking the game's archetype loader — which a script cannot do — and leaves what it found in
+   plain `hash name` lines. Somebody else's work, left where anyone can read it.
+2. **The `dlcpacks` folder names.** An add-on's pack is very often named after the car in it —
+   `c63s`, `focusrs`, `hellcat`, `m3g80` — so the folder list is a free pile of good guesses.
+3. **A list you keep yourself**, one name a line, written beside the log on first run, for the
+   add-on whose pack is called something the car is not.
+
+None of it is trusted: every name from every source goes through the same `IsInCdImage` as the
+shipped ones, so a wrong guess is a lookup that fails and nothing worse — which is what makes it safe
+to guess at all. The log says how many were shipped and how many more the machine offered.
+
 **Nothing is loaded until the highlight has been still for a moment.** A texture ScriptHookV has
 loaded stays loaded until the scripts reload — there is no handing one back — so loading as you
 scrolled would leave every car you passed in memory. What is loaded is what you stopped on, at

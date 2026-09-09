@@ -235,7 +235,25 @@ namespace VehicleTweaks.UI
         {
             if (_all == null)
             {
-                _all = Models.All;
+                // THE SHIPPED LIST, AND THEN WHATEVER THIS MACHINE KNOWS THAT IT DOES NOT --
+                // another mod's cache, the dlcpacks folder names, and the player's own list. All
+                // of it goes through the same IsInCdImage below, so a bad guess is a lookup that
+                // fails and nothing worse. See Core\Models.cs.
+                var found = Models.Found(Paths.Game, Paths.ModelsFile);
+
+                if (found.Length == 0)
+                {
+                    _all = Models.All;
+                }
+                else
+                {
+                    var every = new List<string>(Models.All);
+                    every.AddRange(found);
+                    _all = every.ToArray();
+
+                    Log.Info("Spawner: " + Models.All.Length + " models shipped, " + found.Length +
+                             " more found on this machine to try.");
+                }
 
                 for (var i = 0; i < 23; i++) _classes.Add(new List<Entry>());
             }
@@ -306,7 +324,7 @@ namespace VehicleTweaks.UI
             var total = 0;
             foreach (var list in _classes) total += list.Count;
 
-            Log.Info("Spawner: " + total + " of " + _all.Length + " vehicles are installed here, " +
+            Log.Info("Spawner: " + total + " of " + _all.Length + " names are installed here, " +
                      _pictured + " with a picture beside the log.");
 
             Settle();

@@ -179,6 +179,12 @@ namespace VehicleTweaks.Core
         /// back to Documents when scripts\ cannot be written to, and a stance nobody can save is
         /// worse than one nobody can read.
         /// </summary>
+        /// <summary>The game's own folder, which is where the other mods keep what they know.</summary>
+        public static string Game => Path.GetDirectoryName(Scripts);
+
+        /// <summary>Extra model names the player keeps by hand. See Models.Found.</summary>
+        public static string ModelsFile => Path.Combine(Writable, "VehicleTweaks.models.txt");
+
         public static string StanceFile => Path.Combine(Writable, "VehicleTweaks.stances.ini");
 
         /// <summary>
