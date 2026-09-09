@@ -228,8 +228,7 @@ not.
 
 ## The car spawner — F7
 
-Every vehicle in the game, browsable by class, with a picture of the highlighted one and the real
-thing stood beside the menu on a turntable.
+Every vehicle in the game, browsable by class, with a picture of the highlighted one.
 `F7`, or the **first row of the panel** — top of the DRIVING page, where the highlight already is
 when it opens, so it is the one row you can reach without moving at all. That is how a pad gets
 there, because the D-pad has four directions and all four are spoken for.
@@ -268,14 +267,13 @@ is `khanjali`, `HotringSabre` is `hotring`, `Terrorbyte` is `terbyte`, `EntityXX
 are `entity2` and `entity3`, the three `UtilityTruck`s are `utillitruck`. Each was found by hashing
 the name and comparing with the enum's own value, and the MODEL line on the card shows the real one.
 
-**The live view is back, beside the menu.** With `SpawnerDemo` on (it is, by default) the
-highlighted car is also stood in the clear part of the screen — placed from the camera, a fixed way
-along its forward and enough to the right, worked out from the field of view and the aspect ratio,
-that it lands in the middle of the room the panels leave, on 16:9 and 21:9 alike. It turns slowly
-(`SpawnerTurn`, degrees a second; 0 holds it still), frozen so the turntable is the only thing that
-moves it, without collision so traffic passes through it, invincible so what does hit it leaves no
-wreck. It waits for the highlight to settle, is taken away before the next one arrives, and pressing
-A on it hands all of that back and makes it yours rather than spawning a second one through it.
+**There is no live view any more, and that is what having pictures is for.** The highlighted car
+used to be spawned as well — first straight ahead, where it sat behind the panels, then stood beside
+them on a turntable, frozen and without collision. The whole argument for it was that most cars had
+no picture and for those the choice was the real thing or nothing. Every model in the game has a
+picture now, so the argument is gone: what is left is a car in the street, a model streamed for
+every row you rest on, and a second thing moving while you are reading a list. The car arrives when
+you press **A** and not before.
 
 **The stats come from the game, and the bars are relative to the best in it.** Top speed,
 acceleration, braking and grip, plus seats, price and — the one thing you might actually want to

@@ -15,8 +15,7 @@ using Control = GTA.Control;
 namespace VehicleTweaks.UI
 {
     /// <summary>
-    /// Every vehicle in the game, browsable, with a picture of the one it is pointing at and the
-    /// real thing stood beside the menu.
+    /// Every vehicle in the game, browsable, with a picture of the one it is pointing at.
     ///
     /// THE LIST IS THE GAME'S OWN. SHVDN's VehicleHash enumeration is 843 entries covering the base
     /// game and every DLC and multiplayer pack, so there is no list to maintain here and nothing to
@@ -108,17 +107,8 @@ namespace VehicleTweaks.UI
         private int _scroll;
 
 
-        /// <summary>How long the highlight has to be still before the demo car is fetched.</summary>
-        private const int SettleMs = 220;
-
-        /// <summary>When the highlight last moved, and what is currently stood outside.</summary>
+        /// <summary>When the highlight last moved, which is the only thing the picture waits on.</summary>
         private int _movedAt;
-        private Entry _showing;
-        private Vehicle _demo;
-
-        /// <summary>The demo's place: how far along the camera's forward, and where across the screen.</summary>
-        private const float StageDepth = 10f;
-        private const float Beside = (X + ListW + 0.004f + StatW + 1f) * 0.5f;
 
         /// <summary>How long the highlight has to be still before a picture is loaded for it.</summary>
         private const int PictureSettleMs = 120;
@@ -208,7 +198,6 @@ namespace VehicleTweaks.UI
                 if (_built >= (_all == null ? 1 : _all.Length))
                 {
                     Navigate(me);
-                    Demo(me);
                 }
 
                 Render();
@@ -445,185 +434,15 @@ namespace VehicleTweaks.UI
             if (Current.Count == 0) Turn(1);
         }
 
-        // ==================================================================
-        // The car beside the menu
-        // ==================================================================
-
-        /// <summary>
-        /// The highlighted car, stood beside the menu on a slow turntable while you look at it.
-        ///
-        /// BESIDE THE MENU, NOT IN FRONT OF YOU. The first version put it straight ahead, which
-        /// is where the panels are, so the live view was mostly a bonnet poking out from behind
-        /// a list. It is placed from the camera now: a fixed way along the camera's own forward
-        /// and enough to the right, worked out from the field of view and the aspect ratio, that
-        /// it lands in the middle of the room the panels leave -- on a 16:9 screen and a 21:9
-        /// one alike, because the panels take the same fraction of either.
-        ///
-        /// A SHOWROOM PIECE, NOT A CAR. Frozen, so the turntable is the only thing that moves
-        /// it; no collision, so traffic passes through it instead of piling into it; invincible,
-        /// so the traffic that does leaves no wreck. Spawn hands all three back, because the car
-        /// you keep is the one that was stood there.
-        ///
-        /// STILL WAITS FOR THE HIGHLIGHT TO SETTLE, and still takes the last one away before it
-        /// brings the next, so scrolling is free and nothing is left standing about.
-        /// </summary>
-        private void Demo(Ped me)
-        {
-            if (!_cfg.SpawnerDemo)
-            {
-                Remove();
-                return;
-            }
-
-            var list = Current;
-
-            if (list.Count == 0 || _row < 0 || _row >= list.Count) return;
-
-            var want = list[_row];
-
-            if (_showing == want)
-            {
-                Turntable();
-                return;
-            }
-
-            if (Game.GameTime - _movedAt < SettleMs) return;
-
-            var model = new Model(want.Hash);
-
-            model.Request();
-
-            if (!model.IsLoaded) return;
-
-            Remove();
-
-            try
-            {
-                float heading;
-                var where = Stage(me, out heading);
-
-                _demo = World.CreateVehicle(model, where, heading);
-
-                if (_demo != null)
-                {
-                    _demo.IsPersistent = true;
-                    _demo.PlaceOnGround();
-                    _demo.IsPositionFrozen = true;
-                    _demo.IsCollisionEnabled = false;
-                    _demo.IsInvincible = true;
-                }
-                else
-                {
-                    Log.Debug("Spawner: " + want.Name + " (" + want.Code + ") would not stand up.");
-                }
-
-                _showing = want;
-            }
-            catch
-            {
-                _demo = null;
-            }
-            finally
-            {
-                model.MarkAsNoLongerNeeded();
-            }
-        }
-
-        /// <summary>
-        /// Where the demo stands and which way it faces: in the clear part of the screen, three-
-        /// quarters on to the camera.
-        ///
-        /// THE SUM THAT PUTS IT BESIDE THE PANELS. The panels end at X + ListW + StatW of the
-        /// width; the middle of what is left is the screen fraction Beside. A point some distance
-        /// along the camera's forward appears that far across when it is that distance times
-        /// (Beside - 0.5) times twice the tangent of half the horizontal field of view to the
-        /// right -- and the horizontal field of view is the vertical one the game reports,
-        /// widened by the aspect ratio. Flat: a camera tilted down is not a reason to bury it.
-        /// </summary>
-        private Vector3 Stage(Ped me, out float heading)
-        {
-            var forward = GameplayCamera.Direction;
-            forward.Z = 0f;
-
-            // A camera looking straight down has no forward to speak of; the player's will do.
-            if (forward.X * forward.X + forward.Y * forward.Y < 0.01f) forward = me.ForwardVector;
-
-            forward.Z = 0f;
-            forward.Normalize();
-
-            var right = Vector3.Cross(forward, Vector3.WorldUp);
-            right.Normalize();
-
-            var half = (float)Math.Tan(GameplayCamera.FieldOfView * 0.5 * Math.PI / 180.0) * Across();
-            var across = (Beside - 0.5f) * 2f * half;
-
-            var where = GameplayCamera.Position + forward * StageDepth + right * (StageDepth * across);
-            where.Z = me.Position.Z + 0.5f;
-
-            // NOSE TOWARDS THE CAMERA AND TURNED A LITTLE INWARDS, which is how a brochure shoots
-            // a car. A heading is degrees anticlockwise from north, so the heading that faces a
-            // direction (x, y) is atan2(-x, y); facing back down the camera's forward is that of
-            // its negative, and thirty-five degrees off it points the nose at the middle of the
-            // screen rather than off the edge of it.
-            heading = (float)(Math.Atan2(forward.X, -forward.Y) * 180.0 / Math.PI) - 35f;
-
-            return where;
-        }
-
-        /// <summary>A slow turn, so the side you cannot see comes round.</summary>
-        private void Turntable()
-        {
-            if (_demo == null || _cfg.SpawnerTurn <= 0f) return;
-
-            try
-            {
-                if (!_demo.Exists())
-                {
-                    _demo = null;
-                    _showing = null;
-                    return;
-                }
-
-                _demo.Heading = (_demo.Heading + _cfg.SpawnerTurn * Game.LastFrameTime) % 360f;
-            }
-            catch
-            {
-                // It will be replaced the next time the highlight moves.
-            }
-        }
-
-        /// <summary>Takes away whatever is stood outside, if anything is.</summary>
-        private void Remove()
-        {
-            var old = _demo;
-
-            _demo = null;
-            _showing = null;
-
-            if (old == null) return;
-
-            try
-            {
-                if (old.Exists())
-                {
-                    old.IsPersistent = false;
-                    old.Delete();
-                }
-            }
-            catch
-            {
-                // The game would have cleaned it up eventually anyway.
-            }
-        }
-
         /// <summary>
         /// Puts the chosen vehicle on the ground beside the player, once, when it is asked for.
         ///
         /// THIS USED TO HAPPEN AS YOU SCROLLED, and it was the wrong idea dressed up as a clever
         /// one. "The preview IS the car" sounded good and meant that browsing the list littered
         /// the street, loaded a model per row, and put whatever you were pointing at between you
-        /// and the menu. A picture is what a person means by a preview, and the picture is on the
-        /// card. This is now simply what the spawner does.
+        /// and the menu. It came back once as a live view stood beside the menu, on the argument
+        /// that most cars had no picture; now that every model in the game HAS one, that argument
+        /// is gone and so is the live view. A picture is what a person means by a preview.
         ///
         /// THE MODEL IS LOADED HERE, NOT EARLIER, so nothing is streamed for the eight hundred
         /// cars you scrolled past on the way. It is marked as no longer needed the moment the car
@@ -637,25 +456,6 @@ namespace VehicleTweaks.UI
             if (list.Count == 0 || _row < 0 || _row >= list.Count) return;
 
             var want = list[_row];
-
-            // THE ONE ALREADY STOOD THERE IS THE ONE YOU ASKED FOR. With the demo on, spawning
-            // would otherwise put a second identical car through the first one -- so it simply
-            // stops being a demo and becomes yours.
-            if (_demo != null && _demo.Exists() && _showing == want)
-            {
-                // A SHOWROOM PIECE MADE INTO A CAR: unfrozen, solid, mortal, and set down.
-                _demo.IsPositionFrozen = false;
-                _demo.IsCollisionEnabled = true;
-                _demo.IsInvincible = false;
-                _demo.PlaceOnGround();
-                _demo.IsPersistent = false;
-                _demo = null;
-                _showing = null;
-
-                Log.Info("Spawner: kept " + want.Name + " (" + want.Code + ").");
-                Close();
-                return;
-            }
 
             var model = new Model(want.Hash);
 
@@ -702,7 +502,6 @@ namespace VehicleTweaks.UI
         {
             _open = false;
 
-            Remove();
             Forget();
         }
 
