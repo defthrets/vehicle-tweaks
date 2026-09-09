@@ -14,7 +14,7 @@ using VehicleTweaks.Input;
 namespace VehicleTweaks.UI
 {
     /// <summary>
-    /// The settings panel. F10.
+    /// The settings panel. F12.
     ///
     /// BUILT OUT OF RECTANGLES, because the alternative is a dependency. NativeUI and LemonUI
     /// both do this better and both are another dll a player has to find, put in the right
