@@ -406,6 +406,7 @@ namespace VehicleTweaks.UI
         private enum Kind
         {
             Setting,
+            Scale,
             Toggle,
             Number,
             Choice,
@@ -574,6 +575,32 @@ namespace VehicleTweaks.UI
             item.On = get;
             item.Nudge = d => set(!get());
             item.Press = () => set(!get());
+            return item;
+        }
+
+        /// <summary>
+        /// A number that gets a scale of its own, two rows tall.
+        ///
+        /// FOR THE ONES YOU SET BY EYE RATHER THAN BY NUMBER. Camber, track and ride height are
+        /// judged by looking at the car, not by reading a decimal -- and a forty-pixel track
+        /// squeezed between a label and a value cannot show you where twelve degrees sits in a
+        /// range of forty. The number moves onto its own line with the label and the scale gets
+        /// the whole width of the panel: ends you can see, a mark at stock, and a handle far
+        /// enough from both to be pointed at.
+        ///
+        /// EVERYTHING ELSE ABOUT IT IS A Number, deliberately. Same factory, same nudging, same
+        /// LEFT and RIGHT -- this is a way of drawing a value, not a way of editing one, and a
+        /// row that looked different and behaved differently would be two things to learn.
+        /// </summary>
+        private static Item Scale(string label, Func<float> get, Action<float> set,
+                                  float step, float min, float max, string format,
+                                  string unit, string section, string key, string hint,
+                                  Func<bool> live = null)
+        {
+            var item = Number(label, get, set, step, min, max, format, unit, section, key, hint,
+                              live);
+
+            item.Kind = Kind.Scale;
             return item;
         }
 
@@ -906,35 +933,37 @@ namespace VehicleTweaks.UI
 
             tune.Items.Add(Header("STANCE"));
 
-            tune.Items.Add(Number("Camber front", () => _cfg.CamberFront,
+            tune.Items.Add(Scale("Camber front", () => _cfg.CamberFront,
                                   v => _cfg.CamberFront = v, 0.5f, -20f, 20f, "0.0", "deg",
                                   "Driving", "CamberFront",
                                   "How far the tops of the wheels lean. 0 is standard."));
 
-            tune.Items.Add(Number("Camber rear", () => _cfg.CamberRear,
+            tune.Items.Add(Scale("Camber rear", () => _cfg.CamberRear,
                                   v => _cfg.CamberRear = v, 0.5f, -20f, 20f, "0.0", "deg",
                                   "Driving", "CamberRear",
                                   "If it leans the wrong way, use the other sign."));
 
-            tune.Items.Add(Number("Track front", () => _cfg.TrackFront,
+            tune.Items.Add(Scale("Track front", () => _cfg.TrackFront,
                                   v => _cfg.TrackFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
                                   "Driving", "TrackFront",
                                   "How much further apart the front wheels sit. Positive is wider."));
 
-            tune.Items.Add(Number("Track rear", () => _cfg.TrackRear,
+            tune.Items.Add(Scale("Track rear", () => _cfg.TrackRear,
                                   v => _cfg.TrackRear = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
                                   "Driving", "TrackRear",
                                   "Mirrored across the axle, so both go the same way."));
 
-            tune.Items.Add(Number("Height front", () => _cfg.HeightFront,
+            tune.Items.Add(Scale("Height front", () => _cfg.HeightFront,
                                   v => _cfg.HeightFront = v, 0.05f, -1f, 1f, "0.00", "",
                                   "Driving", "HeightFront",
                                   "Rides on the hydraulic suspension. Negative drops it."));
 
-            tune.Items.Add(Number("Height rear", () => _cfg.HeightRear,
+            tune.Items.Add(Scale("Height rear", () => _cfg.HeightRear,
                                   v => _cfg.HeightRear = v, 0.05f, -1f, 1f, "0.00", "",
                                   "Driving", "HeightRear",
                                   "A car with no hydraulics in its handling may ignore this."));
+
+            tune.Items.Add(Header("THE WHEELS"));
 
             tune.Items.Add(Number("Wheel size", () => _cfg.WheelSize, v => _cfg.WheelSize = v,
                                   0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelSize",
@@ -2235,6 +2264,12 @@ namespace VehicleTweaks.UI
 
                 var kind = Of(item);
 
+                if (kind == Kind.Scale)
+                {
+                    ScaleRow(bx, rowY, item, index == _row);
+                    continue;
+                }
+
                 if (kind == Kind.Chart)
                 {
                     ChartRow(bx, rowY, item, index == _row);
@@ -2534,6 +2569,94 @@ namespace VehicleTweaks.UI
                      Fade(Color.FromArgb(live ? 245 : 90, 232, 228, 231)));
 
             Draw.Text(item.Show(), right, ty, RowText, Fade(value), Plain, false, true);
+        }
+
+        /// <summary>
+        /// One value, given the width of the panel to be a scale on.
+        ///
+        /// THE NAME AND THE NUMBER SHARE THE TOP LINE and the scale has the bottom one to itself,
+        /// which is the whole reason this exists: a scale that has to fit between a label and a
+        /// value is forty pixels long, and forty pixels cannot show where twelve degrees sits in
+        /// a range of forty. Ends, a mark at stock, and a handle.
+        /// </summary>
+        private void ScaleRow(float x, float rowY, Item item, bool selected)
+        {
+            var live = item.Live == null || item.Live();
+
+            var label = selected ? Color.FromArgb(245, 232, 228, 231)
+                                 : Color.FromArgb(205, 232, 228, 231);
+            var value = selected ? Amber : Color.FromArgb(200, 232, 228, 231);
+
+            if (!live)
+            {
+                label = selected ? Dim : Color.FromArgb(105, 150, 150, 156);
+                value = Color.FromArgb(105, 150, 150, 156);
+            }
+
+            if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
+
+            var shown = Shown(item);
+            var ty = rowY + 0.0076f * Zoom;
+
+            Draw.Text(Draw.Ellipsis(item.Label, RowText,
+                                    PanelW - LabelX - ValueX - Draw.Width(shown, RowText, Plain) -
+                                    0.008f * Zoom, Plain),
+                      x + LabelX, ty, RowText, Fade(label), Plain);
+
+            Draw.Text(shown, x + PanelW - ValueX, ty, RowText, Fade(value), Plain, false, true);
+
+            // ---- the scale, on the row underneath ----------------------------
+            var part = 0f;
+            var range = item.Max - item.Min;
+
+            try
+            {
+                if (item.Value != null && range > 0f) part = (item.Value() - item.Min) / range;
+            }
+            catch { /* drawn at the bottom of its range */ }
+
+            if (part < 0f) part = 0f;
+            if (part > 1f) part = 1f;
+
+            item.Anim = Toward(item.Anim, part, FillTau, Delta());
+
+            var stock = range > 0f ? (Stock(item) - item.Min) / range : 0f;
+
+            if (stock < 0f) stock = 0f;
+            if (stock > 1f) stock = 1f;
+
+            var sx = x + LabelX;
+            var sw = PanelW - LabelX - ValueX;
+            var sy = rowY + RowH + RowH * 0.30f;
+            var th = 0.0030f * Zoom;
+
+            Draw.Bar(sx, sy, sw, th, Fade(Color.FromArgb(live ? 45 : 22, 255, 255, 255)));
+
+            // THE ENDS, so a range has a shape rather than just a middle.
+            var cap = 0.0010f * Zoom;
+
+            Draw.Bar(sx, sy - th * 1.4f, cap, th * 3.8f,
+                     Fade(Color.FromArgb(live ? 60 : 28, 255, 255, 255)));
+            Draw.Bar(sx + sw - cap, sy - th * 1.4f, cap, th * 3.8f,
+                     Fade(Color.FromArgb(live ? 60 : 28, 255, 255, 255)));
+
+            var from = Math.Min(stock, item.Anim);
+            var wide = Math.Abs(item.Anim - stock);
+
+            if (wide > 0.0005f)
+            {
+                Draw.Bar(sx + sw * from, sy, sw * wide, th,
+                         Fade(Color.FromArgb(live ? 235 : 90, 245, 196, 60)));
+            }
+
+            Draw.Bar(sx + sw * stock - 0.0006f * Zoom, sy - th * 1.1f, 0.0012f * Zoom, th * 3.2f,
+                     Fade(Color.FromArgb(live ? 100 : 40, 255, 255, 255)));
+
+            var hh = th * 4.2f;
+
+            Draw.Bar(sx + sw * item.Anim - 0.0014f * Zoom, sy + th * 0.5f - hh * 0.5f,
+                     0.0028f * Zoom, hh,
+                     Fade(Color.FromArgb(live ? 250 : 90, 232, 228, 231)));
         }
 
         /// <summary>What a row shows on its right, or an empty string when it shows nothing.</summary>
@@ -2881,7 +3004,9 @@ namespace VehicleTweaks.UI
 
         private static int Tall(Item item)
         {
-            return item.IsChart ? ChartRows : 1;
+            if (item.IsChart) return ChartRows;
+
+            return item.Kind == Kind.Scale ? 2 : 1;
         }
 
         /// <summary>Rows above this item, counting a chart as the rows it takes.</summary>

@@ -609,6 +609,18 @@ bar is now the amount you have **changed** and the side it is on is which way, w
 and a handle at the value. On the selected row the rail, fill and handle all invert, because an
 amber bar on an amber row is not a bar.
 
+**Camber, track and height get a scale each, the width of the panel.** They are set by eye, not by
+number — you look at the car, not at the decimal — and a forty-pixel track squeezed between a label
+and a value cannot show where twelve degrees sits in a range of forty. Those six rows are two rows
+tall: the name and the number share the top line, and the scale has the bottom one to itself, with
+ends you can see, a mark at stock, and a handle far enough from both to be pointed at.
+
+Everything else about them is an ordinary number row — same factory, same nudging, same `LEFT` and
+`RIGHT`. It is a way of *drawing* a value, not a way of editing one, and a row that looked different
+and behaved differently would be two things to learn. The machinery for a row taller than a row was
+already there for the gear chart. The three wheel sizes stay one row each under a heading of their
+own, because those are set by number: `1.15` means what it says.
+
 **Per axle rather than per wheel** — which is both what stance actually is and what VStancer's own
 menu offers. The two sides are mirrored, because one slider has to become two opposite numbers or a
 wider track is one wheel out and one wheel in. Odd bone ids are the left of each axle.
