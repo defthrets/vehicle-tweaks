@@ -110,7 +110,8 @@ namespace VehicleTweaks.Driving
 
         private int _car;
         private string _model;
-        private bool _said;
+        private float _saidCamber = float.NaN;
+        private int _saidAt;
 
         private float[] _pending;
         private int _changedAt;
@@ -142,7 +143,7 @@ namespace VehicleTweaks.Driving
                     {
                         _car = car.Handle;
                         _model = Name(car);
-                        _said = false;
+                        _saidCamber = float.NaN;
 
                         Recall(car);
                     }
@@ -374,13 +375,23 @@ namespace VehicleTweaks.Driving
                     var rim = Read(at, Rim);
                     var wide = Read(at, Width);
 
-                    if (!Sound(camber) || !Sound(track) || !Sound(tyre) || !Sound(rim) ||
-                        !Sound(wide))
+                    // THE GEOMETRY DECIDES WHETHER THE WHEEL IS USABLE AT ALL, and the sizes
+                    // decide only for themselves. They were one test, which meant a tyre radius
+                    // that would not read took camber and track down with it -- three fields
+                    // hostage to the newest and least proven of the six.
+                    if (!Sound(camber) || !Sound(track))
                     {
-                        Log.Once("stance-address", "Wheel " + wheel.BoneId + " does not read like " +
-                                                   "a wheel (" + camber + ", " + track + "), so " +
-                                                   "the stance leaves it alone.");
+                        Log.Warn("Stance: wheel " + wheel.BoneId + " does not read like a wheel (" +
+                                 camber + ", " + track + "), so it is left alone.");
                         continue;
+                    }
+
+                    if (!Sound(tyre) || !Sound(rim) || !Sound(wide))
+                    {
+                        Log.Once("stance-size", "Wheel sizes do not read on this build (" + tyre +
+                                                ", " + rim + ", " + wide + "), so they are left " +
+                                                "alone. Camber and track are unaffected.");
+                        tyre = rim = wide = 0f;
                     }
 
                     var raise = 0f;
@@ -438,9 +449,10 @@ namespace VehicleTweaks.Driving
                     // Five centimetres of camber means the same thing on a Panto and on a
                     // Barracks; five centimetres of tyre does not. A size is a proportion of what
                     // was there, so it is written as one.
-                    Write(at, Tyre, stock[3] * held.Values[6]);
-                    Write(at, Rim, stock[4] * held.Values[7]);
-                    Write(at, Width, stock[5] * held.Values[8]);
+                    // Nought means the field did not read as a size when this car was captured.
+                    if (stock[3] > 0f) Write(at, Tyre, stock[3] * held.Values[6]);
+                    if (stock[4] > 0f) Write(at, Rim, stock[4] * held.Values[7]);
+                    if (stock[5] > 0f) Write(at, Width, stock[5] * held.Values[8]);
 
                     try { wheel.SetHydraulicSuspensionRaiseFactor(stock[2] + up); }
                     catch { /* the one part of this the car is allowed to refuse */ }
@@ -463,19 +475,25 @@ namespace VehicleTweaks.Driving
         /// </summary>
         private void Say(Held held, VehicleWheel wheel, float[] stock, float camber)
         {
-            if (_said || held.Car.Handle != _car ||
-                wheel.BoneId != VehicleWheelBoneId.WheelLeftFront)
-            {
-                return;
-            }
+            if (held.Car.Handle != _car || wheel.BoneId != VehicleWheelBoneId.WheelLeftFront) return;
 
-            _said = true;
+            // SAID WHEN IT CHANGES, NOT ONCE PER CAR. Once per car answered "did anything happen
+            // when I got in", which was the question at the time; it cannot answer "is the slider
+            // I am moving reaching the wheel", which is the question now, because the one line it
+            // writes is always from before the first nudge. Throttled, or a held D-pad writes
+            // sixty lines a second.
+            var now = Game.GameTime;
+
+            if (Math.Abs(camber - _saidCamber) < 0.0005f || now - _saidAt < 400) return;
+
+            _saidCamber = camber;
+            _saidAt = now;
 
             Log.Info("Stance: front left camber " + stock[0].ToString("0.0000") + " to " +
                      camber.ToString("0.0000") + " rad, track " + stock[1].ToString("0.0000") +
                      " to " + (stock[1] - held.Values[2]).ToString("0.0000") + " m, raise " +
-                     (stock[2] + held.Values[4]).ToString("0.00") + ". Holding " + _held.Count +
-                     " car(s).");
+                     (stock[2] + held.Values[4]).ToString("0.00") + ", tyre x" +
+                     held.Values[6].ToString("0.00") + ". Holding " + _held.Count + " car(s).");
         }
 
         /// <summary>
