@@ -53,6 +53,8 @@ namespace VehicleTweaks
         private readonly Crashes _crashes;
         private readonly Repairs _repairs;
         private readonly BrakeLights _brakes;
+        private readonly Smoke _smoke;
+        private readonly Traffic _traffic;
         private readonly DriftTyres _drift;
         private readonly Parked _myCar;
         private readonly Stations _stations;
@@ -85,6 +87,8 @@ namespace VehicleTweaks
             _crashes = new Crashes(_cfg);
             _repairs = new Repairs(_cfg);
             _brakes = new BrakeLights(_cfg);
+            _smoke = new Smoke(_cfg);
+            _traffic = new Traffic(_cfg);
             _drift = new DriftTyres(_cfg);
             _myCar = new Parked(_cfg);
             _stations = new Stations(_cfg);
@@ -170,6 +174,8 @@ namespace VehicleTweaks
                     _crashes.Update(me);
                     _repairs.Update(me);
                     _brakes.Update(me);
+                    _smoke.Update(me);
+                    _traffic.Update(me);
                     _drift.Update(me);
                     _myCar.Update(me);
                     _stations.Update(me);

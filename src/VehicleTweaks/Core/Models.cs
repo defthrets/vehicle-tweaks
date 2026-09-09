@@ -200,6 +200,104 @@ namespace VehicleTweaks.Core
         };
 
         /// <summary>
+        /// The road-going cars that came with an update rather than with the game.
+        ///
+        /// FOR PUTTING THEM IN THE TRAFFIC, and that is the only thing it is for. The full list
+        /// next door is everything with wheels or wings; this is the 480 of them that arrived in a
+        /// pack AND that a person would believe on a street -- no tanks, no aircraft, no trains,
+        /// no police, no trailers. A Rhino in the morning commute is a different mod.
+        ///
+        /// WHY A SECOND LIST RATHER THAN A FLAG ON THE FIRST: the first list is names and nothing
+        /// else, which is what lets it be a plain array read by two different features. Hanging a
+        /// class and a pack name off every entry to answer one question would make it a database
+        /// nobody else needs.
+        /// </summary>
+        public static readonly string[] Dlc =
+        {
+            "aleutian", "alpha", "arbitergt", "ardent", "asbo", "asterope2",
+            "astrale", "astron", "astron2", "autarch", "avarus", "baller3",
+            "baller4", "baller5", "baller6", "baller7", "baller8", "banshee2",
+            "banshee3", "bestiagts", "bf400", "bifta", "blade", "blazer4",
+            "blazer5", "blista2", "blista3", "boor", "boxville4", "boxville5",
+            "boxville6", "brawler", "brigham", "brioso", "brioso2", "brioso3",
+            "broadway", "bruiser", "bruiser2", "bruiser3", "brutus", "brutus2",
+            "brutus3", "btype", "btype2", "btype3", "buccaneer2", "buffalo3",
+            "buffalo4", "buffalo5", "calico", "caracara", "caracara2", "casco",
+            "castigator", "cavalcade3", "champion", "chavosv6", "cheburek", "cheetah2",
+            "cheetah3", "chimera", "chino", "chino2", "cinquemila", "cliffhanger",
+            "clique", "clique2", "club", "cog55", "cog552", "cognoscenti",
+            "cognoscenti2", "comet3", "comet4", "comet5", "comet6", "comet7",
+            "contender", "coquette2", "coquette3", "coquette4", "coquette5", "coquette6",
+            "corsita", "coureur", "cyclone", "cyclone2", "cypher", "daemon2",
+            "deathbike", "deathbike2", "deathbike3", "defiler", "deity", "deluxo",
+            "deveste", "deviant", "diablous", "diablous2", "dominator10", "dominator2",
+            "dominator3", "dominator4", "dominator5", "dominator6", "dominator7", "dominator8",
+            "dominator9", "dorado", "drafter", "draugur", "driftchavosv6", "driftcheburek",
+            "driftcypher", "driftdominator10", "driftdominator9", "drifteuros", "driftfr36", "driftfuto",
+            "driftfuto2", "driftgauntlet4", "drifthardy", "driftjester", "driftjester3", "driftl352",
+            "driftnebula", "driftremus", "driftrt3000", "driftsentinel", "driftsentinel2", "drifttampa",
+            "driftvorschlag", "driftyosemite", "driftzr350", "dubsta3", "dukes", "dukes2",
+            "dukes3", "dune3", "dune4", "dune5", "dynasty", "elegy",
+            "ellie", "emerus", "enduro", "entity2", "entity3", "envisage",
+            "esskey", "eudora", "euros", "eurosx32", "everon", "everon2",
+            "everon3", "faction", "faction2", "faction3", "fagaloa", "faggio",
+            "faggio3", "fcr", "fcr2", "feltzer3", "firebolt", "flashgt",
+            "fmj", "fmj2", "fr36", "freecrawler", "furia", "furoregt",
+            "futo2", "gargoyle", "gauntlet2", "gauntlet3", "gauntlet4", "gauntlet5",
+            "gauntlet6", "gb200", "gburrito2", "glendale", "glendale2", "gp1",
+            "granger2", "greenwood", "growler", "gt500", "gt750", "hakuchou",
+            "hakuchou2", "hardy", "hellion", "hermes", "hotring", "huntley",
+            "hustler", "ignus", "ignus2", "imorgon", "impaler", "impaler2",
+            "impaler3", "impaler4", "impaler5", "impaler6", "imperator", "imperator2",
+            "imperator3", "infernus2", "innovation", "insurgent", "insurgent2", "insurgent3",
+            "issi3", "issi4", "issi5", "issi6", "issi7", "issi8",
+            "itali2", "italigtb", "italigtb2", "italigto", "italirsx", "iwagen",
+            "jb7002", "jester", "jester2", "jester3", "jester4", "jester5",
+            "journey2", "jubilee", "jugular", "kalahari", "kamacho", "kanjo",
+            "kanjosj", "komoda", "krieger", "kuruma", "kuruma2", "l35",
+            "l352", "landstalker2", "le7b", "lectro", "limo2", "lm87",
+            "locust", "luiva", "lurcher", "lynx", "mamba", "manana2",
+            "manchez", "manchez2", "manchez3", "marshall", "massacro", "massacro2",
+            "menacer", "michelli", "minimus", "minivan2", "monster", "monster3",
+            "monster4", "monster5", "monstrociti", "moonbeam", "moonbeam2", "nebula",
+            "neo", "neon", "nero", "nero2", "nightblade", "nightshade",
+            "nightshark", "niobe", "novak", "omnis", "omnisegt", "oppressor",
+            "oppressor2", "osiris", "outlaw", "panthere", "panto", "paradise",
+            "paragon", "paragon2", "paragon3", "pariah", "patriot2", "patriot3",
+            "penetrator", "penumbra2", "peyote2", "peyote3", "pfister811", "pigalle",
+            "pipistrello", "pizzaboy", "postlude", "powersurge", "previon", "primo2",
+            "prototipo", "r300", "raiden", "rapidgt3", "rapidgt4", "raptor",
+            "ratbike", "ratel", "ratloader2", "rcbandito", "reaper", "rebla",
+            "reever", "remus", "retinue", "retinue2", "revolter", "rhapsody",
+            "rhinehart", "riata", "rrocket", "rt3000", "ruiner2", "ruiner3",
+            "ruiner4", "rumpo3", "ruston", "s80", "s95", "sabregt2",
+            "sanctus", "savestra", "sc1", "schafter3", "schafter4", "schafter5",
+            "schafter6", "schlagen", "scramjet", "seminole2", "sentinel3", "sentinel4",
+            "sentinel5", "sentinel6", "seven70", "sheava", "shinobi", "shotaro",
+            "slamvan", "slamvan2", "slamvan3", "slamvan4", "slamvan5", "slamvan6",
+            "sm722", "sovereign", "specter", "specter2", "speedo4", "speedo5",
+            "squaddie", "stafford", "stalion", "stalion2", "stingertt", "streiter",
+            "stromberg", "stryder", "sugoi", "sultan2", "sultan3", "sultanrs",
+            "surfer3", "suzume", "swinger", "t20", "tahoma", "tailgater2",
+            "taipan", "tampa", "tampa2", "tampa3", "tampa4", "technical",
+            "technical2", "technical3", "tempesta", "tenf", "tenf2", "terminus",
+            "tezeract", "thrax", "thrust", "tigon", "toreador", "torero",
+            "torero2", "tornado5", "tornado6", "toros", "trophytruck", "trophytruck2",
+            "tropos", "tulip", "tulip2", "turismo2", "turismo3", "turismor",
+            "tyrant", "tyrus", "uranus", "vagner", "vagrant", "vamos",
+            "vectre", "verlierer2", "verus", "veto", "veto2", "vigero2",
+            "vigero3", "vigilante", "vindicator", "virgo", "virgo2", "virgo3",
+            "virtue", "viseris", "visione", "vivanite", "voltic2", "voodoo",
+            "vorschlaghammer", "vortex", "vstr", "warrener", "warrener2", "weevil",
+            "weevil2", "windsor", "windsor2", "winky", "wolfsbane", "woodlander",
+            "xa21", "xls", "xls2", "xtreme", "yosemite", "yosemite1500",
+            "yosemite2", "yosemite3", "youga2", "youga3", "youga4", "youga5",
+            "z190", "zeno", "zentorno", "zhaba", "zion3", "zombiea",
+            "zombieb", "zorrusso", "zr350", "zr380", "zr3802", "zr3803",
+        };
+
+
+        /// <summary>
         /// Names read off THIS machine, on top of the ones this file ships with.
         ///
         /// A SHIPPED LIST IS A PHOTOGRAPH. It goes stale the day Rockstar ships a pack -- the

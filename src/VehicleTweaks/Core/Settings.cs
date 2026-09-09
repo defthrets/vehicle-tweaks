@@ -588,6 +588,45 @@ namespace VehicleTweaks.Core
         public float WheelWidth = 1f;
 
         /// <summary>
+        /// How much the tyres smoke when they are spinning, against how much they normally would.
+        ///
+        /// THE SMOKE IS THE TEMPERATURE. There is no amount of smoke to set; there is a heat per
+        /// wheel that the smoke is drawn from, so this leans on the number the game already uses
+        /// -- which is why what comes out is the game's own smoke, in its own colour, off the
+        /// right wheel. One is the car as it came, nought is a tyre that never smokes, and the
+        /// top of the range is well past anything the game does on its own.
+        ///
+        /// Only while the wheels are actually spinning. A tyre that smokes at a red light is a
+        /// bug wearing a setting's clothes.
+        /// </summary>
+        public float TyreSmoke = 1f;
+
+        /// <summary>
+        /// The cars from every update, out on the roads with everything else.
+        ///
+        /// OFF, BECAUSE IT PUTS THINGS IN THE WORLD. Everything else in this mod happens to the
+        /// car you are in; this one reaches out and adds vehicles to the map, which is a bigger
+        /// thing to do to somebody's game than it looks and should be asked for.
+        ///
+        /// GTA WILL NOT DO IT AND CANNOT BE ASKED TO. Which models the traffic may spawn lives in
+        /// popgroups.ymt inside the game's own archives, so the proper fix is an asset mod and
+        /// OpenIV. From a script the only way is to put the cars out yourself, on a road, out of
+        /// sight, and hand them to the population system -- which is what this does, and which is
+        /// what every script that claims this does underneath.
+        /// </summary>
+        public bool DlcTraffic = false;
+
+        /// <summary>
+        /// How often one goes out, in seconds.
+        ///
+        /// SIX IS ABOUT ONE A STREET at driving speed, which reads as "the updates are in the
+        /// traffic now" rather than as a parade. Fourteen of ours may be out at a time; after
+        /// that it waits for the game to clean some up, which it does on its own because they
+        /// are handed over the moment they are made.
+        /// </summary>
+        public float DlcTrafficSeconds = 6f;
+
+        /// <summary>
         /// The stance you set on a car is remembered for that car, and given back to it.
         ///
         /// ON, BECAUSE A STANCE IS A PROPERTY OF THE CAR AND NOT OF THE MOD. You set it once and
@@ -1230,6 +1269,11 @@ namespace VehicleTweaks.Core
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
+                s.TyreSmoke = ini.GetFloat("Driving", "TyreSmoke", s.TyreSmoke, 0f, 5f);
+
+                s.DlcTraffic = ini.GetBool("General", "DlcTraffic", s.DlcTraffic);
+                s.DlcTrafficSeconds = ini.GetFloat("General", "DlcTrafficSeconds",
+                                                   s.DlcTrafficSeconds, 1f, 60f);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);

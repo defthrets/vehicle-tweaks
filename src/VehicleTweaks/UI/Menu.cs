@@ -1019,6 +1019,12 @@ namespace VehicleTweaks.UI
                                    "A locked rear axle should win eventually. Eight is a fast jog.",
                                    () => _cfg.FwdHandbrake));
 
+            grip.Items.Add(Header("THE SMOKE"));
+
+            grip.Items.Add(Scale("Tyre smoke", () => _cfg.TyreSmoke, v => _cfg.TyreSmoke = v,
+                                 0.1f, 0f, 5f, "0.0", "x", "Driving", "TyreSmoke",
+                                 "1.0 is standard. Only while the wheels are spinning."));
+
             grip.Items.Add(Header("THE TYRES"));
 
             grip.Items.Add(Number("Drift", () => _cfg.DriftAmount,
@@ -1371,6 +1377,18 @@ namespace VehicleTweaks.UI
                                  "General", "CrashSlowMoSeconds",
                                  "Measured in game time, so it lasts longer than it reads.",
                                  () => _cfg.CrashSlowMo));
+
+            gen.Items.Add(Header("THE TRAFFIC"));
+
+            gen.Items.Add(Toggle("Update cars in traffic", () => _cfg.DlcTraffic,
+                                 v => _cfg.DlcTraffic = v, "General", "DlcTraffic",
+                                 "Puts them on the roads itself. GTA will not."));
+
+            gen.Items.Add(Number("One goes out every", () => _cfg.DlcTrafficSeconds,
+                                 v => _cfg.DlcTrafficSeconds = v, 1f, 1f, 60f, "0", "s",
+                                 "General", "DlcTrafficSeconds",
+                                 "Out of sight, on a road, then handed to the traffic.",
+                                 () => _cfg.DlcTraffic));
 
             gen.Items.Add(Header("THE SPAWNER"));
 
