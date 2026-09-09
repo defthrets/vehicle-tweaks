@@ -137,7 +137,7 @@ namespace VehicleTweaks.UI
 
         // How big, as fractions of the screen.
         private const float PanelW = 0.278f * Zoom;
-        private const float TitleH = 0.098f * Zoom;
+        private const float TitleH = 0.116f * Zoom;
         private const float RowH = 0.0360f * Zoom;
         private const float FootH = 0.052f * Zoom;
 
@@ -2172,8 +2172,19 @@ namespace VehicleTweaks.UI
             // beside its icon and squash the other eight; the title bar has a whole line spare to
             // the right of the title, and a name on its own line reads as a heading rather than
             // as a wider tab.
-            Draw.Text(page.Title, x + PanelW - PadX, PanelTop + 0.0175f * Zoom, TabText * 1.05f,
-                      Fade(Color.FromArgb(215, 232, 228, 231)), Plain, false, true);
+            // THE PAGE NAMED UNDER ITS OWN STRIP, and named big. It used to sit small in the
+            // top right corner, a whole panel's width away from the nine icons it was the answer
+            // to -- so the strip said "you are on the second of nine" and the name said which
+            // page that was, and the two never met. Centred under the icon that is lit, they are
+            // one control: where you are, and how far along.
+            //
+            // The corner keeps the COUNT, which is the part that was never in the name.
+            Draw.Text(page.Title, x + PanelW * 0.5f, PanelTop + 0.0760f * Zoom, TabText * 1.35f,
+                      Fade(Color.FromArgb(235, 232, 228, 231)), Plain, true);
+
+            Draw.Text((_page + 1) + " / " + _pages.Count, x + PanelW - PadX,
+                      PanelTop + 0.0180f * Zoom, TabText * 0.95f,
+                      Fade(Color.FromArgb(170, 150, 150, 156)), Plain, false, true);
 
             // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
             // to the row underneath it; all the names with the current one lit says the same
@@ -2239,12 +2250,12 @@ namespace VehicleTweaks.UI
                     var hw = Draw.Width(item.Label, HeadText, Plain);
                     var rule = PanelW - LabelX - PadX - hw - 0.0050f * Zoom;
 
-                    Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0140f * Zoom, HeadText,
+                    Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0112f * Zoom, HeadText,
                               Fade(Color.FromArgb(225, 245, 196, 60)), Plain);
 
                     if (rule > 0f)
                     {
-                        Draw.Bar(bx + LabelX + hw + 0.0050f * Zoom, rowY + RowH - 0.0080f * Zoom,
+                        Draw.Bar(bx + LabelX + hw + 0.0050f * Zoom, rowY + RowH - 0.0054f * Zoom,
                                  rule, 0.0010f * Zoom, Fade(Color.FromArgb(55, 245, 196, 60)));
                     }
 
@@ -2346,9 +2357,9 @@ namespace VehicleTweaks.UI
 
             if (string.IsNullOrEmpty(hint)) hint = pad ? "D-PAD moves and changes" : "ARROWS change    TAB page";
 
-            Draw.Text(Draw.Ellipsis(hint, HintText, PanelW - PadX * 2f, Plain),
-                      x + PadX, foot + 0.0110f * Zoom, HintText,
-                      Fade(Color.FromArgb(180, 232, 228, 231)), Plain);
+            Draw.Text(Draw.Ellipsis(hint, HintText * 1.12f, PanelW - PadX * 2f, Plain),
+                      x + PadX, foot + 0.0105f * Zoom, HintText * 1.12f,
+                      Fade(Color.FromArgb(225, 232, 228, 231)), Plain);
 
             // THE CONTROLS IT IS ACTUALLY BEING DRIVEN WITH. A footer that says TAB and
             // BACKSPACE to somebody holding a pad is worse than no footer: they are the two
@@ -2358,7 +2369,7 @@ namespace VehicleTweaks.UI
                                  ? "LB RB page   D-PAD move & change   A works a row   B saves & closes"
                                  : "D-PAD move & change   A works a row   B saves & closes")
                           : "TAB page   ARROWS change   " + Binding() + " or BACKSPACE saves",
-                      x + PadX, foot + 0.0310f * Zoom, FootText,
+                      x + PadX, foot + 0.0325f * Zoom, FootText,
                       Fade(Color.FromArgb(130, 150, 150, 156)), Plain);
         }
 
@@ -2657,7 +2668,7 @@ namespace VehicleTweaks.UI
             var cellAcross = cell / Aspect();
             var iconW = 7f * cellAcross;
 
-            var y = PanelTop + 0.0560f * Zoom;
+            var y = PanelTop + 0.0480f * Zoom;
 
             // GROUPED AND CENTRED, NOT STRETCHED EDGE TO EDGE. Nine icons pushed to the corners
             // of the panel with the gaps taking up more room than the icons read as nine

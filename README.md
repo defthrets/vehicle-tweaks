@@ -124,6 +124,19 @@ falls back to text with one line in the log. It sits *inside* the title bar now 
 was a badge and stood proud of the edge it was pinned to; an italic wordmark is a name, and a name
 belongs on the line with the page it names.
 
+### Where you are, next to how far along
+
+The page name used to sit small in the top-right corner — a whole panel's width away from the nine
+icons it was the answer to. The strip said *you are on the second of nine* and the name said *which
+page that was*, and the two never met, so working out where you were meant reading both and joining
+them up. The name is now centred **under the strip** and half again as big: the lit icon and the
+word beneath it are one control. The corner keeps the count, which was never in the name anyway.
+
+Headings sit lower in their row, so the air falls *above* a group rather than either side of it and
+a section reads as starting rather than continuing. The hint under the list — the line that says
+what the row you are on actually does — is bigger and brighter than the controls line below it,
+which is reference and was competing with it for the same attention.
+
 ### One thing on the right of every row
 
 Each row used to say its state **twice**: a switch drew a sliding knob *and* the word ON beside it;
