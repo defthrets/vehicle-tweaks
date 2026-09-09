@@ -110,6 +110,7 @@ namespace VehicleTweaks.Driving
 
         private int _car;
         private string _model;
+        private bool _probed;
         private float _saidCamber = float.NaN;
         private int _saidAt;
 
@@ -356,9 +357,114 @@ namespace VehicleTweaks.Driving
             return false;
         }
 
+
+        /// <summary>
+        /// Reads the front wheels byte by byte and writes down what is where.
+        ///
+        /// BECAUSE THE WRITES LAND AND THE WHEELS DO NOT MOVE. The log proves the slider reaches
+        /// the field and the field takes the value; the car ignores it. That leaves one likely
+        /// answer -- the three offsets are FiveM's, FiveM is Legacy, and this is Enhanced, which
+        /// is a different executable with its own idea of where things sit in a CWheel.
+        ///
+        /// AND A STRUCT CAN BE FOUND WITHOUT A DEBUGGER, because two of its fields announce
+        /// themselves. The X offset is HALF A TRACK, and the left wheel's is the NEGATIVE of the
+        /// right wheel's -- so any offset holding a mirrored pair of plausible size is a
+        /// candidate, and on Legacy the winner is 0x030. The tyre, rim and width sit beside each
+        /// other as three believable radii in a row, which on Legacy is 0x110. Find those two
+        /// landmarks on this build and the rest of the layout follows from them.
+        ///
+        /// OFF, AND IT RUNS ONCE. It is a page of numbers in a log for somebody to read, not a
+        /// feature anybody wants.
+        /// </summary>
+        private void Probe(Vehicle car)
+        {
+            if (!_cfg.StanceProbe || _probed) return;
+
+            _probed = true;
+
+            try
+            {
+                var left = IntPtr.Zero;
+                var right = IntPtr.Zero;
+
+                foreach (var wheel in car.Wheels)
+                {
+                    if (wheel.BoneId == VehicleWheelBoneId.WheelLeftFront) left = wheel.MemoryAddress;
+                    if (wheel.BoneId == VehicleWheelBoneId.WheelRightFront) right = wheel.MemoryAddress;
+                }
+
+                if (left == IntPtr.Zero || right == IntPtr.Zero)
+                {
+                    Log.Warn("Stance probe: could not find both front wheels.");
+                    return;
+                }
+
+                Log.Info("Stance probe: " + (Name(car) ?? "?") + ", front wheels at " +
+                         left.ToString("X") + " and " + right.ToString("X") + ".");
+
+                var mirrored = new System.Text.StringBuilder();
+                var sizes = new System.Text.StringBuilder();
+
+                for (var off = 0; off < 0x1C0; off += 4)
+                {
+                    var l = Read(left, off);
+                    var r = Read(right, off);
+
+                    // A MIRRORED PAIR THE SIZE OF HALF A TRACK. That is what an X offset looks
+                    // like, and very little else does.
+                    if (Sound(l) && Sound(r) && Math.Abs(l + r) < 0.002f && Math.Abs(l) > 0.25f)
+                    {
+                        mirrored.Append("0x").Append(off.ToString("X3")).Append(" ")
+                                .Append(l.ToString("0.0000")).Append("/")
+                                .Append(r.ToString("0.0000")).Append("  ");
+                    }
+
+                    // Three believable radii in a row is a tyre, a rim and a width.
+                    if (Believable(left, off) && Believable(left, off + 4) && Believable(left, off + 8))
+                    {
+                        sizes.Append("0x").Append(off.ToString("X3")).Append(" ")
+                             .Append(Read(left, off).ToString("0.000")).Append("/")
+                             .Append(Read(left, off + 4).ToString("0.000")).Append("/")
+                             .Append(Read(left, off + 8).ToString("0.000")).Append("  ");
+                    }
+                }
+
+                Log.Info("Stance probe: mirrored pairs -- " +
+                         (mirrored.Length == 0 ? "none" : mirrored.ToString()));
+                Log.Info("Stance probe: size triples -- " +
+                         (sizes.Length == 0 ? "none" : sizes.ToString()));
+
+                for (var line = 0; line < 0x1C0; line += 32)
+                {
+                    var row = new System.Text.StringBuilder("0x" + line.ToString("X3") + " ");
+
+                    for (var off = line; off < line + 32; off += 4)
+                    {
+                        row.Append(Read(left, off).ToString("0.0000").PadLeft(11));
+                    }
+
+                    Log.Info("Stance probe: " + row);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Stance probe fell over: " + ex.Message);
+            }
+        }
+
+        /// <summary>Whether a float looks like a wheel radius or a tyre width.</summary>
+        private static bool Believable(IntPtr at, int offset)
+        {
+            var v = Read(at, offset);
+
+            return !float.IsNaN(v) && v > 0.08f && v < 1.2f;
+        }
+
         /// <summary>Reads what a car came with, refusing any wheel that does not read sanely.</summary>
         private Dictionary<int, float[]> Capture(Vehicle car)
         {
+            Probe(car);
+
             var stock = new Dictionary<int, float[]>();
 
             try

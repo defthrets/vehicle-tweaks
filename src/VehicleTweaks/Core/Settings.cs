@@ -613,6 +613,17 @@ namespace VehicleTweaks.Core
         public bool StanceRemember = true;
 
         /// <summary>
+        /// Write the front wheels out byte by byte, once, and stop.
+        ///
+        /// OFF, AND IT IS NOT A FEATURE. The stance writes land and the wheels do not move on
+        /// some builds, and the only way to tell a wrong address from an ignored one is to look
+        /// at what is actually in the struct. Two fields give themselves away: the X offset is
+        /// half a track and mirrored between one side and the other, and the tyre, rim and width
+        /// sit beside each other as three believable radii. Find those and the layout follows.
+        /// </summary>
+        public bool StanceProbe = false;
+
+        /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
         /// GTA bogs a car down the moment it stops pointing where it is going, which is what
@@ -1218,6 +1229,7 @@ namespace VehicleTweaks.Core
                 s.RimSize = ini.GetFloat("Driving", "RimSize", s.RimSize, 0.4f, 2.5f);
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
+                s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
