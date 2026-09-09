@@ -515,35 +515,48 @@ control already owns that field. A second writer is the exact thing this page ex
 
 Camber, track width and ride height, per axle. Six sliders on the TUNING page.
 
-**Not by writing memory, which is the whole point.** VStancer finds each wheel's structure in the
-game's memory and writes floats at fixed byte offsets. That works — it is also why it must be
-rebuilt for every game update and needed its own Enhanced version. An offset is only correct for
-the executable it was measured against, and a wrong one writes a float into whatever happens to be
-at that address. That is the one kind of change whose failure is a crash rather than a setting that
-does nothing.
+**The bones were the right idea and they do not work.** Camber *is* the Y rotation of a wheel bone
+and track width *is* its X offset, both settable through `EntityBone` — and the first version set
+them there, on the reasoning that a property is not an address and so cannot go stale with a game
+update. What that missed is *when*: the game poses the vehicle skeleton from the wheel physics
+**every frame, after scripts have run**, so the write was always correct and always thrown away
+before anything was drawn. There is no ordering that fixes it, because the numbers the poser uses do
+not live in the bone.
 
-**So it goes through the bones.** Camber *is* the Y rotation of a wheel bone in the car's local
-space and track width *is* its X offset — not approximations of them — and `EntityBone.PoseRotation`
-and `EntityBone.Pose` are both settable through the ordinary API. Verified by reflection like
-everything else here, and version-independent by construction: a property is not an address.
+**They live in the wheel, and the offsets are not a guess.** Each `CWheel` carries its Y rotation at
+`0x008`, the negation of it at `0x010`, and its X offset at `0x030`. Those are not measured here:
+they are the constants [FiveM's own implementations](https://github.com/citizenfx/fivem/blob/master/code/components/extra-natives-five/src/VehicleExtraNatives.cpp)
+of `SET_VEHICLE_WHEEL_Y_ROTATION` and `SET_VEHICLE_WHEEL_X_OFFSET` use — **hardcoded** in that file
+rather than pattern-scanned, which is the interesting part: everything in it that *has* moved
+between game builds is scanned for, and these are not. Same numbers on Legacy and Enhanced, and
+exercised by every FiveM server running a stance script.
 
-**Read, change one axis, write back.** The bone's pose is also where the wheel's *spin* lives.
-A pose built from camber alone, written sixty times a second, is a car whose wheels never turn
-again — so the rotation is read first, only Y is replaced, and the rest goes back untouched. Same
-for the translation: X and Z are ours, Y is left alone.
+**SHVDN finds the wheel**, which is the half that does move. `VehicleWheel.MemoryAddress` is a
+maintained API — the walk from a vehicle to its wheel array is somebody else's problem and theirs to
+keep right. Nothing here scans for anything.
 
-**Every frame**, because the game poses the skeleton every frame and would undo it otherwise. That
-is the same problem VStancer solves by patching the game's height-reset code, which is not
-something a script should be doing; writing it again is.
+**And it looks before it writes.** Every wheel's own values are read once when you get in, and a
+reading that is not a finite number in a sane range means the address is not what this thinks it is
+— so that wheel is skipped and said out loud rather than written to. What gets written is that stock
+value *plus* the setting, so `0` is genuinely the car as it came and a car with camber from the
+factory keeps it. Everything is handed back by handle when you get out or change car.
 
 **Per axle rather than per wheel** — which is both what stance actually is and what VStancer's own
-menu offers. The two sides are mirrored, because one slider has to become two opposite numbers or
-a wider track is one wheel out and one wheel in.
+menu offers. The two sides are mirrored, because one slider has to become two opposite numbers or a
+wider track is one wheel out and one wheel in. Odd bone ids are the left of each axle.
 
-The one thing that could not be checked from outside the game is which sign counts as leaning *in*.
-If it goes the wrong way, use the other sign — it is a slider. The log reports the bone's pose
-rotation before and after, once per car, which is the only way to tell a pose the game accepted
-from one it overwrote a frame later.
+**Positive is wider.** The field itself wants a *negative* number on the left for that, because the
+wheel models are rotated to face outwards — VStancer's readme tells you to type a minus sign for a
+wider track. This takes the sign out of the setting.
+
+**Height is the one that is not memory.** It goes through the hydraulic suspension raise, per wheel,
+which SHVDN exposes properly — so it is the safest of the three and the least certain, because a car
+with no hydraulics in its handling may simply ignore it. The log says what was asked for either way.
+
+The one thing that cannot be checked from outside the game is which sign counts as leaning *in*. The
+log reports the front left wheel's camber and track before and after, once per car; if it leans the
+wrong way, use the other sign.
+
 
 ## Holding a slide
 

@@ -1,57 +1,83 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using GTA;
 using VehicleTweaks.Core;
 
 namespace VehicleTweaks.Driving
 {
     /// <summary>
-    /// Camber, track width and ride height, per axle -- what VStancer does, done a different way.
+    /// Camber, track width and ride height, per axle -- what VStancer does, the way it does it.
     ///
-    /// NOT BY WRITING MEMORY, WHICH IS THE WHOLE POINT. VStancer finds each wheel's structure in
-    /// the game's memory and writes floats at fixed byte offsets. That works, and it is why the
-    /// mod has to be rebuilt for every game update and why Enhanced needed its own version: an
-    /// offset is only correct for the executable it was measured against, and a wrong one writes
-    /// a float into whatever else happens to be at that address. I have no way to measure offsets
-    /// for this build, and guessing at them would be the one change in this mod whose failure is
-    /// a crash rather than a setting that does nothing.
+    /// THE BONES WERE THE RIGHT IDEA AND THEY DO NOT WORK. Camber IS the Y rotation of a wheel
+    /// bone and track width IS its X offset, both settable through EntityBone, and the first
+    /// version of this set them there on the reasoning that a property is not an address and so
+    /// cannot go stale with a game update. What it missed is WHEN: the game poses the vehicle
+    /// skeleton from the wheel physics every frame, after scripts have run, so the write was
+    /// always correct and always thrown away before anything was drawn. There is no ordering
+    /// that fixes it, because the numbers the poser uses do not live in the bone.
     ///
-    /// SO IT GOES THROUGH THE BONES INSTEAD. Camber is the Y rotation of a wheel bone in the
-    /// car's local space and track width is its X offset -- that is what those numbers ARE, not
-    /// an approximation of them -- and EntityBone.PoseRotation and EntityBone.Pose are both
-    /// settable through the ordinary API. Checked by reflection like everything else here, and
-    /// version-independent by construction, because a property is not an address.
+    /// THEY LIVE IN THE WHEEL, AND THE OFFSETS ARE NOT A GUESS. Each CWheel carries its own Y
+    /// rotation at 0x008 with the negation of it at 0x010, and its X offset at 0x030. Those three
+    /// are not measured here: they are the constants FiveM's own implementations of
+    /// SET_VEHICLE_WHEEL_Y_ROTATION and SET_VEHICLE_WHEEL_X_OFFSET use, hardcoded in that project
+    /// rather than pattern-scanned -- which is the interesting part, because everything in that
+    /// file which HAS moved between game builds is scanned for and these are not. They are the
+    /// same numbers on Legacy and on Enhanced, and they are exercised by every FiveM server
+    /// running a stance script.
     ///
-    /// READ, CHANGE ONE AXIS, WRITE BACK. The bone's pose is also where the wheel's SPIN lives.
-    /// Writing a whole pose matrix built from camber alone would be a car whose wheels no longer
-    /// turn -- so the rotation is read first, only Y is replaced, and the rest goes back
-    /// untouched. Same for the translation: X and Z are ours, Y is left alone.
+    /// SHVDN FINDS THE WHEEL, WHICH IS THE HALF THAT DOES MOVE. VehicleWheel.MemoryAddress is a
+    /// maintained API: the walk from a vehicle to its wheel array is somebody else's problem, and
+    /// theirs to keep right. Nothing here scans for anything.
     ///
-    /// EVERY FRAME, because the game poses the skeleton every frame and would undo it otherwise.
-    /// That is the same problem VStancer solves by patching the game's height-reset code, which
-    /// is not a thing a script should be doing; writing it again is.
+    /// AND IT LOOKS BEFORE IT WRITES. Every wheel's own values are read once when you get in, and
+    /// a reading that is not a finite number in a sane range means the address is not what this
+    /// thinks it is -- so that wheel is skipped and said out loud, rather than written to. What is
+    /// written is that stock value plus the setting, so nought is genuinely the car as it came and
+    /// a car with camber from the factory keeps it.
     ///
-    /// PER AXLE RATHER THAN PER WHEEL, which is both what stance actually is and what VStancer's
-    /// own menu offers. The two sides of an axle are mirrored here rather than set separately --
-    /// a car with one wheel cambered is not a stance, it is an accident.
+    /// MIRRORED ACROSS THE AXLE. The two sides move in opposite directions in the car's own
+    /// coordinates, so one slider becomes two opposite numbers, or a wider track is one wheel out
+    /// and one wheel in. Odd bone ids are the left of each axle. Widening wants a NEGATIVE offset
+    /// on the left, which is a quirk of the wheel models being rotated to face outwards, and is
+    /// why VStancer's own readme tells you to type a negative number for a wider track. This
+    /// takes the sign out of the setting: positive is wider, here as anywhere else.
+    ///
+    /// HEIGHT IS THE ONE THAT IS NOT MEMORY. It goes through the hydraulic suspension raise, per
+    /// wheel, which SHVDN exposes properly -- so it is the safest of the three and the least
+    /// certain, because a car with no hydraulics may simply ignore it. Said in the log either way.
+    ///
+    /// HANDED BACK BY HANDLE when you get out or change car, like every other override here.
     /// </summary>
     internal sealed class Stance
     {
-        /// <summary>The wheel bones, by the names the game gives them.</summary>
-        private const string FrontLeft = "wheel_lf";
-        private const string FrontRight = "wheel_rf";
-        private const string RearLeft = "wheel_lr";
-        private const string RearRight = "wheel_rr";
+        /// <summary>Where a wheel keeps its lean, the negation of its lean, and its sideways offset.</summary>
+        private const int Camber = 0x008;
+        private const int CamberBack = 0x010;
+        private const int Track = 0x030;
 
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
+        /// <summary>
+        /// A wheel does not lean by five radians and does not sit five metres out.
+        ///
+        /// This is not a limit on the setting, it is a test of the ADDRESS: if what is already
+        /// there is not a small number, the pointer is not a wheel and nothing gets written.
+        /// </summary>
+        private const float Sane = 5f;
+
         private readonly Settings _cfg;
 
+        /// <summary>The car this is about, and a way back to it when the player has got out.</summary>
         private int _car;
-        private bool _applied;
+        private Vehicle _last;
 
-        /// <summary>Said once per car, so the log can show whether the bones moved at all.</summary>
+        private bool _applied;
         private bool _said;
+
+        /// <summary>Camber, track and raise as the car came, per wheel, by bone id.</summary>
+        private readonly Dictionary<int, float[]> _stock = new Dictionary<int, float[]>();
 
         public Stance(Settings cfg)
         {
@@ -73,23 +99,21 @@ namespace VehicleTweaks.Driving
                 if (car.Handle != _car)
                 {
                     Release();
+
                     _car = car.Handle;
+                    _last = car;
                     _said = false;
+
+                    Capture(car);
                 }
 
                 if (Flat())
                 {
-                    if (_applied) Restore(car);
+                    if (_applied) Restore();
                     return;
                 }
 
-                // MIRRORED, NOT COPIED. The two sides of an axle lean and move in opposite
-                // directions in the car's own coordinates, so one slider has to become two
-                // opposite numbers or a "wider track" is one wheel out and one wheel in.
-                Bone(car, FrontLeft, _cfg.CamberFront, _cfg.TrackFront, _cfg.HeightFront, 1f);
-                Bone(car, FrontRight, _cfg.CamberFront, _cfg.TrackFront, _cfg.HeightFront, -1f);
-                Bone(car, RearLeft, _cfg.CamberRear, _cfg.TrackRear, _cfg.HeightRear, 1f);
-                Bone(car, RearRight, _cfg.CamberRear, _cfg.TrackRear, _cfg.HeightRear, -1f);
+                Apply(car);
 
                 _applied = true;
             }
@@ -100,134 +124,175 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>Whether every one of the six is at nothing, in which case there is nothing to do.</summary>
+        /// <summary>Whether every slider is at nought, in which case there is nothing to do.</summary>
         private bool Flat()
         {
-            return Small(_cfg.CamberFront) && Small(_cfg.CamberRear) &&
-                   Small(_cfg.TrackFront) && Small(_cfg.TrackRear) &&
-                   Small(_cfg.HeightFront) && Small(_cfg.HeightRear);
-        }
-
-        private static bool Small(float value)
-        {
-            return value > -Nothing && value < Nothing;
+            return Math.Abs(_cfg.CamberFront) < Nothing && Math.Abs(_cfg.CamberRear) < Nothing &&
+                   Math.Abs(_cfg.TrackFront) < Nothing && Math.Abs(_cfg.TrackRear) < Nothing &&
+                   Math.Abs(_cfg.HeightFront) < Nothing && Math.Abs(_cfg.HeightRear) < Nothing;
         }
 
         /// <summary>
-        /// One wheel bone, leaned and moved.
-        ///
-        /// THE READ IS NOT A FORMALITY. A wheel bone's pose carries its spin, and this is called
-        /// sixty times a second -- so a pose written from scratch is a wheel that never turns
-        /// again. Only the one number each is replaced.
+        /// Reads what this car came with, once, and refuses any wheel that does not read sanely.
         /// </summary>
-        private void Bone(Vehicle car, string name, float camber, float track, float height, float side)
+        private void Capture(Vehicle car)
         {
-            try
-            {
-                var bone = car.Bones[name];
+            _stock.Clear();
 
-                if (bone == null || !bone.IsValid)
+            foreach (var wheel in car.Wheels)
+            {
+                var at = wheel.MemoryAddress;
+
+                if (at == IntPtr.Zero) continue;
+
+                var camber = Read(at, Camber);
+                var track = Read(at, Track);
+
+                if (!Sound(camber) || !Sound(track))
                 {
-                    // A vehicle without that wheel. Nothing to lean.
-                    return;
+                    Log.Once("stance-address", "Wheel " + wheel.BoneId + " does not read like a " +
+                                               "wheel (" + camber + ", " + track + "), so the " +
+                                               "stance leaves it alone.");
+                    continue;
                 }
 
-                var before = bone.PoseRotation;
+                var raise = 0f;
 
-                var rotation = before;
-                rotation.Y = camber * side;
-                bone.PoseRotation = rotation;
+                try { raise = wheel.GetHydraulicSuspensionRaiseFactor(); }
+                catch { /* nought is the right assumption and the right thing to put back */ }
 
-                var pose = bone.Pose;
-                pose.X = track * side;
-                pose.Z = height;
-                bone.Pose = pose;
-
-                if (_said) return;
-
-                _said = true;
-
-                // WHETHER THE BONE ACTUALLY MOVED, once per car. There is no other way to tell a
-                // pose the game accepted from one it overwrote a frame later, and the whole
-                // question of whether this approach works at all comes down to that.
-                var after = bone.PoseRotation;
-
-                Log.Debug("Stance: " + name + " pose rotation Y " +
-                          before.Y.ToString("0.000") + " -> " + after.Y.ToString("0.000") +
-                          " (asked for " + (camber * side).ToString("0.000") + ").");
-            }
-            catch
-            {
-                // The next frame will try again.
+                _stock[(int)wheel.BoneId] = new[] { camber, track, raise };
             }
         }
 
         /// <summary>
-        /// Puts the four wheels back where the car had them.
-        ///
-        /// ZERO ON OUR THREE NUMBERS ONLY, for the same reason as above: the spin lives in the
-        /// same pose, and a wheel reset to nothing is a wheel that stops turning until something
-        /// else poses it again.
+        /// Writes every wheel this frame, because the game is writing over it every frame.
         /// </summary>
-        private void Restore(Vehicle car)
+        private void Apply(Vehicle car)
+        {
+            foreach (var wheel in car.Wheels)
+            {
+                float[] stock;
+
+                if (!_stock.TryGetValue((int)wheel.BoneId, out stock)) continue;
+
+                var at = wheel.MemoryAddress;
+
+                if (at == IntPtr.Zero) continue;
+
+                var id = (int)wheel.BoneId;
+
+                // FRONT IS THE FIRST AXLE AND EVERYTHING ELSE FOLLOWS THE REAR. A six-wheeler's
+                // middle axle has no slider of its own, and the rear is the one it looks like.
+                var front = id == (int)VehicleWheelBoneId.WheelLeftFront ||
+                            id == (int)VehicleWheelBoneId.WheelRightFront;
+
+                // Left is odd: 11 is the left front, 12 the right front, 13 the left rear.
+                var side = (id & 1) == 1 ? 1f : -1f;
+
+                var lean = (front ? _cfg.CamberFront : _cfg.CamberRear) * (float)(Math.PI / 180.0);
+                var out_ = front ? _cfg.TrackFront : _cfg.TrackRear;
+                var up = front ? _cfg.HeightFront : _cfg.HeightRear;
+
+                var camber = stock[0] + side * lean;
+
+                Write(at, Camber, camber);
+                Write(at, CamberBack, -camber);
+                Write(at, Track, stock[1] - side * out_);
+
+                try { wheel.SetHydraulicSuspensionRaiseFactor(stock[2] + up); }
+                catch { /* the one part of this the car is allowed to refuse */ }
+
+                Say(wheel, stock, camber);
+            }
+        }
+
+        /// <summary>Puts every wheel back the way it was read.</summary>
+        private void Restore()
         {
             _applied = false;
 
-            foreach (var name in new[] { FrontLeft, FrontRight, RearLeft, RearRight })
+            var car = _last;
+
+            if (car == null) return;
+
+            try
             {
-                try
+                if (!car.Exists()) return;
+
+                foreach (var wheel in car.Wheels)
                 {
-                    var bone = car.Bones[name];
+                    float[] stock;
 
-                    if (bone == null || !bone.IsValid) continue;
+                    if (!_stock.TryGetValue((int)wheel.BoneId, out stock)) continue;
 
-                    var rotation = bone.PoseRotation;
-                    rotation.Y = 0f;
-                    bone.PoseRotation = rotation;
+                    var at = wheel.MemoryAddress;
 
-                    var pose = bone.Pose;
-                    pose.X = 0f;
-                    pose.Z = 0f;
-                    bone.Pose = pose;
+                    if (at == IntPtr.Zero) continue;
+
+                    Write(at, Camber, stock[0]);
+                    Write(at, CamberBack, -stock[0]);
+                    Write(at, Track, stock[1]);
+
+                    try { wheel.SetHydraulicSuspensionRaiseFactor(stock[2]); }
+                    catch { /* it was never taken, so there is nothing to give back */ }
                 }
-                catch
-                {
-                    // The release by handle is the other chance.
-                }
+            }
+            catch (Exception ex)
+            {
+                Log.Once("stance-restore", "Could not put the stance back: " + ex.Message);
             }
         }
 
-        /// <summary>
-        /// Straightens the wheels of whatever car this was working on.
-        ///
-        /// BY HANDLE, like every other override in here. Stepping out of one car and into another
-        /// has to put the first one's wheels back, and by then it is nobody's CurrentVehicle --
-        /// and a parked car sitting on four cambered wheels is a car nothing on screen explains.
-        /// </summary>
         public void Release()
         {
-            if (!_applied)
-            {
-                _car = 0;
-                return;
-            }
-
-            var handle = _car;
+            if (_applied) Restore();
 
             _applied = false;
             _car = 0;
+            _last = null;
+            _stock.Clear();
+        }
 
-            try
-            {
-                var car = (Vehicle)Entity.FromHandle(handle);
-                if (car == null || !car.Exists()) return;
+        /// <summary>
+        /// Says once per car what the front left wheel was and what it became.
+        ///
+        /// THE SIGNS ARE THE ONE THING THAT CANNOT BE CHECKED FROM OUTSIDE THE GAME. If the
+        /// camber leans the wrong way or the track pulls in instead of out, this line is what
+        /// says so -- and the fix is a minus sign in the ini rather than a rebuild.
+        /// </summary>
+        private void Say(VehicleWheel wheel, float[] stock, float camber)
+        {
+            if (_said || wheel.BoneId != VehicleWheelBoneId.WheelLeftFront) return;
 
-                Restore(car);
-            }
-            catch
-            {
-                // The car is gone, and its wheels went with it.
-            }
+            _said = true;
+
+            Log.Info("Stance: front left camber " + stock[0].ToString("0.0000") + " to " +
+                     camber.ToString("0.0000") + " rad, track " + stock[1].ToString("0.0000") +
+                     " to " + (stock[1] - _cfg.TrackFront).ToString("0.0000") + " m, raise " +
+                     (stock[2] + _cfg.HeightFront).ToString("0.00") + ".");
+        }
+
+        private static bool Sound(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value) && Math.Abs(value) < Sane;
+        }
+
+        /// <summary>
+        /// A float out of the wheel, the long way round.
+        ///
+        /// BitConverter rather than a pointer cast: this project has no unsafe blocks in it and
+        /// four bytes is four bytes. Marshal reads at an offset from a handle, which is exactly
+        /// the shape of the thing being read.
+        /// </summary>
+        private static float Read(IntPtr at, int offset)
+        {
+            return BitConverter.ToSingle(BitConverter.GetBytes(Marshal.ReadInt32(at, offset)), 0);
+        }
+
+        private static void Write(IntPtr at, int offset, float value)
+        {
+            Marshal.WriteInt32(at, offset, BitConverter.ToInt32(BitConverter.GetBytes(value), 0));
         }
     }
 }

@@ -919,7 +919,7 @@ namespace VehicleTweaks.UI
             tune.Items.Add(Number("Track front", () => _cfg.TrackFront,
                                   v => _cfg.TrackFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
                                   "Driving", "TrackFront",
-                                  "How much further apart the front wheels sit."));
+                                  "How much further apart the front wheels sit. Positive is wider."));
 
             tune.Items.Add(Number("Track rear", () => _cfg.TrackRear,
                                   v => _cfg.TrackRear = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
@@ -927,14 +927,14 @@ namespace VehicleTweaks.UI
                                   "Mirrored across the axle, so both go the same way."));
 
             tune.Items.Add(Number("Height front", () => _cfg.HeightFront,
-                                  v => _cfg.HeightFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  v => _cfg.HeightFront = v, 0.05f, -1f, 1f, "0.00", "",
                                   "Driving", "HeightFront",
-                                  "Where the wheel sits in the arch, not how soft it is."));
+                                  "Rides on the hydraulic suspension. Negative drops it."));
 
             tune.Items.Add(Number("Height rear", () => _cfg.HeightRear,
-                                  v => _cfg.HeightRear = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
+                                  v => _cfg.HeightRear = v, 0.05f, -1f, 1f, "0.00", "",
                                   "Driving", "HeightRear",
-                                  "Applied every frame, because the game poses wheels every frame."));
+                                  "A car with no hydraulics in its handling may ignore this."));
 
             var gears = Add("GEARS", IconCog);
 

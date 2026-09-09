@@ -521,17 +521,18 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// How far the tops of the wheels lean, in degrees, front and rear.
         ///
-        /// THROUGH THE BONES, NOT THROUGH MEMORY, which is the whole reason this exists here at
-        /// all. Camber IS the Y rotation of a wheel bone in the car's local space -- not an
-        /// approximation of it -- and that rotation is settable through the ordinary API. The
-        /// other way to do it is what VStancer does: find each wheel's structure in memory and
-        /// write floats at fixed byte offsets, which is why that mod needs rebuilding for every
-        /// game update and needed its own Enhanced version. An offset is only correct for the
-        /// executable it was measured against; a property is not an address.
+        /// WRITTEN INTO THE WHEEL, WHERE THE GAME READS IT. The first version set the wheel
+        /// bone's Y rotation, which is genuinely what camber IS and which did nothing: the game
+        /// poses the skeleton from the wheel physics every frame, after scripts run, so the
+        /// write was correct and thrown away before anything was drawn. See Driving\Stance.cs
+        /// for the three offsets and where they come from -- they are FiveM's own, hardcoded
+        /// rather than scanned for, which is the evidence that they have not moved.
         ///
-        /// NOUGHT IS THE CAR AS IT CAME. Which direction counts as leaning IN depends on a sign
-        /// convention I have not been able to check from outside the game -- if it leans the
-        /// wrong way, use the other sign. It is a slider.
+        /// NOUGHT IS THE CAR AS IT CAME, exactly: each wheel's own value is read when you get in
+        /// and this is added to it, so a car with camber from the factory keeps it. Which
+        /// direction counts as leaning IN is a sign convention that cannot be checked from
+        /// outside the game -- the log says what it wrote, and if it leans the wrong way the fix
+        /// is the other sign. It is a slider.
         /// </summary>
         public float CamberFront = 0f;
         public float CamberRear = 0f;
@@ -539,14 +540,25 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// How much further apart the wheels sit, in metres, front and rear.
         ///
-        /// The X offset of the wheel bones, mirrored across the axle -- one slider has to become
-        /// two opposite numbers, or a wider track is one wheel out and one wheel in.
+        /// Mirrored across the axle -- one slider has to become two opposite numbers, or a wider
+        /// track is one wheel out and one wheel in.
+        ///
+        /// POSITIVE IS WIDER. The field itself wants a NEGATIVE number on the left for that,
+        /// because the wheel models are rotated to face outwards; VStancer's own readme tells
+        /// you to type a minus sign for a wider track, and this takes that out of the setting.
         /// </summary>
         public float TrackFront = 0f;
         public float TrackRear = 0f;
 
         /// <summary>
-        /// How far the wheels move up or down in the arches, in metres, front and rear.
+        /// How far the wheels sit up or down in the arches, front and rear.
+        ///
+        /// THROUGH THE HYDRAULIC SUSPENSION RAISE, per wheel, which is the one of the three that
+        /// SHVDN exposes as a proper API -- so it is the safest and the least certain: a car with
+        /// no hydraulics in its handling may simply ignore it. The log says what was asked for.
+        ///
+        /// A factor rather than a distance, because that is what the game is being asked for.
+        /// Nought is the car as it came; negative drops it.
         ///
         /// Not the same thing as softer springs further up: that changes how the car behaves over
         /// a bump, and this changes where the wheel sits. A car can want either, or both.
@@ -1147,8 +1159,8 @@ namespace VehicleTweaks.Core
                 s.CamberRear = ini.GetFloat("Driving", "CamberRear", s.CamberRear, -20f, 20f);
                 s.TrackFront = ini.GetFloat("Driving", "TrackFront", s.TrackFront, -0.3f, 0.3f);
                 s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
-                s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -0.3f, 0.3f);
-                s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -0.3f, 0.3f);
+                s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -1f, 1f);
+                s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -1f, 1f);
 
                 s.DriftPower = ini.GetBool("Driving", "DriftPower", s.DriftPower);
                 s.DriftPowerBoost = ini.GetFloat("Driving", "DriftPowerBoost", s.DriftPowerBoost, 1f, 3f);
