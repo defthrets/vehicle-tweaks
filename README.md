@@ -588,12 +588,18 @@ meant to outlive the drive. So nothing straightens up when you step out, and wha
 to `VehicleTweaks.stances.ini` beside the log and given back to that car when you get in again —
 through a save, through closing the game, through anything.
 
-**By model, which is the honest limit.** A vehicle's handle is made up when the car is created and
-thrown away when it is not, so nothing about one *individual* car survives a save. What survives is
-what it **is** — so every Panto you drive gets the stance you gave a Panto. A car nobody has stanced
-keeps whatever is already on the sliders rather than snapping to nought, or switching this on would
-look like the feature breaking. `StanceRemember = false` turns the whole of it off and the six
-sliders go back to being ordinary settings.
+**On the car itself, as a decorator** — which is the only name an individual car has. A handle is
+invented when the vehicle is created and thrown away when it is not, but a decorator is a named
+value the game carries *on the entity* and hands back later; it is what the game itself uses to mark
+a car as somebody's personal vehicle, and what VStancer uses for the same job. So this Panto keeps
+its own stance and the other one keeps its own.
+
+**And in a file, by model, as the fallback** for a car that has never been given a stance of its
+own — so a fresh one of a kind you have already built comes out looking right. A car carrying its
+own stance ignores it. A car with neither keeps whatever is already on the sliders rather than
+snapping to nought, or switching this on would look like the feature breaking.
+`StanceRemember = false` turns all of it off and the six sliders go back to being ordinary
+settings.
 
 The file is written a moment after the numbers stop moving, not on every nudge — a slider held down
 on a D-pad moves twenty times a second, and each of those would otherwise be a write.

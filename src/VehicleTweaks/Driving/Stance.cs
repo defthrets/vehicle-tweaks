@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GTA;
+using GTA.Native;
 using VehicleTweaks.Core;
 
 namespace VehicleTweaks.Driving
@@ -54,8 +55,12 @@ namespace VehicleTweaks.Driving
     /// that straightens up the moment you step out of it is not stanced, it is borrowed. Restore
     /// still exists and still runs when the sliders go back to nought, which is how one is undone.
     ///
-    /// REMEMBERED PER MODEL, in a file of its own beside the log -- see Core\Stances.cs for why a
-    /// model and not a car, which is the honest limit of it.
+    /// REMEMBERED ON THE CAR ITSELF, as a decorator -- which is the only name an individual car
+    /// has. A handle is made up when the vehicle is created; a decorator is a named value the game
+    /// carries on the entity and gives back later, and it is what the game uses to mark a car as
+    /// somebody's personal vehicle. So this Panto keeps its own stance and the other one keeps
+    /// its own. A model that has been stanced is kept in a file too, and that is the fallback for
+    /// a car that has never been given one -- see Core\Stances.cs.
     /// </summary>
     internal sealed class Stance
     {
@@ -94,6 +99,81 @@ namespace VehicleTweaks.Driving
         private float[] _pending;
         private int _changedAt;
 
+        /// <summary>
+        /// What the six numbers are called when they are written onto a car itself.
+        ///
+        /// A DECORATOR IS THE ONLY NAME AN INDIVIDUAL CAR HAS. Everything else about a vehicle is
+        /// made up when it is created -- the handle most of all -- but a decorator is a named
+        /// value the game carries on the entity and hands back later, and it is what the game
+        /// itself uses to mark a car as somebody's personal vehicle. VStancer stores its stance
+        /// the same way. This is the difference between "every Panto" and "this Panto".
+        ///
+        /// REGISTERED ONCE PER SESSION, before anything is asked for or written. A decorator that
+        /// was never registered reads as absent and writes as nothing, silently, which is exactly
+        /// the sort of quiet nothing this mod keeps a log for.
+        /// </summary>
+        private static readonly string[] Decors =
+        {
+            "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
+        };
+
+        private static bool _registered;
+
+        private static void Register()
+        {
+            if (_registered) return;
+
+            _registered = true;
+
+            try
+            {
+                // 1 is DECOR_TYPE_FLOAT. The enumeration is the game's, not SHVDN's.
+                foreach (var name in Decors) Function.Call(Hash.DECOR_REGISTER, name, 1);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Stances cannot be written onto cars themselves: " + ex.Message);
+            }
+        }
+
+        /// <summary>The stance this particular car is carrying, or null if it has never had one.</summary>
+        private static float[] FromCar(Vehicle car)
+        {
+            try
+            {
+                if (!Function.Call<bool>(Hash.DECOR_EXIST_ON, car, Decors[0])) return null;
+
+                var kept = new float[Stances.Values];
+
+                for (var i = 0; i < Decors.Length; i++)
+                {
+                    kept[i] = Function.Call<float>(Hash.DECOR_GET_FLOAT, car, Decors[i]);
+                }
+
+                return kept;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Writes the stance onto the car, so the car is the thing that remembers it.</summary>
+        private static void ToCar(Vehicle car, float[] values)
+        {
+            try
+            {
+                for (var i = 0; i < Decors.Length; i++)
+                {
+                    Function.Call(Hash.DECOR_SET_FLOAT, car, Decors[i], values[i]);
+                }
+            }
+            catch
+            {
+                // The file still has it, which is the half that survives a reload anyway.
+            }
+        }
+
         /// <summary>Every model by its hash, worked out once for the session.</summary>
         private static Dictionary<int, string> _names;
 
@@ -103,6 +183,8 @@ namespace VehicleTweaks.Driving
         public Stance(Settings cfg)
         {
             _cfg = cfg;
+
+            Register();
 
             try { _store = new Stances(Paths.StanceFile); }
             catch (Exception ex) { Log.Warn("Stances cannot be remembered: " + ex.Message); }
@@ -136,19 +218,19 @@ namespace VehicleTweaks.Driving
                     _model = Name(car);
 
                     Capture(car);
-                    Recall();
+                    Recall(car);
                 }
 
                 if (Flat())
                 {
                     if (_applied) Restore();
 
-                    Remember(Game.GameTime);
+                    Remember(car, Game.GameTime);
                     return;
                 }
 
                 Apply(car);
-                Remember(Game.GameTime);
+                Remember(car, Game.GameTime);
 
                 _applied = true;
             }
@@ -167,14 +249,24 @@ namespace VehicleTweaks.Driving
         /// into would wipe the six numbers you had set, and the one you were sitting in when you
         /// turned it on would be the first.
         /// </summary>
-        private void Recall()
+        private void Recall(Vehicle car)
         {
             _pending = null;
             _changedAt = 0;
 
-            if (!_cfg.StanceRemember || _store == null || _model == null) return;
+            if (!_cfg.StanceRemember) return;
 
-            var kept = _store.Get(_model);
+            // THIS CAR FIRST, AND ITS MODEL ONLY IF IT HAS NEVER HAD ONE. A car you have stanced
+            // is carrying the answer; a car you have not is a car you may still want to look like
+            // the last one of its kind you built.
+            var kept = FromCar(car);
+            var whose = "this one";
+
+            if (kept == null && _store != null && _model != null)
+            {
+                kept = _store.Get(_model);
+                whose = "any " + _model;
+            }
 
             if (kept == null) return;
 
@@ -185,8 +277,11 @@ namespace VehicleTweaks.Driving
             _cfg.HeightFront = kept[4];
             _cfg.HeightRear = kept[5];
 
-            Log.Info("Stance: gave " + _model + " back the one it had (" +
-                     kept[0].ToString("0.0") + " deg front, " + kept[2].ToString("0.00") + " m).");
+            Log.Info("Stance: gave back the stance remembered for " + whose + " -- " +
+                     kept[0].ToString("0.0") + " deg front, " + kept[1].ToString("0.0") +
+                     " rear, track " + kept[2].ToString("0.00") + " / " +
+                     kept[3].ToString("0.00") + " m, height " + kept[4].ToString("0.00") +
+                     " / " + kept[5].ToString("0.00") + ".");
         }
 
         /// <summary>
@@ -196,9 +291,9 @@ namespace VehicleTweaks.Driving
         /// one of those would rewrite the file; waiting for the numbers to sit still turns a
         /// held button into one write.
         /// </summary>
-        private void Remember(int now)
+        private void Remember(Vehicle car, int now)
         {
-            if (!_cfg.StanceRemember || _store == null || _model == null) return;
+            if (!_cfg.StanceRemember) return;
 
             var live = new[]
             {
@@ -216,7 +311,12 @@ namespace VehicleTweaks.Driving
             if (_changedAt == 0 || now - _changedAt < SettleMs) return;
 
             _changedAt = 0;
-            _store.Put(_model, live);
+
+            // ONTO THE CAR, which is what makes it this car's, and into the file, which is what
+            // makes it survive the car being gone.
+            ToCar(car, live);
+
+            if (_store != null && _model != null) _store.Put(_model, live);
         }
 
         private static bool Moved(float[] a, float[] b)

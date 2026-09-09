@@ -108,7 +108,7 @@ namespace VehicleTweaks.Core
         /// library every time. That is the one cost, it is a real one, and it is undone either in
         /// Steam's in-game settings or by putting another key in here.
         /// </summary>
-        public Keys MenuKey = Keys.F12;
+        public Keys MenuKey = Keys.F2;
         public MenuModifier MenuModifier = MenuModifier.None;
 
         /// <summary>
@@ -578,9 +578,14 @@ namespace VehicleTweaks.Core
         /// it is that car's, through getting out, through walking away, and through the game
         /// being closed and opened again -- kept in VehicleTweaks.stances.ini next to the log.
         ///
-        /// BY MODEL, WHICH IS THE HONEST LIMIT. A vehicle's handle is made up when it is created
-        /// and thrown away when it is not, so nothing about one individual car survives a save.
-        /// What survives is what it IS, so every Panto gets the stance you gave a Panto.
+        /// ON THE CAR ITSELF, as a decorator -- the only name an individual car has. A handle is
+        /// made up when the vehicle is created; a decorator is a named value the game carries on
+        /// the entity and gives back later, and it is what the game uses to mark a car as
+        /// somebody's personal vehicle. So this Panto keeps its own and the other one keeps its
+        /// own.
+        ///
+        /// AND IN A FILE, BY MODEL, as the fallback for a car that has never been given one. A
+        /// car that has its own stance ignores it.
         ///
         /// A CAR NOBODY HAS STANCED KEEPS WHAT IS ON THE SLIDERS, rather than snapping to nought.
         /// Otherwise turning this on would look like the stance breaking: every car you got into

@@ -88,9 +88,9 @@ internal static class IniTests
         Check("an untouched other section is unchanged",
               reread.GetString("Driving", "ManualIgnitionMaxSpeed", null) == "2.5");
         // A FUNCTION KEY, which is the case the single-character path in GetKey does NOT
-        // cover -- "F12" is three characters and has to survive Enum.TryParse on its own.
+        // cover -- "F2" is two characters and has to survive Enum.TryParse on its own.
         Check("the key parser still reads MenuKey", reread.GetKey("General", "MenuKey",
-              System.Windows.Forms.Keys.None) == System.Windows.Forms.Keys.F12);
+              System.Windows.Forms.Keys.None) == System.Windows.Forms.Keys.F2);
 
         // A KEY THAT HAS MOVED SECTION still reads. Settings get regrouped as a mod grows --
         // the handbrake moved out of [Safety] and in with the rest of parking a car -- and
