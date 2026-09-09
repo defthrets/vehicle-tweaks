@@ -150,11 +150,22 @@ namespace VehicleTweaks.Driving
                 {
                     _sat = false;
 
+                    // AND THE ARM COMES IN WITH IT, WHICH IS THE POINT OF DOING IT HERE. The pose
+                    // used to be dropped by Release, and Release does not run until CurrentVehicle
+                    // is empty -- which is after the whole climb-out has played. So he swung the
+                    // door open, stood up and walked away still holding the wheel, arms locked in
+                    // the driving position, because a looped upper-body animation does not care
+                    // that the body underneath it has got out. The moment he stops being SAT in
+                    // the car is the moment to give his arms back.
+                    Drop(me);
+
+                    _posed = false;
+
                     if (_wound)
                     {
                         _wound = false;
                         Wind(car, down: false);
-                        Log.Debug("Lowrider pose: window up on the way out.");
+                        Log.Debug("Lowrider pose: window up and arm in on the way out.");
                     }
                 }
                 else if (Seated(me))
@@ -398,6 +409,29 @@ namespace VehicleTweaks.Driving
                 _probe = 2;
                 Log.Once("lowrider-probe", "The probe fell over: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Stops the animation and nothing else, for the half-way-out moment.
+        ///
+        /// SEPARATE FROM Release BECAUSE THE TIMING IS. Release is the end of the whole business --
+        /// it forgets the car, puts the window up and clears every flag -- and it cannot run until
+        /// he is properly out. Taking the pose off has to happen a beat earlier than that, while he
+        /// is still attached to the car and climbing out of it, or the exit animation plays with
+        /// his arms held at a wheel he has let go of.
+        /// </summary>
+        private void Drop(Ped me)
+        {
+            var dict = _playing;
+            var clip = _clip;
+
+            _playing = null;
+            _clip = null;
+
+            if (me == null || dict == null || clip == null) return;
+
+            try { Function.Call(Hash.STOP_ANIM_TASK, me.Handle, dict, clip, -4f); }
+            catch { /* he is out of the car either way */ }
         }
 
         /// <summary>
