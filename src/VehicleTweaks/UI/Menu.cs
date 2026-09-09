@@ -2614,14 +2614,18 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Title(float x)
         {
+            // UP AGAINST THE TOP, TO LEAVE ROOM UNDERNEATH. The name was sat midway down the bar
+            // with an even gap either side of it, which is the arrangement that reads as cramped:
+            // the gap above a title is just margin, and the gap below it is what separates it
+            // from the strip of pages -- so the space is worth more there than here.
             var h = 0.0250f * Zoom;
-            var top = PanelTop + 0.0150f * Zoom;
+            var top = PanelTop + 0.0088f * Zoom;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
             var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
 
-            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.007f * Zoom, titleScale,
+            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.0060f * Zoom, titleScale,
                       Fade(Amber), Plain);
         }
 
