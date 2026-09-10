@@ -72,6 +72,15 @@ namespace VehicleTweaks.Driving
         /// <summary>Whether he has actually been sat in this car yet. See the climb-out below.</summary>
         private bool _sat;
 
+        /// <summary>How far the wheel has to be turned before the arms are wanted back.</summary>
+        private const float Turned = 0.18f;
+
+        /// <summary>How long it has to be straight again before the pose returns.</summary>
+        private const int SettleMs = 700;
+
+        /// <summary>When the wheel was last straight enough to pose.</summary>
+        private int _straightAt;
+
         /// <summary>Which dictionary and clip are actually playing, so the right one is stopped.</summary>
         private string _playing;
         private string _clip;
@@ -173,11 +182,37 @@ namespace VehicleTweaks.Driving
                     _sat = true;
                 }
 
-                if (!Seated(me) || _posed) return;
+                if (!Seated(me)) return;
+
+                // THE WINDOW GOES DOWN ONCE AND STAYS DOWN. It is not part of the pose; it is
+                // what you did to the car when you got in, and it should not wind itself up and
+                // down every time you turn a corner.
+                if (_cfg.LowriderWindow && !_wound) _wound = Wind(car, down: true);
+
+                if (!Cruising(me))
+                {
+                    _straightAt = 0;
+
+                    if (_posed)
+                    {
+                        _posed = false;
+                        Drop(me);
+                    }
+
+                    return;
+                }
+
+                if (_posed) return;
+
+                if (_straightAt == 0)
+                {
+                    _straightAt = Game.GameTime;
+                    return;
+                }
+
+                if (Game.GameTime - _straightAt < SettleMs) return;
 
                 _posed = true;
-
-                if (_cfg.LowriderWindow && !_wound) _wound = Wind(car, down: true);
 
                 Pose(me);
             }
@@ -408,6 +443,39 @@ namespace VehicleTweaks.Driving
             {
                 _probe = 2;
                 Log.Once("lowrider-probe", "The probe fell over: " + ex.Message);
+            }
+        }
+
+
+        /// <summary>
+        /// Whether now is a moment for the pose at all.
+        ///
+        /// IT IS A CRUISING POSE AND IT WAS BEING WORN AS A CAST. The animation is a looped
+        /// upper-body override, so once it is on, the arms hold that one shape and stop following
+        /// the wheel -- which is what it is FOR while you are rolling straight with an elbow out,
+        /// and is a man with his hands welded to the rim the moment you turn. It went on once,
+        /// when you sat down, and never came off until you got out.
+        ///
+        /// SO IT COMES OFF WHEN YOU STEER, and goes back on when you have been straight for a
+        /// moment. Off the instant the wheel moves, because a late hand is the thing you notice;
+        /// back on slowly, because a pose that flickers on every correction is worse than no pose.
+        ///
+        /// AND NEVER IN FIRST PERSON. From the driver's seat you are looking straight down at
+        /// your own hands and the shape they hold; the whole point of the pose is what the car
+        /// looks like from OUTSIDE it, and there is nobody out there to see it.
+        /// </summary>
+        private bool Cruising(Ped me)
+        {
+            try
+            {
+                // 4 is the first-person view mode. The others are the three chase cameras.
+                if (Function.Call<int>(Hash.GET_FOLLOW_VEHICLE_CAM_VIEW_MODE) == 4) return false;
+
+                return Math.Abs(Game.GetControlValueNormalized(Control.VehicleMoveLeftRight)) < Turned;
+            }
+            catch
+            {
+                return false;
             }
         }
 
