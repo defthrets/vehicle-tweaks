@@ -77,6 +77,19 @@ namespace VehicleTweaks.Driving
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
+        /// <summary>The nine, in the order they are written onto a car.</summary>
+        private const int Values = 9;
+
+        /// <summary>
+        /// What each of the nine means "as the car came".
+        ///
+        /// NOT ALL NOUGHTS. The first six are amounts ADDED to what the car has, so nothing is
+        /// nought; the last three are what a wheel is MULTIPLIED by, so nothing is one. A car
+        /// stanced before the sizes existed carries six decorators, and reading the seventh as
+        /// the nought the game hands back for a missing one would shrink its wheels to nothing.
+        /// </summary>
+        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f };
+
         /// <summary>
         /// A wheel does not lean by five radians and does not sit five metres out.
         ///
@@ -103,7 +116,6 @@ namespace VehicleTweaks.Driving
         }
 
         private readonly Settings _cfg;
-        private readonly Stances _store;
 
         /// <summary>Every car this is holding, by handle. Usually one, sometimes a garage full.</summary>
         private readonly Dictionary<int, Held> _held = new Dictionary<int, Held>();
@@ -126,9 +138,6 @@ namespace VehicleTweaks.Driving
             _cfg = cfg;
 
             Register();
-
-            try { _store = new Stances(Paths.StanceFile); }
-            catch (Exception ex) { Log.Warn("Stances cannot be remembered: " + ex.Message); }
         }
 
         public void Update(Ped me)
@@ -185,9 +194,17 @@ namespace VehicleTweaks.Driving
             };
         }
 
+        /// <summary>Whether these are the values that change nothing.</summary>
         private static bool Flat(float[] values)
         {
-            return Stances.Flat(values);
+            if (values == null) return true;
+
+            for (var i = 0; i < Values && i < values.Length; i++)
+            {
+                if (Math.Abs(values[i] - Stock[i]) >= Nothing) return false;
+            }
+
+            return true;
         }
 
         /// <summary>Starts holding a car, reading what it came with the first time.</summary>
@@ -202,6 +219,13 @@ namespace VehicleTweaks.Driving
 
             held = new Held { Car = car, Values = Live(), Stock = Capture(car) };
             _held[car.Handle] = held;
+
+            // AND IT STOPS BEING TRAFFIC. A car the game owns is cleaned up the moment you are
+            // far enough away and looking elsewhere -- which for an ordinary car is exactly
+            // right and for one you have just spent five minutes setting up is the whole work
+            // thrown away. Made persistent, it stays where you left it until you say otherwise.
+            try { car.IsPersistent = true; }
+            catch { /* it will still be stanced for as long as it lasts */ }
 
             return held;
         }
@@ -229,7 +253,14 @@ namespace VehicleTweaks.Driving
 
                 // A CAR PUT BACK TO STOCK HAS JUST HAD ITS STOCK VALUES WRITTEN, so this is the
                 // frame to stop caring about it. Anything else is a lease that never ends.
-                if (Flat(held.Values)) (drop ?? (drop = new List<int>())).Add(pair.Key);
+                if (!Flat(held.Values)) continue;
+
+                (drop ?? (drop = new List<int>())).Add(pair.Key);
+
+                // AND IT GOES BACK TO BEING TRAFFIC. Kept alive because it was stanced; stanced
+                // no longer, so there is nothing left to keep it for.
+                try { held.Car.MarkAsNoLongerNeeded(); }
+                catch { /* the game will have it back either way */ }
             }
 
             if (drop == null) return;
@@ -277,10 +308,14 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>
-        /// Loads what this car was last given, its model's if it has never had one of its own.
+        /// Loads what THIS car is carrying, and nothing else.
         ///
-        /// A CAR WITH NEITHER KEEPS WHAT IS ALREADY ON THE SLIDERS rather than snapping to nought.
-        /// Zeroing would make switching this on look like the feature breaking.
+        /// A CAR YOU HAVE NOT STANCED IS A STOCK CAR. It used to fall back to whatever that MODEL
+        /// was last given, and then to whatever happened to be on the sliders -- so stancing one
+        /// Baller stanced every Baller, and getting into a taxi you had never touched put the
+        /// last car's camber on it. That is not what a stance is. It belongs to the car it was
+        /// done to and to nothing else, so a car with no stance of its own puts the sliders back
+        /// to stock and is left completely alone.
         /// </summary>
         private void Recall(Vehicle car)
         {
@@ -289,16 +324,7 @@ namespace VehicleTweaks.Driving
 
             if (!_cfg.StanceRemember) return;
 
-            var kept = FromCar(car);
-            var whose = "this one";
-
-            if (kept == null && _store != null && _model != null)
-            {
-                kept = _store.Get(_model);
-                whose = "any " + _model;
-            }
-
-            if (kept == null) return;
+            var kept = FromCar(car) ?? Stock;
 
             _cfg.CamberFront = kept[0];
             _cfg.CamberRear = kept[1];
@@ -310,14 +336,16 @@ namespace VehicleTweaks.Driving
             _cfg.RimSize = kept[7];
             _cfg.WheelWidth = kept[8];
 
-            Log.Info("Stance: gave back the stance remembered for " + whose + " -- camber " +
-                     kept[0].ToString("0.0") + " / " + kept[1].ToString("0.0") + " deg, track " +
-                     kept[2].ToString("0.00") + " / " + kept[3].ToString("0.00") + " m, height " +
-                     kept[4].ToString("0.00") + " / " + kept[5].ToString("0.00") +
-                     ", wheels x" + kept[6].ToString("0.00") + ".");
+            if (Flat(kept)) return;
+
+            Log.Info("Stance: this car is carrying its own -- camber " + kept[0].ToString("0.0") +
+                     " / " + kept[1].ToString("0.0") + " deg, track " + kept[2].ToString("0.00") +
+                     " / " + kept[3].ToString("0.00") + " m, height " + kept[4].ToString("0.00") +
+                     " / " + kept[5].ToString("0.00") + ", wheels x" + kept[6].ToString("0.00") + ".");
         }
 
         /// <summary>
+        /// Writes the stance down a moment after you stop changing it.        /// <summary>
         /// Writes the stance down a moment after you stop changing it.
         ///
         /// NOT ON EVERY NUDGE. A slider held down on a D-pad moves twenty times a second and each
@@ -340,11 +368,10 @@ namespace VehicleTweaks.Driving
 
             _changedAt = 0;
 
-            // ONTO THE CAR, which is what makes it this car's, and into the file, which is what
-            // makes it outlive the car.
+            // ONTO THE CAR, AND ONLY ONTO THE CAR. There is no file any more: a stance that was
+            // also filed by model came back on every other car of that model, which is the thing
+            // this was asked to stop doing.
             ToCar(car, live);
-
-            if (_store != null && _model != null) _store.Put(_model, live);
         }
 
         private static bool Moved(float[] a, float[] b)
@@ -669,7 +696,7 @@ namespace VehicleTweaks.Driving
                 // stock. A car stanced before the wheel sizes existed carries six decorators,
                 // and reading the seventh as the nought the game hands back for an absent one
                 // would shrink its wheels to nothing the moment it was picked up again.
-                var kept = (float[])Stances.Stock.Clone();
+                var kept = (float[])Stock.Clone();
 
                 for (var i = 0; i < Decors.Length; i++)
                 {

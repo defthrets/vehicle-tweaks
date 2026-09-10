@@ -172,20 +172,11 @@ namespace VehicleTweaks.Core
         /// <summary>WRITTEN, so it follows the writability fallback rather than sitting next to the dll.</summary>
         public static string LogFile => Path.Combine(Writable, "VehicleTweaks.log");
 
-        /// <summary>
-        /// The stances the mod has been told to remember, per vehicle model.
-        ///
-        /// BESIDE THE LOG RATHER THAN BESIDE THE DLL, because this one is WRITTEN. Writable falls
-        /// back to Documents when scripts\ cannot be written to, and a stance nobody can save is
-        /// worse than one nobody can read.
-        /// </summary>
         /// <summary>The game's own folder, which is where the other mods keep what they know.</summary>
         public static string Game => Path.GetDirectoryName(Scripts);
 
         /// <summary>Extra model names the player keeps by hand. See Models.Found.</summary>
         public static string ModelsFile => Path.Combine(Writable, "VehicleTweaks.models.txt");
-
-        public static string StanceFile => Path.Combine(Writable, "VehicleTweaks.stances.ini");
 
         /// <summary>
         /// A picture shipped with the mod, next to the log.

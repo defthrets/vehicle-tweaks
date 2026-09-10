@@ -630,24 +630,24 @@ namespace VehicleTweaks.Core
         /// The stance you set on a car is remembered for that car, and given back to it.
         ///
         /// ON, BECAUSE A STANCE IS A PROPERTY OF THE CAR AND NOT OF THE MOD. You set it once and
-        /// it is that car's, through getting out, through walking away, and through the game
-        /// being closed and opened again -- kept in VehicleTweaks.stances.ini next to the log.
+        /// it is that car's, through getting out and through walking away from it.
         ///
         /// ON THE CAR ITSELF, as a decorator -- the only name an individual car has. A handle is
         /// made up when the vehicle is created; a decorator is a named value the game carries on
         /// the entity and gives back later, and it is what the game uses to mark a car as
-        /// somebody's personal vehicle. So this Panto keeps its own and the other one keeps its
-        /// own.
+        /// somebody's personal vehicle.
         ///
-        /// AND IN A FILE, BY MODEL, as the fallback for a car that has never been given one. A
-        /// car that has its own stance ignores it.
+        /// AND ON THAT CAR ALONE. There was a file too, keyed by model, so that a fresh Baller
+        /// came out looking like the last Baller you built -- which sounded generous and meant
+        /// that stancing one car stanced every car of its kind, and that a taxi you had never
+        /// touched arrived wearing somebody else's camber. A stance belongs to the car it was
+        /// done to. A car with none is stock, and is not written to at all.
         ///
-        /// A CAR NOBODY HAS STANCED KEEPS WHAT IS ON THE SLIDERS, rather than snapping to nought.
-        /// Otherwise turning this on would look like the stance breaking: every car you got into
-        /// would zero the six numbers you had set globally.
-        ///
-        /// Off, and the six sliders go back to being ordinary settings that apply to whatever you
-        /// are driving. Nothing is read and nothing is written.
+        /// A STANCED CAR ALSO STOPS BEING TRAFFIC. The population system cleans up anything the
+        /// game owns the moment you are far enough away and looking elsewhere, which for an
+        /// ordinary car is right and for one you have just spent five minutes setting up throws
+        /// the work away. It is made persistent while it is stanced and handed back the moment
+        /// it is put back to stock.
         /// </summary>
         public bool StanceRemember = true;
 
