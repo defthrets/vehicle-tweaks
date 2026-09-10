@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 using GTA;
 using VehicleTweaks.Core;
@@ -132,6 +132,11 @@ namespace VehicleTweaks
 
         private void OnTick(object sender, EventArgs e)
         {
+            // THE MARK, for the first few seconds. See UI.Splash -- every mod in the set
+            // draws the same row in the same corner, and they claim rows off each other
+            // through the AppDomain so six of them stack instead of piling up.
+            UI.Splash.Render();
+
             if (_parked) return;
 
             try
