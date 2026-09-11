@@ -59,11 +59,12 @@ namespace VehicleTweaks.Driving
     /// rotated to face outwards, and why VStancer's readme tells you to type a minus sign for a
     /// wider track. This takes the sign out of the setting: positive is wider.
     ///
-    /// HEIGHT IS THE WHEEL'S OWN PLACE IN THE CAR, MOVED UP OR DOWN. It went through the
-    /// hydraulic suspension raise once, which is a native and therefore safe and which a car
-    /// without hydraulics ignores. Now it is the Z of the suspension line, both ends, the same
-    /// way track is the X of it: a wheel moved up into its arch is a body sat lower over it,
-    /// which is why negative drops the car.
+    /// HEIGHT IS AN OFFSET ON A MOVING NUMBER. The bottom of the suspension line is where the
+    /// wheel is this frame and the game moves it every frame as the suspension works, so it
+    /// cannot be pinned the way the track is -- pinned where it sat at rest, every wheel hung at
+    /// full droop and the car floated. The race reads what the game just put there and takes
+    /// the offset off it; see Lower. A wheel moved up into its arch is a body sat lower over
+    /// it, which is why negative drops the car.
     /// </summary>
     internal sealed class Stance
     {
@@ -653,44 +654,64 @@ namespace VehicleTweaks.Driving
                     var cos = (float)Math.Cos(angle);
 
                     var bottomX = came.BottomX - side * wide;
-                    var bottomZ = came.BottomZ - up;
+
+                    // ONLY WHAT THE SLIDERS ASK FOR. Every field here is pinned or raced, and a
+                    // field pinned to the value it had is not a no-op: the bottom of the
+                    // suspension line moves with the suspension, and pinning it where it sat at
+                    // rest held every wheel at full droop and floated every car that had so much
+                    // as a camber. A slider on stock leaves its field entirely alone.
+                    var leaning = Math.Abs(lean) >= Nothing;
+                    var tracking = Math.Abs(wide) >= Nothing;
+                    var lowering = Math.Abs(up) >= Nothing;
+
+                    // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
+                    // Five centimetres of camber means the same thing on a Panto and on a
+                    // Barracks; five centimetres of tyre does not. A size is a proportion of what
+                    // was there, so it is written as one. Nought means leave it.
+                    var tyre = came.Tyre > 0f && Math.Abs(held.Values[6] - 1f) >= Nothing
+                                   ? came.Tyre * held.Values[6] : 0f;
+                    var width = came.Width > 0f && Math.Abs(held.Values[7] - 1f) >= Nothing
+                                    ? came.Width * held.Values[7] : 0f;
 
                     if (Trialling(held.Car)) continue;
 
                     Before(held, wheel, at, sin, bottomX);
 
-                    // THE ONES THAT HOLD, written from here: the diagonal of the lean, the top of
-                    // the suspension line, and the width the wheel is drawn at.
-                    Write(at, CosX, cos);
-                    Write(at, CosZ, cos);
-                    Write(at, TopX, came.TopX - side * wide);
-                    Write(at, TopZ, came.TopZ - up);
+                    // THE ONES THAT HOLD, written from here.
+                    if (leaning)
+                    {
+                        Write(at, CosX, cos);
+                        Write(at, CosZ, cos);
+                    }
 
-                    // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
-                    // Five centimetres of camber means the same thing on a Panto and on a
-                    // Barracks; five centimetres of tyre does not. A size is a proportion of what
-                    // was there, so it is written as one.
-                    // Nought means the field did not read as a size when this car was captured.
-                    var tyre = came.Tyre > 0f ? came.Tyre * held.Values[6] : 0f;
-                    var width = came.Width > 0f ? came.Width * held.Values[7] : 0f;
-
-                    if (came.Tread > 0f) Write(at, Tread, came.Tread * held.Values[7]);
+                    if (tracking) Write(at, TopX, came.TopX - side * wide);
+                    if (width > 0f && came.Tread > 0f) Write(at, Tread, came.Tread * held.Values[7]);
 
                     // THE ONES THE GAME PUTS BACK, written here for a build where the timing
                     // happens to work, and handed to the race for the one where it does not.
-                    Write(at, Sin, sin);
-                    Write(at, SinBack, -sin);
-                    Write(at, BottomX, bottomX);
-                    Write(at, BottomZ, bottomZ);
+                    // Height is not among them: it is an offset on a moving number, and only the
+                    // race can see the number move.
+                    if (leaning)
+                    {
+                        Write(at, Sin, sin);
+                        Write(at, SinBack, -sin);
+                    }
 
+                    if (tracking) Write(at, BottomX, bottomX);
                     if (tyre > 0f) Write(at, Tyre, tyre);
                     if (width > 0f) Write(at, Width, width);
 
                     shots.Add(new Shot
                     {
-                        At = at, Sin = sin, Tyre = tyre, Width = width, BottomX = bottomX, BottomZ = bottomZ,
+                        At = at,
+                        Sin = leaning ? sin : float.NaN,
+                        BottomX = tracking ? bottomX : float.NaN,
+                        Up = lowering ? up : 0f,
+                        Tyre = tyre,
+                        Width = width,
                     });
 
+                    Say(held, wheel, came, angle);
                     Say(held, wheel, came, angle);
                 }
             }
@@ -874,13 +895,18 @@ namespace VehicleTweaks.Driving
                 _trial = Candidates(fl);
                 _trialCar = car.Handle;
 
-                var from = Math.Max(1, Math.Min(_trial.Count, (int)_cfg.StanceProbeFrom));
+                // FROM AN OFFSET, NOT A NUMBER. Which fields are worth trying depends on what
+                // they hold at the moment, so the count changes from car to car and a number
+                // does not name the same field twice. The offset on the screen does.
+                var from = (int)_cfg.StanceProbeFrom;
 
-                _trialIndex = from - 2;
+                if (from > 1) _trial.RemoveAll(o => o < from);
+
+                _trialIndex = -1;
 
                 Log.Info("Stance probe: sweeping " + _trial.Count + " fields of the front left " +
-                         "wheel, " + (TrialMs / 1000f).ToString("0.0") + " s each, from number " +
-                         from + ". Watch that wheel.");
+                         "wheel, " + (TrialMs / 1000f).ToString("0.0") + " s each, from 0x" +
+                         Math.Max(0, from).ToString("X3") + ". Watch that wheel.");
             }
 
             if (_trialIndex < 0 || now - _trialAt >= TrialMs)
@@ -979,14 +1005,19 @@ namespace VehicleTweaks.Driving
         // ==================================================================
 
         /// <summary>One wheel's numbers for the other thread: where, and what to keep writing.</summary>
+        /// <summary>
+        /// One wheel's numbers for the other thread: where, and what to keep writing.
+        ///
+        /// NaN means leave that field alone; nought means the same for a size or a height.
+        /// </summary>
         private sealed class Shot
         {
             public IntPtr At;
             public float Sin;
+            public float BottomX;
+            public float Up;
             public float Tyre;
             public float Width;
-            public float BottomX;
-            public float BottomZ;
         }
 
         private volatile Shot[] _shots;
@@ -998,12 +1029,14 @@ namespace VehicleTweaks.Driving
         ///
         /// WHAT THE SWEEP FOUND, AND WHAT THIS DOES ABOUT IT. Every field a stance needs is one
         /// of two kinds. The top of the suspension line at 0x020, the diagonal of the lean at
-        /// 0x000 and the drawn width at 0x11C HOLD: write them and they stay, so they are written
+        /// 0x000 and the fourth size at 0x11C HOLD: write them and they stay, so they are written
         /// once a frame from the ordinary tick. The lean at 0x008 and 0x010, the bottom of the
         /// line at 0x030 and the radii at 0x110 and 0x118 are PUT BACK: the game rewrites every
         /// one of them every frame, after this script has had its turn and before the wheel is
         /// drawn, so a write from the tick is gone before anyone sees it -- and the wheel is
-        /// drawn from those.
+        /// drawn from those. The Z of the bottom is put back to a DIFFERENT number each frame,
+        /// which is the suspension working, and is the one field that is offset rather than
+        /// overwritten.
         /// FiveM's natives write these same fields and work because FiveM ticks its scripts at
         /// a different point in the frame; VStancer works because it patches the game's code.
         /// A script under ScriptHookV can do neither.
@@ -1058,14 +1091,19 @@ namespace VehicleTweaks.Driving
                     {
                         var s = shots[i];
 
-                        Write(s.At, Sin, s.Sin);
-                        Write(s.At, SinBack, -s.Sin);
-                        Write(s.At, BottomX, s.BottomX);
-                        Write(s.At, BottomZ, s.BottomZ);
+                        if (!float.IsNaN(s.Sin))
+                        {
+                            Write(s.At, Sin, s.Sin);
+                            Write(s.At, SinBack, -s.Sin);
+                        }
 
+                        if (!float.IsNaN(s.BottomX)) Write(s.At, BottomX, s.BottomX);
                         if (s.Tyre > 0f) Write(s.At, Tyre, s.Tyre);
                         if (s.Width > 0f) Write(s.At, Width, s.Width);
+                        if (s.Up != 0f) Lower(s.At, s.Up);
                     }
+
+                    if (_lowered.Count > 64) _lowered.Clear();
 
                     var rest = (int)_cfg.StanceRaceRest;
 
@@ -1081,6 +1119,36 @@ namespace VehicleTweaks.Driving
             {
                 Log.Once("stance-race", "The stance race fell over: " + ex.Message);
             }
+        }
+
+        /// <summary>What this thread last wrote for a wheel's height, so a fresh number can be told from its own.</summary>
+        private readonly Dictionary<IntPtr, float> _lowered = new Dictionary<IntPtr, float>();
+
+        /// <summary>
+        /// Moves a wheel up or down by an offset from wherever the suspension has put it THIS pass.
+        ///
+        /// A PLACE CANNOT BE PINNED, AND THAT IS WHAT THE FLOATING CARS WERE. The bottom of the
+        /// suspension line is where the wheel is this frame, and the game moves it every frame
+        /// as the suspension works. Pinned to the number it had at rest, the wheel was held at
+        /// full droop and the body floated on it. So height is not a place, it is an offset:
+        /// read what the game just put there, take the offset off it, write that back.
+        ///
+        /// THE GAME'S NUMBER OR OURS? If the field holds what this thread last put there, the
+        /// game has not been round since, and taking the offset off again would walk the wheel
+        /// down the screen a few centimetres a pass. Anything else is fresh from the suspension.
+        /// The comparison is exact because the read gives back the very bits that were written.
+        /// </summary>
+        private void Lower(IntPtr at, float up)
+        {
+            var now = Read(at, BottomZ);
+            float mine;
+
+            if (_lowered.TryGetValue(at, out mine) && now == mine) return;
+
+            mine = now - up;
+
+            Write(at, BottomZ, mine);
+            _lowered[at] = mine;
         }
 
         // ==================================================================

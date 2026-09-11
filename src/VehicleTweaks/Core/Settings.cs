@@ -1292,7 +1292,7 @@ namespace VehicleTweaks.Core
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
-                s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 500f);
+                s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 560f);
                 s.StanceRace = ini.GetBool("Driving", "StanceRace", s.StanceRace);
                 s.StanceRaceRest = ini.GetFloat("Driving", "StanceRaceRest", s.StanceRaceRest, 0f, 20f);
                 s.TyreSmoke = ini.GetFloat("Driving", "TyreSmoke", s.TyreSmoke, 0f, 5f);

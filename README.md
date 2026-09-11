@@ -744,6 +744,17 @@ shearing. Rim size is gone — it is the collider the car rolls on with the tyre
 nothing you can see — and width goes to the collider and to a fourth size field the sweep found at
 `0x11C`, which the game leaves alone.
 
+**Third pass.** Every car floated. The bottom of the suspension line is where the wheel is *this
+frame* and the game moves it every frame as the suspension works, so pinning its Z to the number it
+had at rest held every wheel at full droop and the body floated on it — on any car that had so much
+as a camber, because the Z was written whether height was set or not. Two things changed. Nothing
+is written unless its own slider is off stock, so a field left alone is left entirely alone. And
+height is no longer a place but an **offset on a moving number**: the race thread reads what the
+game just put there, takes the offset off, and writes that back — and knows a fresh number from
+its own by exact comparison, since a read gives back the very bits that were written. Width stays
+the hidden half: the drawn width lives on the *car*, in the render data the game keeps for the
+Arena wheel sizes, reachable only by scanning the executable for a code pattern.
+
 The sweep no longer tries fields that read as nought — a nought might be an integer, a float
 written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the
 end of the struct, which is `0x230` bytes on this build because that is how far apart two wheels
