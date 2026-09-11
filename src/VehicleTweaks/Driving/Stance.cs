@@ -79,6 +79,14 @@ namespace VehicleTweaks.Driving
         /// (0, 0, 1) at 0x010 -- the X and Z rows of a matrix -- so this writes the sine into the
         /// off-diagonal pair and the cosine into the diagonal pair, and the wheel turns rather
         /// than shears. The diagonal pair holds; the off-diagonal pair is raced.
+        ///
+        /// AND THE LENGTH OF THE FIRST ROW IS THE WIDTH THE WHEEL IS DRAWN AT. A rotation's rows
+        /// are unit long, and a row that is longer than one scales whatever is drawn through it
+        /// along that axis. The first row is the wheel's own axle, so the width slider goes here:
+        /// the row is written as width times (cos, 0, sin) rather than (cos, 0, sin). The
+        /// number the game keeps for the Arena wheel sizes, on the car, could not be found on
+        /// this build -- none of FiveM's three patterns for it exist in this code -- and this is
+        /// the one place a wheel is guaranteed to be drawn through.
         /// </summary>
         private const int CosX = 0x000;
         private const int Sin = 0x008;
@@ -706,6 +714,11 @@ namespace VehicleTweaks.Driving
                     var leaning = Math.Abs(lean) >= Nothing;
                     var tracking = Math.Abs(wide) >= Nothing;
                     var lowering = Math.Abs(up) >= Nothing;
+                    var widening = Math.Abs(held.Values[7] - 1f) >= Nothing;
+
+                    // THE FIRST ROW OF THE WHEEL'S MATRIX, STRETCHED. It is the axle direction,
+                    // and a row longer than one draws the wheel that much wider; see CosX.
+                    var stretch = widening ? held.Values[7] : 1f;
 
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
@@ -721,9 +734,9 @@ namespace VehicleTweaks.Driving
                     Before(held, wheel, at, sin, bottomX);
 
                     // THE ONES THAT HOLD, written from here.
-                    if (leaning)
+                    if (leaning || widening)
                     {
-                        Write(at, CosX, cos);
+                        Write(at, CosX, stretch * cos);
                         Write(at, CosZ, cos);
                     }
 
@@ -734,9 +747,9 @@ namespace VehicleTweaks.Driving
                     // happens to work, and handed to the race for the one where it does not.
                     // Height is not among them: it is an offset on a moving number, and only the
                     // race can see the number move.
-                    if (leaning)
+                    if (leaning || widening)
                     {
-                        Write(at, Sin, sin);
+                        Write(at, Sin, stretch * sin);
                         Write(at, SinBack, -sin);
                     }
 
@@ -752,7 +765,8 @@ namespace VehicleTweaks.Driving
                     shots.Add(new Shot
                     {
                         At = at,
-                        Sin = leaning ? sin : float.NaN,
+                        Xz = leaning || widening ? stretch * sin : float.NaN,
+                        Zx = -sin,
                         BottomX = tracking ? bottomX : float.NaN,
                         Up = lowering ? up : 0f,
                         Tyre = tyre,
@@ -1063,7 +1077,11 @@ namespace VehicleTweaks.Driving
         private sealed class Shot
         {
             public IntPtr At;
-            public float Sin;
+
+            /// <summary>The first row's Z and the third row's X: the lean, and the width along with it.</summary>
+            public float Xz;
+            public float Zx;
+
             public float BottomX;
             public float Up;
             public float Tyre;
@@ -1141,10 +1159,10 @@ namespace VehicleTweaks.Driving
                     {
                         var s = shots[i];
 
-                        if (!float.IsNaN(s.Sin))
+                        if (!float.IsNaN(s.Xz))
                         {
-                            Write(s.At, Sin, s.Sin);
-                            Write(s.At, SinBack, -s.Sin);
+                            Write(s.At, Sin, s.Xz);
+                            Write(s.At, SinBack, s.Zx);
                         }
 
                         if (!float.IsNaN(s.BottomX)) Write(s.At, BottomX, s.BottomX);

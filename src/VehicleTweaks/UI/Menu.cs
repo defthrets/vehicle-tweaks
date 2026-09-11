@@ -980,7 +980,7 @@ namespace VehicleTweaks.UI
 
             stance.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
-                                    "The collider, and the drawn wheel when the log says it was found."));
+                                    "Stretches the wheel along its axle. The skid marks widen with it."));
 
             stance.Items.Add(Header("KEEPING IT"));
 
