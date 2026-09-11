@@ -69,10 +69,11 @@ Everything is on one panel, in the game, drawn out of rectangles with no UI libr
 | save and close | `BACKSPACE` or `F5` | **B** |
 | jump to a page | `TAB` | **LB** / **RB** |
 
-**Seven pages**, grouped by *when* a setting applies rather than by which feature owns it:
-**DRIVING**, **GRIP**, **LEAVING**, **AUTOPILOT**, **INDICATORS**, **SPEEDO**, **GENERAL**.
-Headings group each page, and a row hanging off a toggle that is currently off is drawn faint —
-so a page says at a glance which of it is live.
+**Ten pages, down a rail on the left**, each with an icon and its name, the current one lit:
+**DRIVING**, **STANCE**, **TUNING**, **GEARS**, **GRIP**, **LEAVING**, **AUTOPILOT**,
+**INDICATORS**, **SPEEDO**, **GENERAL**. The rows of the lit page fill the column beside it, under
+the page's name in the title bar. Headings group each page, and a row hanging off a toggle that is
+currently off is drawn faint — so a page says at a glance which of it is live.
 
 Directions repeat when held, which matters on a deadzone that steps in hundredths.
 
@@ -91,7 +92,7 @@ is open" was.
 
 So the things that were many rectangles are now one picture each: the eleven digit glyphs (two
 sets, with and without the faint unlit segments, made from the exact geometry the rectangles used)
-and the nine tab icons. A picture is one draw; the icons alone were about two hundred. The
+and the ten page icons. A picture is one draw; the icons alone were about two hundred. The
 rectangles stay as the fallback for a `scripts\` folder the pictures did not reach. Same trick
 Fumes uses for its digits, for the same reason.
 
@@ -124,13 +125,24 @@ falls back to text with one line in the log. It sits *inside* the title bar now 
 was a badge and stood proud of the edge it was pinned to; an italic wordmark is a name, and a name
 belongs on the line with the page it names.
 
-### Where you are, next to how far along
+### A rail of named pages, not a strip of marks
 
-The page name used to sit small in the top-right corner — a whole panel's width away from the nine
-icons it was the answer to. The strip said *you are on the second of nine* and the name said *which
-page that was*, and the two never met, so working out where you were meant reading both and joining
-them up. The name is now centred **under the strip** and half again as big: the lit icon and the
-word beneath it are one control. The corner keeps the count, which was never in the name anyway.
+The pages used to be a strip of ten icons across the top of the panel, each seven cells square and
+none of them named, so finding a page meant knowing which glyph was which or stepping through them
+until the heading said the right thing. A spanner, a cog and a tyre are three different pages and,
+at seven cells, three glyphs that look like the same page.
+
+They run **down the left** now, each an icon with its name beside it, the current one on a lit
+block that travels when the page changes. It is the layout every settings screen anybody has used
+settles on, for a reason: it answers both questions at once. The icon is what you recognise the
+second time, the word is what you read the first, and the lit one is where you are. The title bar,
+which was carrying the wordmark, the strip, the page name and a count in four stacked lines,
+carries the wordmark and the page name on one — the name over the column it names, where the eye
+goes to check. The count is gone; ten names in a column *is* the count.
+
+The body is **one height on every page**, twenty rows, which is the longest page. A panel that was
+a different height on each page had a footer that jumped, and would now have a rail whose bottom
+edge moved with it.
 
 Headings sit lower in their row, so the air falls *above* a group rather than either side of it and
 a section reads as starting rather than continuing. The hint under the list — the line that says
@@ -166,10 +178,8 @@ sits on.
 
 Headings hang on a rule that starts where their words stop, instead of a bullet with a full-width
 line underneath — a bullet is a list marker and this is not a list, and a line under the words reads
-as a divider belonging to the row below. The tab strip is grouped and centred with the live page on
-a lit block, rather than nine icons pushed to the panel's corners with more gap than icon between
-them. Rows are taller, and every live row's label is brighter: the old grey was legible on a monitor
-two feet away and not from a sofa.
+as a divider belonging to the row below. Rows are taller, and every live row's label is brighter:
+the old grey was legible on a monitor two feet away and not from a sofa.
 
 ### Each row drawn as the thing it is
 
@@ -204,8 +214,8 @@ obvious version has and it reads as the menu skipping rows.
   whichever row owns it — a thing drawn inside the row loop is tied to a row, and a thing tied to
   a row cannot be between two of them. It *snaps* on opening and on a page change, because
   sweeping the length of the panel to reach the row you were already on is not feedback.
-- **The tab underline** travels on a page change. It is the one part of the panel that can say
-  which way you just went; the names cannot, because they do not move.
+- **The lit block on the rail** travels on a page change. It is the one part of the panel that
+  can say which way you just went; the names cannot, because they do not move.
 - **A page turn** steps the whole body aside and dims it while the next page arrives, so a
   change of page reads as one page leaving and another coming rather than the words under your
   eyes being swapped for different words. Knobs slide and slider fills ease on their own rows,
@@ -525,12 +535,19 @@ name gets the same courtesy. No native, no frame order, nothing to be first at.
 
 ### Icons
 
-The page tabs are icons now, with only the current page named. Nine pages of capitals across a
-panel this narrow shrinks the type to a row of grey smudges, and the fix is not smaller type — it is
-not drawing eight names nobody is reading. Each icon is a seven-by-seven grid of cells drawn from
-rectangles, for the same reason the speedo's digits are: no font this game ships has a glyph for a
-cog or a tyre, and the one time this mod tried a symbol it drew the missing-character box. They are
-written in the source as rows of `#` and `.`, so an icon is readable as the thing it draws.
+Each page has an icon, and the icons are **drawn shapes**: a key, two wheels leaning in on an axle,
+a spanner, a cog, a tyre in section the way the pressure light draws it, a door with an arrow
+leaving through it, a steering wheel, a turn-signal arrow, a dial, three sliders. No font this game
+ships has a glyph for any of them — the one time this mod tried a symbol it drew the
+missing-character box — so they are PNGs in `assets\`, white on transparent, drawn at 512 and
+brought down to 128 with a filter that leaves the edge smooth at the twenty pixels they are shown
+at, and tinted at draw time so one white file serves the lit page and the rest.
+[tools/icons.py](tools/icons.py) is what draws them; it is committed, so the artwork is a script
+and not a set of files somebody once made.
+
+They *were* seven-by-seven grids of cells drawn from rectangles, for the same reason the speedo's
+digits are, and those grids stay in the source as rows of `#` and `.` — the fallback for a
+`scripts\` folder the pictures did not reach.
 
 ## Tuning
 

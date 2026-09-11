@@ -37,3 +37,17 @@ If a sibling repo on the same machine already has these (fumes, hoodrich, oversp
 
 The only other thing the build needs is `ScriptHookVDotNet3.dll`, which it takes from
 whichever GTA V install is present. Both editions ship the identical file.
+
+## icons.py
+
+The settings panel's ten page icons, `assets\icon_*.png`, are drawn by this script rather than
+by hand: white shapes on transparent, drawn at 512 and brought down to 128 with a Lanczos
+filter so the edge is smooth at the twenty-odd pixels they are shown at. The panel tints them
+at draw time, so one white file serves the lit page and the rest.
+
+```powershell
+python tools\icons.py            # rewrites assets\icon_*.png
+python tools\icons.py --sheet    # and drops an iconsheet.png beside assets to look at
+```
+
+Needs Pillow. **This one is committed**; it is ours.

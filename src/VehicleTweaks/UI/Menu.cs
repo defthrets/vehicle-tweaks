@@ -82,9 +82,9 @@ namespace VehicleTweaks.UI
         /// <summary>Where the highlight actually is, which is not always the row it belongs to.</summary>
         private float _rowAt;
 
-        /// <summary>Where the lit tab underline actually is, and how wide.</summary>
-        private float _tabAt;
-        private float _tabWide;
+        /// <summary>Where the lit block on the rail actually is, which lags the page it belongs to.</summary>
+        private float _railAt;
+        private bool _railSet;
 
         /// <summary>Set when something has to arrive where it belongs rather than travel there.</summary>
         private bool _snap = true;
@@ -129,17 +129,39 @@ namespace VehicleTweaks.UI
         /// rows of two words and a number, taking up a quarter of the screen in a game you are
         /// meant to still be driving.
         /// </summary>
-        private const float Zoom = 0.78f;
+        private const float Zoom = 0.84f;
 
         // Where it sits. NOT scaled -- these are the corner it is pinned to, not its size.
+        //
+        // HIGHER THAN IT WAS, because it is taller than it was: the rail of pages down the left
+        // wants the body to be one height on every page, and that height plus the title and
+        // the footer has to clear the radar. From here it does.
         private const float PanelX = 0.030f;
-        private const float PanelTop = 0.155f;
+        private const float PanelTop = 0.108f;
 
-        // How big, as fractions of the screen.
-        private const float PanelW = 0.278f * Zoom;
-        private const float TitleH = 0.116f * Zoom;
-        private const float RowH = 0.0360f * Zoom;
-        private const float FootH = 0.052f * Zoom;
+        /// <summary>
+        /// Two columns: the pages down the left, and the rows of whichever page is lit.
+        ///
+        /// THE PAGES USED TO BE A STRIP OF TEN MARKS ACROSS THE TOP, each seven cells square
+        /// and none of them named, so finding a page meant knowing which glyph was which or
+        /// stepping through them until the heading said the right thing. A rail is the layout
+        /// every settings screen anybody has used settles on, and for a reason: it answers
+        /// both questions at once. The icon says what, the word beside it says what for
+        /// certain, and the lit one says where you are. The title bar, which was carrying the
+        /// wordmark, the strip, the page name and a count in four stacked lines, carries the
+        /// wordmark and the page name on one.
+        /// </summary>
+        private const float RailW = 0.094f * Zoom;
+        private const float BodyW = 0.270f * Zoom;
+        private const float PanelW = RailW + BodyW;
+
+        private const float TitleH = 0.048f * Zoom;
+        private const float RowH = 0.0340f * Zoom;
+        private const float FootH = 0.048f * Zoom;
+
+        /// <summary>One page on the rail: how tall its line is, and how tall its icon.</summary>
+        private const float EntryH = 0.0320f * Zoom;
+        private const float IconH = 0.0215f * Zoom;
 
         // The margins inside it.
         private const float PadX = 0.016f * Zoom;
@@ -271,6 +293,12 @@ namespace VehicleTweaks.UI
 
         // ==================================================================
         // The icons, seven cells square. Readable here as the thing each draws.
+        //
+        // THE FALLBACK, NOW. The pictures in assets are the icons -- drawn shapes, made by
+        // tools/icons.py and brought down to 128 pixels with an edge that is actually smooth --
+        // and these cells are what draws when a picture is not there. They stay because a
+        // scripts folder the pictures did not reach is still a panel that has to say which page
+        // is which.
         // ==================================================================
 
         private static readonly string[] IconKey =
@@ -2229,50 +2257,45 @@ namespace VehicleTweaks.UI
             var page = _pages[_page];
             var shown = Shown(page);
 
-            var bodyH = Units(page, shown) * RowH;
+            // ONE HEIGHT ON EVERY PAGE. The body used to be as tall as the page was long, and a
+            // panel that is a different height on every page has a footer that jumps and, now,
+            // a rail whose bottom edge would move with it. Twenty rows is the longest page.
+            var bodyH = Rows * RowH;
             var totalH = TitleH + bodyH + FootH;
 
             var x = _drawX;
 
             Draw.Bar(x, PanelTop, PanelW, totalH, Fade(Panel));
+
+            // THE RAIL IS A SHADE DARKER THAN THE BODY and has a hairline down its right edge,
+            // which is what makes two columns read as two columns rather than as rows that
+            // happen to start at two different places.
+            Draw.Bar(x, PanelTop + TitleH, RailW, bodyH, Fade(Color.FromArgb(120, 9, 9, 11)));
+            Draw.Bar(x + RailW - 0.0006f, PanelTop + TitleH, 0.0006f, bodyH,
+                     Fade(Color.FromArgb(22, 255, 255, 255)));
+
             Draw.Bar(x, PanelTop, PanelW, TitleH, Fade(Head));
             Draw.Bar(x, PanelTop + TitleH - Hair, PanelW, Hair, Fade(Amber));
 
-            // MEASURED, NOT GUESSED. "Vehicle Tweaks" is a long title for a narrow panel and
-            // the width it takes depends on the aspect ratio it is read at -- and the panel got
-            // narrower the day it got a size of its own, which is exactly the change that turns
-            // a title that just fitted into one that does not.
             Title(x);
 
-            // THE PAGE, NAMED WHERE THERE IS ROOM FOR A NAME. It used to sit in the tab strip
-            // beside its icon and squash the other eight; the title bar has a whole line spare to
-            // the right of the title, and a name on its own line reads as a heading rather than
-            // as a wider tab.
-            // THE PAGE NAMED UNDER ITS OWN STRIP, and named big. It used to sit small in the
-            // top right corner, a whole panel's width away from the nine icons it was the answer
-            // to -- so the strip said "you are on the second of nine" and the name said which
-            // page that was, and the two never met. Centred under the icon that is lit, they are
-            // one control: where you are, and how far along.
-            //
-            // The corner keeps the COUNT, which is the part that was never in the name.
-            Draw.Text(page.Title, x + PanelW * 0.5f, PanelTop + 0.0760f * Zoom, TabText * 1.35f,
-                      Fade(Color.FromArgb(235, 232, 228, 231)), Plain, true);
+            // THE PAGE, NAMED OVER ITS OWN COLUMN. The rail says it too, lit, with its icon --
+            // but the rail is where you look to choose and the top of the column is where you
+            // look to check, and a heading over the rows is what every settings screen has
+            // taught the eye to expect there. The count is gone: ten names in a column IS the
+            // count.
+            Draw.Text(page.Title, x + PanelW - PadX,
+                      PanelTop + (TitleH - Glyph(TabText * 1.35f)) * 0.5f, TabText * 1.35f,
+                      Fade(Color.FromArgb(235, 232, 228, 231)), Plain, false, true);
 
-            Draw.Text((_page + 1) + " / " + _pages.Count, x + PanelW - PadX,
-                      PanelTop + 0.0180f * Zoom, TabText * 0.95f,
-                      Fade(Color.FromArgb(170, 150, 150, 156)), Plain, false, true);
-
-            // THE PAGES, NAMED rather than numbered. "IGNITION 1/3" reads as a value belonging
-            // to the row underneath it; all the names with the current one lit says the same
-            // thing and needs no explaining.
-            Tabs();
+            Rail();
 
             // THE HIGHLIGHT, DRAWN ONCE AND WHEREVER IT HAS GOT TO, rather than on whichever row
             // owns it. Drawing it inside the loop is what ties it to a row, and a thing tied to
             // a row cannot be between two of them.
             _dip = 1f - Math.Abs(_turn) * 0.85f;
 
-            var bx = x + _turn * Slide;
+            var bx = x + RailW + _turn * Slide;
 
             var at = _rowAt - Offset(page, _scroll);
 
@@ -2281,7 +2304,7 @@ namespace VehicleTweaks.UI
                 var hy = PanelTop + TitleH + at * RowH;
                 var hh = _rowTall * RowH;
 
-                Draw.Bar(bx, hy, PanelW, hh, Fade(Color.FromArgb(34, 245, 196, 60)));
+                Draw.Bar(bx, hy, BodyW, hh, Fade(Color.FromArgb(34, 245, 196, 60)));
                 Draw.Bar(bx, hy, 0.0026f * Zoom, hh, Fade(Amber));
 
                 // THE CARET IS GONE, AND THE BAR IS WHY. A tint and an amber edge down the side
@@ -2330,7 +2353,7 @@ namespace VehicleTweaks.UI
                     // is a list marker and this is not a list item, and a full-width line under
                     // the words reads as a divider belonging to the row below.
                     var hw = Draw.Width(item.Label, HeadText, Plain);
-                    var rule = PanelW - LabelX - PadX - hw - 0.0050f * Zoom;
+                    var rule = BodyW - LabelX - PadX - hw - 0.0050f * Zoom;
 
                     Draw.Text(item.Label, bx + LabelX, rowY + RowH - 0.0112f * Zoom, HeadText,
                               Fade(Color.FromArgb(225, 245, 196, 60)), Plain);
@@ -2370,19 +2393,19 @@ namespace VehicleTweaks.UI
                 // that size. The flash is.
                 if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
-                var ty = rowY + 0.0076f * Zoom;
+                var ty = rowY + (RowH - Glyph(RowText)) * 0.5f;
 
                 // CUT TO THE ROOM THE RIGHT-HAND SIDE LEAVES, and that room is MEASURED rather
                 // than assumed. It used to be worked out from the column widths, which is only
                 // right while every value fits in its column: "-20.0 deg" does not, and neither
                 // does a key called OEM_PERIOD, so the label ran under the slider and the value
                 // ran over it. Ask how wide the thing on the right actually is.
-                var room = PanelW - LabelX - ValueX - Cluster(kind, Shown(item)) - 0.006f * Zoom;
+                var room = BodyW - LabelX - ValueX - Cluster(kind, Shown(item)) - 0.006f * Zoom;
 
                 Draw.Text(Draw.Ellipsis(item.Label, RowText, room, Plain),
                           bx + LabelX, ty, RowText, Fade(label), Plain);
 
-                var right = bx + PanelW - ValueX;
+                var right = bx + BodyW - ValueX;
 
                 // EACH KIND OF ROW DRAWN AS THE KIND OF THING IT IS. A row of text on the right
                 // said ON or 0.35 s and left you to know what that meant; a switch is drawn as a
@@ -2643,14 +2666,14 @@ namespace VehicleTweaks.UI
             if (selected) value = Mix(value, Color.FromArgb(value.A, 255, 255, 255), Flash());
 
             var shown = Shown(item);
-            var ty = rowY + 0.0076f * Zoom;
+            var ty = rowY + (RowH - Glyph(RowText)) * 0.5f;
 
             Draw.Text(Draw.Ellipsis(item.Label, RowText,
-                                    PanelW - LabelX - ValueX - Draw.Width(shown, RowText, Plain) -
+                                    BodyW - LabelX - ValueX - Draw.Width(shown, RowText, Plain) -
                                     0.008f * Zoom, Plain),
                       x + LabelX, ty, RowText, Fade(label), Plain);
 
-            Draw.Text(shown, x + PanelW - ValueX, ty, RowText, Fade(value), Plain, false, true);
+            Draw.Text(shown, x + BodyW - ValueX, ty, RowText, Fade(value), Plain, false, true);
 
             // ---- the scale, on the row underneath ----------------------------
             var part = 0f;
@@ -2673,7 +2696,7 @@ namespace VehicleTweaks.UI
             if (stock > 1f) stock = 1f;
 
             var sx = x + LabelX;
-            var sw = PanelW - LabelX - ValueX;
+            var sw = BodyW - LabelX - ValueX;
             var sy = rowY + RowH + RowH * 0.30f;
             var th = 0.0030f * Zoom;
 
@@ -2828,19 +2851,18 @@ namespace VehicleTweaks.UI
         /// </summary>
         private void Title(float x)
         {
-            // UP AGAINST THE TOP, TO LEAVE ROOM UNDERNEATH. The name was sat midway down the bar
-            // with an even gap either side of it, which is the arrangement that reads as cramped:
-            // the gap above a title is just margin, and the gap below it is what separates it
-            // from the strip of pages -- so the space is worth more there than here.
-            var h = 0.0250f * Zoom;
-            var top = PanelTop + 0.0088f * Zoom;
+            // CENTRED, IN A BAR THAT IS ONE LINE TALL. It used to sit up against the top edge
+            // to leave room for the strip of pages underneath; the strip has gone down the side,
+            // the bar is a line, and a name on a line sits on it.
+            var h = 0.0235f * Zoom;
+            var top = PanelTop + (TitleH - h) * 0.5f;
 
             if (_title.Draw(x + PadX, top, h, Fade(Amber))) return;
 
-            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.50f, Plain);
+            var titleScale = Draw.FitScale("VEHICLE TWEAKS", TitleText, PanelW * 0.40f, Plain);
 
-            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + 0.0060f * Zoom, titleScale,
-                      Fade(Amber), Plain);
+            Draw.Text("VEHICLE TWEAKS", x + PadX, PanelTop + (TitleH - Glyph(titleScale)) * 0.5f,
+                      titleScale, Fade(Amber), Plain);
         }
 
         /// <summary>How lit a just-changed value should be, one down to nought.</summary>
@@ -2868,83 +2890,77 @@ namespace VehicleTweaks.UI
         }
 
         /// <summary>
-        /// The pages across the head of the panel, as icons, evenly spaced.
+        /// The pages down the left, each an icon and its name, the current one lit.
         ///
-        /// ICONS ONLY, AND THE NAME MOVED UPSTAIRS. The first version named the current page
-        /// beside its icon, and nine icons plus a name plus the gaps between them did not fit a
-        /// strip this wide -- it read as squashed because it was. Worse, the icons were drawn a
-        /// shade too tall and ran into the rule under the title bar. The name now sits in the
-        /// title bar itself, right of "VEHICLE TWEAKS", where there is a whole line of room; the
-        /// strip is nine things of one size spread evenly across it, which is the one layout of
-        /// nine things that cannot be squashed; and the bar got taller so the icons have air.
+        /// NAMED, ALL OF THEM, ALL THE TIME. Ten icons in a strip named only the one you were
+        /// on, so the other nine were a guess -- a spanner and a cog and a tyre are three
+        /// different pages and three glyphs that at seven cells square look like the same
+        /// page. With the word beside each, the icon is what you recognise the second time and
+        /// the word is what you read the first.
         ///
-        /// The underline under the current icon still travels.
+        /// THE LIT BLOCK TRAVELS, drawn from where the ease had got to LAST frame because that
+        /// is the only way it can sit behind what this loop is about to draw, and a frame of
+        /// lag on sixty milliseconds of slide is not a thing anyone sees. It is the one part of
+        /// a page turn that can say which way you went; the names cannot, because they stay put.
         /// </summary>
-        private void Tabs()
+        private void Rail()
         {
-            var cell = 0.0032f * Zoom;
-            var cellAcross = cell / Aspect();
-            var iconW = 7f * cellAcross;
+            var x = _drawX;
+            var top = PanelTop + TitleH + 0.006f * Zoom;
+            var iconW = IconH / Aspect();
+            var inset = 0.0095f * Zoom;
 
-            var y = PanelTop + 0.0480f * Zoom;
+            var wantY = top + _page * EntryH;
 
-            // GROUPED AND CENTRED, NOT STRETCHED EDGE TO EDGE. Nine icons pushed to the corners
-            // of the panel with the gaps taking up more room than the icons read as nine
-            // unrelated marks; a row of them with an even, deliberate gap reads as one strip of
-            // pages. The gap is a fixed distance now rather than whatever is left over, so
-            // adding a page moves the strip instead of respacing every icon in it.
-            var n = _pages.Count;
-            var gap = 0.0060f * Zoom / Aspect();
-            var span = n * iconW + (n > 1 ? (n - 1) * gap : 0f);
-            var left = _drawX + (PanelW - span) * 0.5f;
-
-            var x = left;
-            var wantX = left;
-
-            // THE PLACE, NOT A LINE UNDER IT. An underline is a fifth small mark on a strip of
-            // small marks; a lit block behind the icon says "you are here" without adding
-            // anything to read. Drawn from where the ease had got to LAST frame, because that is
-            // the only way it can sit behind what this loop is about to draw -- and a frame of
-            // lag on a block that takes sixty milliseconds to slide is not a thing anyone sees.
-            if (_tabWide > 0f)
+            if (_railSet)
             {
-                var chip = 0.0022f * Zoom;
-
-                Draw.Bar(_tabAt - chip / Aspect(), y - chip, _tabWide + chip * 2f / Aspect(),
-                         7f * cell + chip * 2f, Fade(Color.FromArgb(42, 245, 196, 60)));
+                Draw.Bar(x, _railAt, RailW, EntryH, Fade(Color.FromArgb(34, 245, 196, 60)));
+                Draw.Bar(x, _railAt, 0.0026f * Zoom, EntryH, Fade(Amber));
             }
 
-            for (var i = 0; i < n; i++)
+            for (var i = 0; i < _pages.Count; i++)
             {
                 var on = i == _page;
-
-                if (on) wantX = x;
-
-                var tint = Fade(on ? Amber : Faint);
+                var ey = top + i * EntryH;
+                var iy = ey + (EntryH - IconH) * 0.5f;
+                var tint = Fade(on ? Amber : Color.FromArgb(150, 150, 150, 156));
                 var art = _pages[i].Art;
 
-                if (art == null || !art.DrawBox(x, y, iconW, 7f * cell, tint))
+                if (art == null || !art.DrawBox(x + inset, iy, iconW, IconH, tint))
                 {
-                    Draw.Icon(_pages[i].Icon, x, y, cell, cellAcross, tint);
+                    var cell = IconH / 7f;
+
+                    Draw.Icon(_pages[i].Icon, x + inset, iy, cell, cell / Aspect(), tint);
                 }
 
-                x += iconW + gap;
+                Draw.Text(_pages[i].Title, x + inset + iconW + 0.0070f * Zoom,
+                          ey + (EntryH - Glyph(TabText)) * 0.5f, TabText,
+                          Fade(on ? Color.FromArgb(245, 232, 228, 231)
+                                  : Color.FromArgb(190, 150, 150, 156)), Plain);
             }
 
             // MEASURED HERE AND EASED HERE, because the positions only exist inside this method.
-            var dt = Delta();
-
-            if (_tabWide <= 0f)
+            if (!_railSet)
             {
-                _tabAt = wantX;
-                _tabWide = iconW;
+                _railAt = wantY;
+                _railSet = true;
             }
             else
             {
-                _tabAt = Toward(_tabAt, wantX, TabTau, dt);
-                _tabWide = Toward(_tabWide, iconW, TabTau, dt);
+                _railAt = Toward(_railAt, wantY, TabTau, Delta());
             }
+        }
 
+        /// <summary>
+        /// How tall a line of the panel's font is at a scale, as a fraction of the screen.
+        ///
+        /// NOT FROM THE GAME, FROM THE PANEL: the rows were centred by eye, a text of 0.300
+        /// sitting 0.0076 down a row of 0.036 (all times Zoom), and this is that arrangement
+        /// written as a rule so a bar of any height can centre a word of any size the same way.
+        /// </summary>
+        private static float Glyph(float scale)
+        {
+            return scale * 0.0693f;
         }
 
         /// <summary>
@@ -2964,7 +2980,7 @@ namespace VehicleTweaks.UI
             var h = ChartRows * RowH;
 
             var left = x + LabelX;
-            var right = x + PanelW - ValueX;
+            var right = x + BodyW - ValueX;
             var top = y + 0.020f * Zoom;
             var bottom = y + h - 0.013f * Zoom;
 
