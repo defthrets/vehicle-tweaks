@@ -984,11 +984,11 @@ namespace VehicleTweaks.UI
 
             stance.Items.Add(Number("Drawn size", () => _cfg.DrawnSize, v => _cfg.DrawnSize = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnSize",
-                                    "The wheel you see. Fitted rims scale cleanly; stock ones are stretched."));
+                                    "The wheel you see. A stock car gets a rim fitted first."));
 
             stance.Items.Add(Number("Drawn width", () => _cfg.DrawnWidth, v => _cfg.DrawnWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnWidth",
-                                    "How wide the wheel you see is. Stock wheels are stretched to it."));
+                                    "How wide the wheel you see is. Back at 1, a fitted rim comes off."));
 
             stance.Items.Add(Header("KEEPING IT"));
 

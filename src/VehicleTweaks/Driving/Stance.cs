@@ -80,13 +80,10 @@ namespace VehicleTweaks.Driving
         /// off-diagonal pair and the cosine into the diagonal pair, and the wheel turns rather
         /// than shears. The diagonal pair holds; the off-diagonal pair is raced.
         ///
-        /// AND THE ROWS' LENGTHS ARE THE SIZE A STOCK WHEEL IS DRAWN AT. The factors the game
-        /// keeps for the look, in Drawn, scale a streamed wheel and leave a stock one alone -- the
-        /// game's rule. But a stock wheel is still drawn through this matrix, and a row longer
-        /// than one scales whatever is drawn through it along that axis: the first row is the
-        /// axle, so its length is the width; the third row is up, so its length is the size. On
-        /// stock wheels the two drawn sliders go here, as width times (cos, 0, sin) and size times
-        /// (-sin, 0, cos); on fitted wheels they go to the factors and the rows stay unit long.
+        /// THE ROWS ARE A ROTATION AND NOTHING ELSE. Stretching them was tried, on the reasoning
+        /// that a row longer than one scales what is drawn through it: the wheel did not change
+        /// by a pixel, so the renderer takes the rotation and discards the length. The size a
+        /// wheel is drawn at is in Drawn, and only a fitted wheel has one.
         /// </summary>
         private const int CosX = 0x000;
         private const int Sin = 0x008;
@@ -678,13 +675,24 @@ namespace VehicleTweaks.Driving
         {
             try
             {
-                // THE LOOK GOES ONE OF TWO WAYS. On fitted wheels it is two factors on the car's
-                // render data, written once per car; on stock wheels those do nothing, so it is
-                // the wheel's own matrix, stretched, below. See Drawn and CosX.
+                // THE LOOK IS TWO FACTORS ON THE CAR'S RENDER DATA, and only a fitted wheel has
+                // them. A stock-wheeled car gets a rim fitted first, if the setting allows, and
+                // gets it taken off again when the look goes back to stock. See Drawn and Fit.
                 var look = Math.Abs(held.Values[8] - 1f) >= Nothing || Math.Abs(held.Values[9] - 1f) >= Nothing;
-                var fitted = look && !Drawn.OnStockWheels(held.Car);
 
-                if (look && fitted) _drawn.Write(held.Car, held.Values[8], held.Values[9]);
+                if (look)
+                {
+                    var stock = Drawn.OnStockWheels(held.Car);
+
+                    if (stock && _cfg.DrawnFitsRim && Fit(held.Car)) stock = false;
+
+                    if (stock) TellStock(held.Car);
+                    else _drawn.Write(held.Car, held.Values[8], held.Values[9]);
+                }
+                else
+                {
+                    Unfit(held.Car);
+                }
 
                 foreach (var wheel in held.Car.Wheels)
                 {
@@ -726,12 +734,6 @@ namespace VehicleTweaks.Driving
                     var lowering = Math.Abs(up) >= Nothing;
                     var widening = Math.Abs(held.Values[7] - 1f) >= Nothing;
 
-                    // A STOCK WHEEL IS STRETCHED THROUGH ITS OWN MATRIX, since the factors that
-                    // size a fitted one leave it alone; see CosX. A fitted wheel keeps unit rows.
-                    var stretching = look && !fitted;
-                    var stretchX = stretching ? held.Values[9] : 1f;
-                    var stretchZ = stretching ? held.Values[8] : 1f;
-
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
                     // Barracks; five centimetres of tyre does not. A size is a proportion of what
@@ -746,10 +748,10 @@ namespace VehicleTweaks.Driving
                     Before(held, wheel, at, sin, bottomX);
 
                     // THE ONES THAT HOLD, written from here.
-                    if (leaning || stretching)
+                    if (leaning)
                     {
-                        Write(at, CosX, stretchX * cos);
-                        Write(at, CosZ, stretchZ * cos);
+                        Write(at, CosX, cos);
+                        Write(at, CosZ, cos);
                     }
 
                     if (tracking) Write(at, TopX, came.TopX - side * wide);
@@ -759,10 +761,10 @@ namespace VehicleTweaks.Driving
                     // happens to work, and handed to the race for the one where it does not.
                     // Height is not among them: it is an offset on a moving number, and only the
                     // race can see the number move.
-                    if (leaning || stretching)
+                    if (leaning)
                     {
-                        Write(at, Sin, stretchX * sin);
-                        Write(at, SinBack, -stretchZ * sin);
+                        Write(at, Sin, sin);
+                        Write(at, SinBack, -sin);
                     }
 
                     if (tracking) Write(at, BottomX, bottomX);
@@ -773,8 +775,8 @@ namespace VehicleTweaks.Driving
                     shots.Add(new Shot
                     {
                         At = at,
-                        Xz = leaning || stretching ? stretchX * sin : float.NaN,
-                        Zx = -stretchZ * sin,
+                        Xz = leaning ? sin : float.NaN,
+                        Zx = -sin,
                         BottomX = tracking ? bottomX : float.NaN,
                         Up = lowering ? up : 0f,
                         Tyre = tyre,
@@ -809,9 +811,11 @@ namespace VehicleTweaks.Driving
             // sixty lines a second.
             var now = Game.GameTime;
 
-            if (Math.Abs(angle - _saidCamber) < 0.0005f || now - _saidAt < 400) return;
+            var key = angle + held.Values[6] * 10f + held.Values[7] * 100f;
 
-            _saidCamber = angle;
+            if (Math.Abs(key - _saidCamber) < 0.0005f || now - _saidAt < 400) return;
+
+            _saidCamber = key;
             _saidAt = now;
 
             Log.Info("Stance: front left lean " + came.Angle.ToString("0.0000") + " to " +
@@ -1228,6 +1232,101 @@ namespace VehicleTweaks.Driving
         }
 
         // ==================================================================
+        // A rim, fitted, so the look has a wheel to scale
+        // ==================================================================
+
+        /// <summary>The cars this has already tried to fit, so it tries once.</summary>
+        private readonly HashSet<int> _fitTried = new HashSet<int>();
+        private readonly HashSet<int> _toldStock = new HashSet<int>();
+
+        /// <summary>
+        /// Puts the first rim of the car's own kind on a stock-wheeled car, and takes it off again.
+        ///
+        /// THE GAME SCALES A FITTED WHEEL AND NOT A STOCK ONE, and there is no way round that
+        /// from a script: the drawn size and width are factors on a streamed wheel drawable,
+        /// and a stock wheel is part of the car's own model. VStancer says so in its menu and
+        /// leaves it there. This does the one thing that makes the slider mean something on a
+        /// stock car -- fits a rim -- and marks the car as having been fitted BY THIS MOD, so that
+        /// when both drawn sliders are back at one the rim comes off again and the car is as it
+        /// was. A rim the player fitted themselves carries no mark and is never touched.
+        ///
+        /// The first rim of the car's own wheel type, because it is the one that exists on every
+        /// car that has a mod kit at all, and the point is a wheel that scales rather than a
+        /// particular wheel.
+        /// </summary>
+        private bool Fit(Vehicle car)
+        {
+            if (_fitTried.Contains(car.Handle)) return false;
+
+            if (_fitTried.Count > 64) _fitTried.Clear();
+
+            _fitTried.Add(car.Handle);
+
+            try
+            {
+                car.Mods.InstallModKit();
+
+                var front = car.Mods[VehicleModType.FrontWheel];
+
+                if (front.Count <= 0)
+                {
+                    Log.Info("Stance: this car has no rims to fit, so the drawn size cannot show on it.");
+                    return false;
+                }
+
+                front.Index = 0;
+
+                var rear = car.Mods[VehicleModType.RearWheel];
+
+                if (rear.Count > 0) rear.Index = 0;
+
+                Function.Call(Hash.DECOR_SET_INT, car, Fitted, 1);
+
+                Log.Info("Stance: fitted the first rim of its kind to a stock-wheeled car, so the drawn " +
+                         "size has a wheel to scale. Both drawn sliders back at 1 and it comes off again.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Once("stance-fit", "Could not fit a rim: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>Takes off a rim this mod fitted, once the look is back to stock.</summary>
+        private void Unfit(Vehicle car)
+        {
+            try
+            {
+                if (!Function.Call<bool>(Hash.DECOR_EXIST_ON, car, Fitted)) return;
+
+                car.Mods[VehicleModType.FrontWheel].Index = -1;
+                car.Mods[VehicleModType.RearWheel].Index = -1;
+
+                Function.Call(Hash.DECOR_REMOVE, car, Fitted);
+                _fitTried.Remove(car.Handle);
+
+                Log.Info("Stance: the drawn size is back at 1, so the rim this mod fitted has come off.");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("stance-unfit", "Could not take a rim off: " + ex.Message);
+            }
+        }
+
+        private void TellStock(Vehicle car)
+        {
+            if (_toldStock.Contains(car.Handle)) return;
+
+            if (_toldStock.Count > 64) _toldStock.Clear();
+
+            _toldStock.Add(car.Handle);
+
+            Log.Info("Stance: this car is on its stock wheels, which the game will not scale. Fit a " +
+                     "rim, or turn DrawnFitsRim on and this will.");
+        }
+
+        // ==================================================================
         // The car's own memory
         // ==================================================================
 
@@ -1240,6 +1339,9 @@ namespace VehicleTweaks.Driving
         /// itself uses to mark a car as somebody's personal vehicle. VStancer stores its stance
         /// the same way. This is the difference between "every Panto" and "this Panto".
         /// </summary>
+        /// <summary>The mark on a car whose rim this mod fitted, so it is the only rim it ever removes.</summary>
+        private const string Fitted = "vt_fitted";
+
         private static readonly string[] Decors =
         {
             "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
@@ -1256,8 +1358,10 @@ namespace VehicleTweaks.Driving
 
             try
             {
-                // 1 is DECOR_TYPE_FLOAT. The enumeration is the game's, not SHVDN's.
+                // 1 is DECOR_TYPE_FLOAT and 3 is DECOR_TYPE_INT. The enumeration is the game's.
                 foreach (var name in Decors) Function.Call(Hash.DECOR_REGISTER, name, 1);
+
+                Function.Call(Hash.DECOR_REGISTER, Fitted, 3);
             }
             catch (Exception ex)
             {

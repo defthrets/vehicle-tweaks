@@ -775,7 +775,10 @@ log, though, names the offsets it found on this build, and its own menu says the
 drawable, and a stock wheel is part of the car's model. So there are two rows for the look, **Drawn
 size** and **Drawn width**, separate from the physical size the car rolls on, reached by VStancer's
 offsets where FiveM's patterns do not fit and trusted only once a real car reads sanely through
-them. Fit any rim and they take.
+them. Fit any rim and they take — or let the mod do it: with `DrawnFitsRim` on, a stock-wheeled car gets
+the first rim of its own kind the moment either slider leaves one, marked as this mod's, and gets
+it taken off again when both are back at one. (Stretching the wheel's own matrix rows was tried
+for stock wheels first; the renderer takes the rotation and discards the length, so it is gone.)
 
 The sweep no longer tries fields that read as nought — a nought might be an integer, a float
 written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the

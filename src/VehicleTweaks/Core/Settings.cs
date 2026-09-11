@@ -598,6 +598,16 @@ namespace VehicleTweaks.Core
         public float DrawnWidth = 1f;
 
         /// <summary>
+        /// Fit a rim to a stock-wheeled car when a drawn size is asked for, and take it off again.
+        ///
+        /// THE GAME SCALES A FITTED WHEEL AND NOT A STOCK ONE, so on a car straight from the
+        /// showroom the drawn sliders would do nothing. On, and the first rim of the car's own
+        /// kind goes on the moment either slider leaves one, and comes off again when both are
+        /// back at one. Off, and a stock car stays stock and the log says why nothing shows.
+        /// </summary>
+        public bool DrawnFitsRim = true;
+
+        /// <summary>
         /// How much the tyres smoke when they are spinning, against how much they normally would.
         ///
         /// THE SMOKE IS THE TEMPERATURE. There is no amount of smoke to set; there is a heat per
@@ -1312,6 +1322,7 @@ namespace VehicleTweaks.Core
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.DrawnSize = ini.GetFloat("Driving", "DrawnSize", s.DrawnSize, 0.4f, 2.5f);
                 s.DrawnWidth = ini.GetFloat("Driving", "DrawnWidth", s.DrawnWidth, 0.4f, 2.5f);
+                s.DrawnFitsRim = ini.GetBool("Driving", "DrawnFitsRim", s.DrawnFitsRim);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
                 s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 560f);
