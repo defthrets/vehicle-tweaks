@@ -48,6 +48,11 @@ namespace VehicleTweaks.Driving
 
         private readonly List<Region> _regions = new List<Region>();
         private int _car;
+
+        /// <summary>The two drawn factors as last reported, so they are reported on change.</summary>
+        private float _lastSize = float.NaN;
+        private float _lastWidth = float.NaN;
+        private long _lastGfx;
         private int _saidAt;
         private int _saidCount;
         private bool _settled;
@@ -74,6 +79,7 @@ namespace VehicleTweaks.Driving
                 }
 
                 Gather(car);
+                Factors(car);
 
                 var settled = true;
 
@@ -179,6 +185,46 @@ namespace VehicleTweaks.Driving
 
             _regions.Clear();
             _regions.AddRange(kept);
+        }
+
+        /// <summary>
+        /// Reads the two drawn factors straight off VStancer's offsets and says when they change.
+        ///
+        /// THE DIFF CANNOT SEE THEM, and this is why. The render data is created the moment a rim
+        /// goes on and re-created every time one changes, and a re-created object is a new region
+        /// to the diff, which then spends its noise-learning frames on exactly the frames the
+        /// other mod writes into it. So the two numbers that matter are read by address every
+        /// frame, with no learning, and reported the moment either differs from what was last
+        /// said -- including the moment the object appears at all.
+        /// </summary>
+        private void Factors(Vehicle car)
+        {
+            var vehicle = car.MemoryAddress;
+
+            if (vehicle == IntPtr.Zero || !Scan.Readable(IntPtr.Add(vehicle, 0x48), 8)) return;
+
+            var handler = Marshal.ReadIntPtr(vehicle, 0x48);
+
+            if (!Scan.Object(handler) || !Scan.Readable(IntPtr.Add(handler, 0x4B0), 8)) return;
+
+            var gfx = Marshal.ReadIntPtr(handler, 0x4B0);
+
+            if (!Scan.Object(gfx) || !Scan.Readable(IntPtr.Add(gfx, 0xBA0), 4)) return;
+
+            var size = BitConverter.ToSingle(BitConverter.GetBytes(Marshal.ReadInt32(gfx, 0x8)), 0);
+            var width = BitConverter.ToSingle(BitConverter.GetBytes(Marshal.ReadInt32(gfx, 0xBA0)), 0);
+
+            var moved = gfx.ToInt64() != _lastGfx;
+
+            if (!moved && size == _lastSize && width == _lastWidth) return;
+
+            Log.Info("Watch: render data " + (moved ? "at " + gfx.ToInt64().ToString("X") + ", " : "") +
+                     "size +0x8 reads " + size.ToString("0.0000") + ", width +0xBA0 reads " +
+                     width.ToString("0.0000") + ".");
+
+            _lastGfx = gfx.ToInt64();
+            _lastSize = size;
+            _lastWidth = width;
         }
 
         /// <summary>As much of a region as can be read, wanting this much and settling for that much.</summary>
