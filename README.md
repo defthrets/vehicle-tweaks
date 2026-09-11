@@ -708,6 +708,37 @@ log reports the front left wheel's camber and track before and after, once per c
 wrong way, use the other sign.
 
 
+### What the sweep found
+
+The camber never moved on Enhanced, and the log could not say why: every write landed. So the probe
+was taught to ask the game. Once a second it reads the front-left wheel a frame *after* it was
+written, and on demand it **sweeps** the wheel — every field that reads like a small float is pushed
+by a third for two and a half seconds, with the offset written across the top of the screen, and
+then put back — so a person can say which one the wheel moved on.
+
+The answer sorted every field into one of two kinds. The wheel's **position in the car at `0x020`
+is an input**: write it and it stays, and the game builds the next frame's suspension on top of it.
+That is where track and height go now, once a frame from the ordinary tick, and they hold. The
+**lean at `0x008`/`0x010`, the position at `0x030` and the radii at `0x110`–`0x118` are outputs**:
+the game rewrites every one of them every frame, after this script has had its turn and before the
+wheel is drawn, so a write from the tick is undone before anyone sees it. FiveM writes those same
+fields and works because it ticks its scripts at a different point in the frame; VStancer works
+because it patches the game's code (its author calls it "suspension patching", and lists wheel
+deformation stopping as a known issue). A script under ScriptHookV can do neither.
+
+So it does the third thing. **A thread of its own writes the lean and the radii of every held wheel
+again and again**, thousands of times a second, whichever thread the game is on — so that whenever
+the game comes to draw the wheel, what it finds there is ours. A four-byte aligned write is atomic,
+so the game never reads half a number; the addresses come from the tick, which has just confirmed
+every car exists. It costs a core while a stanced car exists and nothing while none does, which is
+the price of not being allowed to patch, and it is a setting: `StanceRace`, with `StanceRaceRest`
+to trade the core for an occasional flicker.
+
+The sweep no longer tries fields that read as nought — a nought might be an integer, a float
+written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the
+end of the struct, which is `0x230` bytes on this build because that is how far apart two wheels
+sit. `StanceProbeFrom` picks up a sweep that was cut short.
+
 ## Holding a slide
 
 **The engine keeps pulling while the car is sideways.**

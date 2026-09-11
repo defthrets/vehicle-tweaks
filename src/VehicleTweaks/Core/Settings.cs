@@ -662,6 +662,31 @@ namespace VehicleTweaks.Core
         /// </summary>
         public bool StanceProbe = false;
 
+        /// <summary>Which field the probe's sweep starts from, as the number shown on screen.</summary>
+        public float StanceProbeFrom = 1f;
+
+        /// <summary>
+        /// Write the camber and the wheel sizes faster than the game can put them back.
+        ///
+        /// THE GAME REWRITES THEM EVERY FRAME, after this script has had its turn and before the
+        /// wheel is drawn, so a write from the tick is undone before anyone sees it. VStancer
+        /// patches the game's code to stop that; a script cannot. This runs a thread of its own
+        /// that writes the numbers again and again, so that whenever the game looks, they are
+        /// ours. It costs a core while a stanced car exists. Off, and camber and wheel size do
+        /// nothing; track and height still work, because those go through a field the game
+        /// builds on rather than one it overwrites.
+        /// </summary>
+        public bool StanceRace = true;
+
+        /// <summary>
+        /// How long the race rests between passes, in milliseconds.
+        ///
+        /// NOUGHT NEVER RESTS: a whole core, and the best chance the wheel never flickers. One is
+        /// a thousand passes a second for almost nothing, and a flicker whenever the game happens
+        /// to draw inside the gap.
+        /// </summary>
+        public float StanceRaceRest = 0f;
+
         /// <summary>
         /// The engine keeps pulling while the car is sideways.
         ///
@@ -1269,6 +1294,9 @@ namespace VehicleTweaks.Core
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
+                s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 500f);
+                s.StanceRace = ini.GetBool("Driving", "StanceRace", s.StanceRace);
+                s.StanceRaceRest = ini.GetFloat("Driving", "StanceRaceRest", s.StanceRaceRest, 0f, 20f);
                 s.TyreSmoke = ini.GetFloat("Driving", "TyreSmoke", s.TyreSmoke, 0f, 5f);
 
                 s.DlcTraffic = ini.GetBool("General", "DlcTraffic", s.DlcTraffic);

@@ -953,7 +953,7 @@ namespace VehicleTweaks.UI
             stance.Items.Add(Scale("Height front", () => _cfg.HeightFront,
                                    v => _cfg.HeightFront = v, 0.05f, -1f, 1f, "0.00", "",
                                    "Driving", "HeightFront",
-                                   "Rides on the hydraulic suspension. Negative drops it."));
+                                   "Moves the wheel up into its arch. Negative drops the car."));
 
             stance.Items.Add(Header("THE REAR AXLE"));
 
@@ -970,7 +970,7 @@ namespace VehicleTweaks.UI
             stance.Items.Add(Scale("Height rear", () => _cfg.HeightRear,
                                    v => _cfg.HeightRear = v, 0.05f, -1f, 1f, "0.00", "",
                                    "Driving", "HeightRear",
-                                   "A car with no hydraulics in its handling may ignore this."));
+                                   "Mirrored across the axle, so both wheels move together."));
 
             stance.Items.Add(Header("THE WHEELS"));
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 using GTA;
 using GTA.Native;
 using System.Drawing;
@@ -20,20 +21,26 @@ namespace VehicleTweaks.Driving
     /// always correct and always thrown away before anything was drawn.
     ///
     /// THEY LIVE IN THE WHEEL, AND THE OFFSETS ARE NOT A GUESS. Each CWheel carries its own Y
-    /// rotation at 0x008 with the negation of it at 0x010, and its X offset at 0x030. Those are
-    /// the constants FiveM's own implementations of SET_VEHICLE_WHEEL_Y_ROTATION and
-    /// SET_VEHICLE_WHEEL_X_OFFSET use, hardcoded there rather than pattern-scanned. A wheel dump
-    /// on Enhanced settles it: -0.7180, 0.7180, -0.7180, 0.7180 -- four numbers mirrored across
-    /// the car, each of them half a track. SHVDN finds the wheel, which is the half that moves
-    /// between builds; VehicleWheel.MemoryAddress is somebody else's problem to keep right.
+    /// rotation at 0x008 with the negation of it at 0x010, its place in the car at 0x020 and
+    /// again at 0x030, and its radii at 0x110. The first three and the last are the constants
+    /// FiveM's own implementations of SET_VEHICLE_WHEEL_Y_ROTATION and _X_OFFSET use, hardcoded
+    /// there rather than pattern-scanned; the sweep below found the rest on this build. SHVDN
+    /// finds the wheel, which is the half that moves between builds.
     ///
-    /// THE GAME PUTS THE WHEELS BACK, AND THAT IS WHY THIS HOLDS ON TO CARS IT IS NOT DRIVING.
-    /// Writing the stance once is not enough and neither is writing it while you are sat in the
-    /// car: something in the game restores those fields, so a car straightened up the moment you
-    /// walked away from it. So the stance is not an event, it is a lease -- every car this has
-    /// stanced is written again every frame for as long as it exists, whether anybody is in it or
-    /// not. That is the same thing VStancer does by patching the game's reset code, done the way
-    /// a script is allowed to do it.
+    /// TWO KINDS OF FIELD, AND THE SWEEP TOLD THEM APART. Write the position at 0x020 and it
+    /// stays: the game builds the next frame's suspension on top of it, so it is an input, and
+    /// track and height go there. Write the lean at 0x008, or the position at 0x030, or a radius
+    /// at 0x110, and a frame later the car's own number is back: the game rewrites those every
+    /// frame, after this script has had its turn and before the wheel is drawn, so a write from
+    /// the tick is undone before anyone sees it. FiveM writes the same fields and works because
+    /// it ticks its scripts at a different point in the frame; VStancer works because it patches
+    /// the game's code. This does the third thing, in Publish: a thread of its own writes them
+    /// faster than the game can put them back.
+    ///
+    /// AND IT HOLDS ON TO CARS IT IS NOT DRIVING. A stance is not an event, it is a lease: every
+    /// car this has stanced is written again every frame for as long as it exists, whether
+    /// anybody is in it or not, so a car does not straighten up the moment you walk away from
+    /// it.
     ///
     /// AND CARS IT HAS NEVER SEEN ARE PICKED UP BY THEIR OWN DECORATOR. A stance is written onto
     /// the vehicle as well as into a file, so a car found nearby carrying one is adopted and held
@@ -52,16 +59,27 @@ namespace VehicleTweaks.Driving
     /// rotated to face outwards, and why VStancer's readme tells you to type a minus sign for a
     /// wider track. This takes the sign out of the setting: positive is wider.
     ///
-    /// HEIGHT IS THE ONE THAT IS NOT MEMORY. It goes through the hydraulic suspension raise, per
-    /// wheel, which SHVDN exposes properly -- the safest of the three and the least certain,
-    /// because a car with no hydraulics may simply ignore it.
+    /// HEIGHT IS THE WHEEL'S OWN PLACE IN THE CAR, MOVED UP OR DOWN. It went through the
+    /// hydraulic suspension raise once, which is a native and therefore safe and which a car
+    /// without hydraulics ignores. The Z of the position at 0x020 is the same input the track is
+    /// the X of, and it holds on every car: a wheel moved up into its arch is a body sat lower
+    /// over it, which is why negative drops the car.
     /// </summary>
     internal sealed class Stance
     {
-        /// <summary>Where a wheel keeps its lean, the negation of its lean, and its sideways offset.</summary>
+        /// <summary>
+        /// Where a wheel keeps its lean and the negation of its lean, and where it keeps the place
+        /// it sits: the X of that is the track, the Z of it is the ride height.
+        ///
+        /// 0x020, NOT 0x030. Both hold the wheel's position in the car, and the sweep told them
+        /// apart: 0x020 keeps what it is given, 0x030 is put back every frame from 0x020 and the
+        /// suspension. FiveM writes 0x030 and says to write it every frame; from here that is a
+        /// write the game undoes before anyone sees it, and a write to 0x020 is one it builds on.
+        /// </summary>
         private const int Camber = 0x008;
         private const int CamberBack = 0x010;
-        private const int Track = 0x030;
+        private const int Track = 0x020;
+        private const int Up = 0x028;
 
         /// <summary>
         /// And how big the wheel actually is: the tyre, the rim inside it, and how wide it is.
@@ -238,9 +256,14 @@ namespace VehicleTweaks.Driving
         /// </summary>
         private void Keep()
         {
-            if (_held.Count == 0) return;
+            if (_held.Count == 0)
+            {
+                Publish(null);
+                return;
+            }
 
             List<int> drop = null;
+            var shots = new List<Shot>();
 
             foreach (var pair in _held)
             {
@@ -252,7 +275,7 @@ namespace VehicleTweaks.Driving
                     continue;
                 }
 
-                Apply(held);
+                Apply(held, shots);
 
                 // A CAR PUT BACK TO STOCK HAS JUST HAD ITS STOCK VALUES WRITTEN, so this is the
                 // frame to stop caring about it. Anything else is a lease that never ends.
@@ -265,6 +288,8 @@ namespace VehicleTweaks.Driving
                 try { held.Car.MarkAsNoLongerNeeded(); }
                 catch { /* the game will have it back either way */ }
             }
+
+            Publish(shots);
 
             if (drop == null) return;
 
@@ -513,6 +538,7 @@ namespace VehicleTweaks.Driving
 
                     var camber = Read(at, Camber);
                     var track = Read(at, Track);
+                    var up = Read(at, Up);
                     var tyre = Read(at, Tyre);
                     var rim = Read(at, Rim);
                     var wide = Read(at, Width);
@@ -521,10 +547,10 @@ namespace VehicleTweaks.Driving
                     // decide only for themselves. They were one test, which meant a tyre radius
                     // that would not read took camber and track down with it -- three fields
                     // hostage to the newest and least proven of the six.
-                    if (!Sound(camber) || !Sound(track))
+                    if (!Sound(camber) || !Sound(track) || !Sound(up))
                     {
                         Log.Warn("Stance: wheel " + wheel.BoneId + " does not read like a wheel (" +
-                                 camber + ", " + track + "), so it is left alone.");
+                                 camber + ", " + track + ", " + up + "), so it is left alone.");
                         continue;
                     }
 
@@ -536,12 +562,7 @@ namespace VehicleTweaks.Driving
                         tyre = rim = wide = 0f;
                     }
 
-                    var raise = 0f;
-
-                    try { raise = wheel.GetHydraulicSuspensionRaiseFactor(); }
-                    catch { /* nought is the right assumption and the right thing to put back */ }
-
-                    stock[(int)wheel.BoneId] = new[] { camber, track, raise, tyre, rim, wide };
+                    stock[(int)wheel.BoneId] = new[] { camber, track, up, tyre, rim, wide };
                 }
             }
             catch (Exception ex)
@@ -552,8 +573,11 @@ namespace VehicleTweaks.Driving
             return stock;
         }
 
-        /// <summary>Writes one held car's wheels, this frame, whether anybody is in it or not.</summary>
-        private void Apply(Held held)
+        /// <summary>
+        /// Writes one held car's wheels, this frame, whether anybody is in it or not -- and puts
+        /// the fields the game would undo on the list for the other thread.
+        /// </summary>
+        private void Apply(Held held, List<Shot> shots)
         {
             try
             {
@@ -588,21 +612,29 @@ namespace VehicleTweaks.Driving
 
                     Before(held, wheel, at, camber, track);
 
-                    Write(at, Camber, camber);
-                    Write(at, CamberBack, -camber);
+                    // THE TWO THAT HOLD: the wheel's place in the car, sideways and up.
                     Write(at, Track, track);
+                    Write(at, Up, stock[2] - up);
 
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
                     // Barracks; five centimetres of tyre does not. A size is a proportion of what
                     // was there, so it is written as one.
                     // Nought means the field did not read as a size when this car was captured.
-                    if (stock[3] > 0f) Write(at, Tyre, stock[3] * held.Values[6]);
-                    if (stock[4] > 0f) Write(at, Rim, stock[4] * held.Values[7]);
-                    if (stock[5] > 0f) Write(at, Width, stock[5] * held.Values[8]);
+                    var tyre = stock[3] > 0f ? stock[3] * held.Values[6] : 0f;
+                    var rim = stock[4] > 0f ? stock[4] * held.Values[7] : 0f;
+                    var width = stock[5] > 0f ? stock[5] * held.Values[8] : 0f;
 
-                    try { wheel.SetHydraulicSuspensionRaiseFactor(stock[2] + up); }
-                    catch { /* the one part of this the car is allowed to refuse */ }
+                    // THE FOUR THE GAME PUTS BACK, written here for the build where the timing
+                    // happens to work, and handed to the race for the one where it does not.
+                    Write(at, Camber, camber);
+                    Write(at, CamberBack, -camber);
+
+                    if (tyre > 0f) Write(at, Tyre, tyre);
+                    if (rim > 0f) Write(at, Rim, rim);
+                    if (width > 0f) Write(at, Width, width);
+
+                    shots.Add(new Shot { At = at, Camber = camber, Tyre = tyre, Rim = rim, Width = width });
 
                     Say(held, wheel, stock, camber);
                 }
@@ -638,8 +670,9 @@ namespace VehicleTweaks.Driving
 
             Log.Info("Stance: front left camber " + stock[0].ToString("0.0000") + " to " +
                      camber.ToString("0.0000") + " rad, track " + stock[1].ToString("0.0000") +
-                     " to " + (stock[1] - held.Values[2]).ToString("0.0000") + " m, raise " +
-                     (stock[2] + held.Values[4]).ToString("0.00") + ", tyre x" +
+                     " to " + (stock[1] - held.Values[2]).ToString("0.0000") + " m, z " +
+                     stock[2].ToString("0.00") + " to " + (stock[2] - held.Values[4]).ToString("0.00") +
+                     ", tyre x" +
                      held.Values[6].ToString("0.00") + ". Holding " + _held.Count + " car(s).");
         }
 
@@ -654,6 +687,8 @@ namespace VehicleTweaks.Driving
         /// </summary>
         public void Release()
         {
+            _stopRacing = true;
+            _shots = null;
             _held.Clear();
             _car = 0;
             _model = null;
@@ -747,10 +782,12 @@ namespace VehicleTweaks.Driving
         /// the answer is the one in Before, and it is not a matter of offsets at all.
         ///
         /// STARTS WHEN THE FRONT CAMBER SLIDER LEAVES NOUGHT, which is the sign that somebody is
-        /// looking. The known four go first; then everything else that is not nought; then the
-        /// noughts, last, because a nought might be an integer and a float written into an
-        /// integer is how a probe becomes a crash. Each is named in the log before it is
-        /// touched, so a crash says which one.
+        /// looking. The known four go first, then everything else that is not nought. THE
+        /// NOUGHTS ARE NOT TRIED, any more: a nought might be an integer, a float written into an
+        /// integer is how a probe becomes a crash, and 0x128 was one. Each field is named in the
+        /// log before it is touched, so a crash still says which. The struct is 0x230 bytes on
+        /// this build -- that is how far apart two wheels sit -- and the sweep runs to its end,
+        /// picking up from StanceProbeFrom so a sweep cut short is not begun again.
         ///
         /// WHILE IT RUNS, THE ORDINARY WRITES STAND ASIDE for this car, or every step would be
         /// two changes at once.
@@ -767,6 +804,10 @@ namespace VehicleTweaks.Driving
                 return;
             }
 
+            // NOUGHT MEANS NO SWEEP, which leaves the rest of the probe -- the dump and the
+            // read-back -- to run on their own while the race is being judged by eye.
+            if (_cfg.StanceProbeFrom < 1f) return;
+
             if (_trialIndex < 0 && Math.Abs(_cfg.CamberFront) < 0.5f) return;
 
             var fl = FrontLeft(car);
@@ -777,15 +818,19 @@ namespace VehicleTweaks.Driving
             {
                 _trial = Candidates(fl);
                 _trialCar = car.Handle;
-                _trialIndex = -1;
+
+                var from = Math.Max(1, Math.Min(_trial.Count, (int)_cfg.StanceProbeFrom));
+
+                _trialIndex = from - 2;
 
                 Log.Info("Stance probe: sweeping " + _trial.Count + " fields of the front left " +
-                         "wheel, " + (TrialMs / 1000f).ToString("0.0") + " s each. Watch that wheel.");
+                         "wheel, " + (TrialMs / 1000f).ToString("0.0") + " s each, from number " +
+                         from + ". Watch that wheel.");
             }
 
             if (_trialIndex < 0 || now - _trialAt >= TrialMs)
             {
-                if (_trialIndex >= 0)
+                if (_trialIndex >= 0 && _trialIndex < _trial.Count)
                 {
                     var was = _trial[_trialIndex];
                     var held = Math.Abs(_trialSeen - (_trialOrig + TrialNudge)) < 0.0005f;
@@ -850,11 +895,10 @@ namespace VehicleTweaks.Driving
         /// <summary>Every field of the wheel worth trying, in the order worth trying them.</summary>
         private static List<int> Candidates(IntPtr fl)
         {
-            var known = new List<int> { Camber, CamberBack, 0x020, Track };
+            var known = new List<int> { Camber, CamberBack, Track, Up, 0x030 };
             var rest = new List<int>();
-            var noughts = new List<int>();
 
-            for (var off = 0; off < 0x1C0; off += 4)
+            for (var off = 0; off < 0x230; off += 4)
             {
                 if (known.Contains(off)) continue;
 
@@ -866,23 +910,119 @@ namespace VehicleTweaks.Driving
                 if (bits != 0 && (bits & 0x7F800000) == 0) continue;
                 if (float.IsNaN(v) || float.IsInfinity(v) || Math.Abs(v) >= 3f) continue;
 
-                if (bits == 0)
-                {
-                    // A nought beside something enormous is the other half of a pointer.
-                    var neighbour = off >= 4 ? Read(fl, off - 4) : 0f;
-
-                    if (float.IsNaN(neighbour) || Math.Abs(neighbour) > 1e6f) continue;
-
-                    noughts.Add(off);
-                    continue;
-                }
+                if (bits == 0) continue;
 
                 rest.Add(off);
             }
 
             known.AddRange(rest);
-            known.AddRange(noughts);
             return known;
+        }
+
+        // ==================================================================
+        // The race: writing faster than the game can put it back
+        // ==================================================================
+
+        /// <summary>One wheel's numbers for the other thread: where, and what to keep writing.</summary>
+        private sealed class Shot
+        {
+            public IntPtr At;
+            public float Camber;
+            public float Tyre;
+            public float Rim;
+            public float Width;
+        }
+
+        private volatile Shot[] _shots;
+        private volatile bool _stopRacing;
+        private Thread _racer;
+
+        /// <summary>
+        /// Hands the other thread this frame's wheels, and starts it the first time.
+        ///
+        /// WHAT THE SWEEP FOUND, AND WHAT THIS DOES ABOUT IT. Every field a stance needs is one
+        /// of two kinds. The wheel's position in the car at 0x020 is an INPUT: write it and it
+        /// stays, and the game builds the next frame's suspension on top of it -- so track and
+        /// height go there and go there once a frame from the ordinary tick, and they hold. The
+        /// lean at 0x008 and 0x010 and the radii at 0x110 to 0x118 are OUTPUTS: the game
+        /// rewrites every one of them every frame, after this script has had its turn and
+        /// before the wheel is drawn, so a write from the tick is gone before anyone sees it.
+        /// FiveM's natives write these same fields and work because FiveM ticks its scripts at
+        /// a different point in the frame; VStancer works because it patches the game's code.
+        /// A script under ScriptHookV can do neither.
+        ///
+        /// SO IT WRITES FASTER THAN THE GAME CAN UNDO IT. A thread of its own writes the lean
+        /// and the radii of every held wheel again and again, thousands of times a second,
+        /// whichever thread the game is on -- so that whenever the game comes to draw the wheel,
+        /// what it finds there is ours. A four-byte aligned write is atomic on this
+        /// architecture, so the game never reads half a number; and the addresses come from
+        /// the tick, which has just confirmed every car still exists, so the worst a stale one
+        /// can do is put a lean on a wheel in the pool for one frame.
+        ///
+        /// IT COSTS A CORE while a stanced car exists, and nothing while none does. That is the
+        /// price of not being allowed to patch, and it is a setting.
+        /// </summary>
+        private void Publish(List<Shot> shots)
+        {
+            if (!_cfg.StanceRace || shots == null || shots.Count == 0)
+            {
+                _shots = null;
+                return;
+            }
+
+            _shots = shots.ToArray();
+
+            if (_racer != null) return;
+
+            _racer = new Thread(Race) { IsBackground = true, Name = "Vehicle Tweaks stance" };
+            _racer.Start();
+
+            Log.Info("Stance: racing the game for the camber and the wheel sizes on a thread of " +
+                     "its own, " + (_cfg.StanceRaceRest > 0f
+                                        ? "resting " + _cfg.StanceRaceRest.ToString("0") + " ms between passes."
+                                        : "never resting."));
+        }
+
+        private void Race()
+        {
+            try
+            {
+                while (!_stopRacing)
+                {
+                    var shots = _shots;
+
+                    if (shots == null)
+                    {
+                        Thread.Sleep(5);
+                        continue;
+                    }
+
+                    for (var i = 0; i < shots.Length; i++)
+                    {
+                        var s = shots[i];
+
+                        Write(s.At, Camber, s.Camber);
+                        Write(s.At, CamberBack, -s.Camber);
+
+                        if (s.Tyre > 0f) Write(s.At, Tyre, s.Tyre);
+                        if (s.Rim > 0f) Write(s.At, Rim, s.Rim);
+                        if (s.Width > 0f) Write(s.At, Width, s.Width);
+                    }
+
+                    var rest = (int)_cfg.StanceRaceRest;
+
+                    if (rest > 0) Thread.Sleep(rest);
+                    else Thread.SpinWait(64);
+                }
+            }
+            catch (ThreadAbortException)
+            {
+                // The script is being unloaded, and this thread with it.
+            }
+            catch (Exception ex)
+            {
+                Log.Once("stance-race", "The stance race fell over: " + ex.Message);
+            }
         }
 
         // ==================================================================
