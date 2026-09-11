@@ -80,13 +80,13 @@ namespace VehicleTweaks.Driving
         /// off-diagonal pair and the cosine into the diagonal pair, and the wheel turns rather
         /// than shears. The diagonal pair holds; the off-diagonal pair is raced.
         ///
-        /// AND THE LENGTH OF THE FIRST ROW IS THE WIDTH THE WHEEL IS DRAWN AT. A rotation's rows
-        /// are unit long, and a row that is longer than one scales whatever is drawn through it
-        /// along that axis. The first row is the wheel's own axle, so the width slider goes here:
-        /// the row is written as width times (cos, 0, sin) rather than (cos, 0, sin). The
-        /// number the game keeps for the Arena wheel sizes, on the car, could not be found on
-        /// this build -- none of FiveM's three patterns for it exist in this code -- and this is
-        /// the one place a wheel is guaranteed to be drawn through.
+        /// AND THE ROWS' LENGTHS ARE THE SIZE A STOCK WHEEL IS DRAWN AT. The factors the game
+        /// keeps for the look, in Drawn, scale a streamed wheel and leave a stock one alone -- the
+        /// game's rule. But a stock wheel is still drawn through this matrix, and a row longer
+        /// than one scales whatever is drawn through it along that axis: the first row is the
+        /// axle, so its length is the width; the third row is up, so its length is the size. On
+        /// stock wheels the two drawn sliders go here, as width times (cos, 0, sin) and size times
+        /// (-sin, 0, cos); on fitted wheels they go to the factors and the rows stay unit long.
         /// </summary>
         private const int CosX = 0x000;
         private const int Sin = 0x008;
@@ -125,8 +125,8 @@ namespace VehicleTweaks.Driving
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
-        /// <summary>The eight, in the order they are written onto a car.</summary>
-        private const int Values = 8;
+        /// <summary>The ten, in the order they are written onto a car.</summary>
+        private const int Values = 10;
 
         /// <summary>
         /// What each of the nine means "as the car came".
@@ -136,7 +136,7 @@ namespace VehicleTweaks.Driving
         /// stanced before the sizes existed carries six decorators, and reading the seventh as
         /// the nought the game hands back for a missing one would shrink its wheels to nothing.
         /// </summary>
-        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f };
+        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f, 1f };
 
         /// <summary>
         /// A wheel does not lean by five radians and does not sit five metres out.
@@ -245,11 +245,6 @@ namespace VehicleTweaks.Driving
                 Keep();
                 Trial(car, now);
 
-                if (_cfg.StanceProbe)
-                {
-                    _drawn.Trial(car, now, Math.Abs(_cfg.WheelWidth - 1f) >= Nothing);
-                }
-
                 if (_cfg.StanceWatch) _watch.Update(car);
             }
             catch (Exception ex)
@@ -265,7 +260,7 @@ namespace VehicleTweaks.Driving
             {
                 _cfg.CamberFront, _cfg.CamberRear, _cfg.TrackFront,
                 _cfg.TrackRear, _cfg.HeightFront, _cfg.HeightRear,
-                _cfg.WheelSize, _cfg.WheelWidth,
+                _cfg.WheelSize, _cfg.WheelWidth, _cfg.DrawnSize, _cfg.DrawnWidth,
             };
         }
 
@@ -295,7 +290,7 @@ namespace VehicleTweaks.Driving
             held = new Held { Car = car, Values = Live(), Stock = Capture(car) };
             _held[car.Handle] = held;
 
-            _drawn.Find(car);
+            _drawn.Find();
 
             // AND IT STOPS BEING TRAFFIC. A car the game owns is cleaned up the moment you are
             // far enough away and looking elsewhere -- which for an ordinary car is exactly
@@ -418,6 +413,8 @@ namespace VehicleTweaks.Driving
             _cfg.HeightRear = kept[5];
             _cfg.WheelSize = kept[6];
             _cfg.WheelWidth = kept[7];
+            _cfg.DrawnSize = kept[8];
+            _cfg.DrawnWidth = kept[9];
 
             if (Flat(kept)) return;
 
@@ -681,6 +678,14 @@ namespace VehicleTweaks.Driving
         {
             try
             {
+                // THE LOOK GOES ONE OF TWO WAYS. On fitted wheels it is two factors on the car's
+                // render data, written once per car; on stock wheels those do nothing, so it is
+                // the wheel's own matrix, stretched, below. See Drawn and CosX.
+                var look = Math.Abs(held.Values[8] - 1f) >= Nothing || Math.Abs(held.Values[9] - 1f) >= Nothing;
+                var fitted = look && !Drawn.OnStockWheels(held.Car);
+
+                if (look && fitted) _drawn.Write(held.Car, held.Values[8], held.Values[9]);
+
                 foreach (var wheel in held.Car.Wheels)
                 {
                     Came came;
@@ -721,9 +726,11 @@ namespace VehicleTweaks.Driving
                     var lowering = Math.Abs(up) >= Nothing;
                     var widening = Math.Abs(held.Values[7] - 1f) >= Nothing;
 
-                    // THE FIRST ROW OF THE WHEEL'S MATRIX, STRETCHED. It is the axle direction,
-                    // and a row longer than one draws the wheel that much wider; see CosX.
-                    var stretch = widening ? held.Values[7] : 1f;
+                    // A STOCK WHEEL IS STRETCHED THROUGH ITS OWN MATRIX, since the factors that
+                    // size a fitted one leave it alone; see CosX. A fitted wheel keeps unit rows.
+                    var stretching = look && !fitted;
+                    var stretchX = stretching ? held.Values[9] : 1f;
+                    var stretchZ = stretching ? held.Values[8] : 1f;
 
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
@@ -739,10 +746,10 @@ namespace VehicleTweaks.Driving
                     Before(held, wheel, at, sin, bottomX);
 
                     // THE ONES THAT HOLD, written from here.
-                    if (leaning || widening)
+                    if (leaning || stretching)
                     {
-                        Write(at, CosX, stretch * cos);
-                        Write(at, CosZ, cos);
+                        Write(at, CosX, stretchX * cos);
+                        Write(at, CosZ, stretchZ * cos);
                     }
 
                     if (tracking) Write(at, TopX, came.TopX - side * wide);
@@ -752,26 +759,22 @@ namespace VehicleTweaks.Driving
                     // happens to work, and handed to the race for the one where it does not.
                     // Height is not among them: it is an offset on a moving number, and only the
                     // race can see the number move.
-                    if (leaning || widening)
+                    if (leaning || stretching)
                     {
-                        Write(at, Sin, stretch * sin);
-                        Write(at, SinBack, -sin);
+                        Write(at, Sin, stretchX * sin);
+                        Write(at, SinBack, -stretchZ * sin);
                     }
 
                     if (tracking) Write(at, BottomX, bottomX);
                     if (tyre > 0f) Write(at, Tyre, tyre);
                     if (width > 0f) Write(at, Width, width);
 
-                    // AND THE ONE YOU CAN SEE, which is the car's rather than the wheel's. Written
-                    // once per car per frame would do; once per wheel is the same number again
-                    // and costs three checked reads, which is nothing.
-                    if (width > 0f) _drawn.Write(held.Car, held.Values[7]);
 
                     shots.Add(new Shot
                     {
                         At = at,
-                        Xz = leaning || widening ? stretch * sin : float.NaN,
-                        Zx = -sin,
+                        Xz = leaning || stretching ? stretchX * sin : float.NaN,
+                        Zx = -stretchZ * sin,
                         BottomX = tracking ? bottomX : float.NaN,
                         Up = lowering ? up : 0f,
                         Tyre = tyre,
@@ -1240,7 +1243,7 @@ namespace VehicleTweaks.Driving
         private static readonly string[] Decors =
         {
             "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
-            "vt_size", "vt_width",
+            "vt_size", "vt_width", "vt_drawn_size", "vt_drawn_width",
         };
 
         private static bool _registered;

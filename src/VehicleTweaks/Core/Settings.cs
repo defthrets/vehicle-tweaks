@@ -587,6 +587,17 @@ namespace VehicleTweaks.Core
         public float WheelWidth = 1f;
 
         /// <summary>
+        /// How big and how wide a FITTED wheel is drawn, as a proportion of the model.
+        ///
+        /// TWO FACTORS THE GAME KEEPS FOR THE ARENA WHEEL SIZES, on the car's render data, which
+        /// scale a streamed wheel drawable and nothing else -- so a car on its stock wheels, which
+        /// are part of its own model, ignores them. The physical size above is what the car rolls
+        /// on; these are what you see.
+        /// </summary>
+        public float DrawnSize = 1f;
+        public float DrawnWidth = 1f;
+
+        /// <summary>
         /// How much the tyres smoke when they are spinning, against how much they normally would.
         ///
         /// THE SMOKE IS THE TEMPERATURE. There is no amount of smoke to set; there is a heat per
@@ -1299,6 +1310,8 @@ namespace VehicleTweaks.Core
                 s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -0.5f, 0.5f);
                 s.WheelSize = ini.GetFloat("Driving", "WheelSize", s.WheelSize, 0.4f, 2.5f);
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
+                s.DrawnSize = ini.GetFloat("Driving", "DrawnSize", s.DrawnSize, 0.4f, 2.5f);
+                s.DrawnWidth = ini.GetFloat("Driving", "DrawnWidth", s.DrawnWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
                 s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 560f);

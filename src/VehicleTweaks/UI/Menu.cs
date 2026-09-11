@@ -156,7 +156,7 @@ namespace VehicleTweaks.UI
         private const float PanelW = RailW + BodyW;
 
         private const float TitleH = 0.048f * Zoom;
-        private const float RowH = 0.0340f * Zoom;
+        private const float RowH = 0.0325f * Zoom;
         private const float FootH = 0.048f * Zoom;
 
         /// <summary>One page on the rail: how tall its line is, and how tall its icon.</summary>
@@ -231,7 +231,7 @@ namespace VehicleTweaks.UI
         /// scrolling below is what happens when it runs out: it is not dead weight, it is what
         /// stops a page silently losing its last row the day somebody adds one more setting.
         /// </summary>
-        private const int Rows = 20;
+        private const int Rows = 21;
 
         private const int Plain = 4;   // Chalet Comprime Cologne
 
@@ -980,7 +980,15 @@ namespace VehicleTweaks.UI
 
             stance.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
-                                    "Stretches the wheel along its axle. The skid marks widen with it."));
+                                    "The collider. The skid marks widen with it; the look is below."));
+
+            stance.Items.Add(Number("Drawn size", () => _cfg.DrawnSize, v => _cfg.DrawnSize = v,
+                                    0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnSize",
+                                    "The wheel you see. Fitted rims scale cleanly; stock ones are stretched."));
+
+            stance.Items.Add(Number("Drawn width", () => _cfg.DrawnWidth, v => _cfg.DrawnWidth = v,
+                                    0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnWidth",
+                                    "How wide the wheel you see is. Stock wheels are stretched to it."));
 
             stance.Items.Add(Header("KEEPING IT"));
 

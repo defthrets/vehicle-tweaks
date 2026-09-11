@@ -765,12 +765,17 @@ if both floats read one ([Drawn.cs](src/VehicleTweaks/Driving/Drawn.cs)). If a p
 fit this build, the log says which, and the probe can sweep instead: every float reading one in
 every object off the draw handler, pushed for a moment with the offsets on screen.
 
-**Not on this build.** None of the three patterns exist in Enhanced's code, and the eight floats
-reading one that the fallback found off the draw handler moved nothing. So width goes where a wheel
-is guaranteed to be drawn through: the first row of its own matrix, which is the axle direction,
-and a matrix row longer than one scales whatever is drawn through it along that axis. The row is
-written as *width* × (cos, 0, sin) rather than (cos, 0, sin) — the tick keeps the X of it, the race
-keeps the Z — and the collider's width goes with it, which is what the skid marks are drawn from.
+**Not by pattern on this build, and VStancer showed the way.** None of the three patterns exist in
+Enhanced's code, and a sweep of every float reading one off the draw handler moved nothing, because
+the render data hangs `0x4B0` into the handler and the width factor sits `0xBA0` into *that* —
+far past where the sweep looked. Watching VStancer's writes ([Watch.cs](src/VehicleTweaks/Driving/Watch.cs))
+showed it writes exactly the wheel fields this mod already writes and nothing on the car; its own
+log, though, names the offsets it found on this build, and its own menu says the last piece:
+**"visual wheel size/width is unavailable on stock wheels"** — the factors scale a streamed wheel
+drawable, and a stock wheel is part of the car's model. So there are two rows for the look, **Drawn
+size** and **Drawn width**, separate from the physical size the car rolls on, reached by VStancer's
+offsets where FiveM's patterns do not fit and trusted only once a real car reads sanely through
+them. Fit any rim and they take.
 
 The sweep no longer tries fields that read as nought — a nought might be an integer, a float
 written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the
