@@ -27,12 +27,12 @@ namespace VehicleTweaks.Driving
     /// there rather than pattern-scanned; the sweep below found the rest on this build. SHVDN
     /// finds the wheel, which is the half that moves between builds.
     ///
-    /// TWO KINDS OF FIELD, AND THE SWEEP TOLD THEM APART. Write the position at 0x020 and it
-    /// stays: the game builds the next frame's suspension on top of it, so it is an input, and
-    /// track and height go there. Write the lean at 0x008, or the position at 0x030, or a radius
-    /// at 0x110, and a frame later the car's own number is back: the game rewrites those every
-    /// frame, after this script has had its turn and before the wheel is drawn, so a write from
-    /// the tick is undone before anyone sees it. FiveM writes the same fields and works because
+    /// TWO KINDS OF FIELD, AND THE SWEEP TOLD THEM APART. Write the top of the suspension line
+    /// at 0x020, or the diagonal of the lean at 0x000, and it stays. Write the lean at 0x008, or
+    /// the bottom of the line at 0x030, or a radius at 0x110, and a frame later the car's own
+    /// number is back: the game rewrites those every frame, after this script has had its turn
+    /// and before the wheel is drawn, so a write from the tick is undone before anyone sees it
+    /// -- and the wheel is drawn from the ones that are put back. FiveM writes the same fields and works because
     /// it ticks its scripts at a different point in the frame; VStancer works because it patches
     /// the game's code. This does the third thing, in Publish: a thread of its own writes them
     /// faster than the game can put them back.
@@ -61,44 +61,63 @@ namespace VehicleTweaks.Driving
     ///
     /// HEIGHT IS THE WHEEL'S OWN PLACE IN THE CAR, MOVED UP OR DOWN. It went through the
     /// hydraulic suspension raise once, which is a native and therefore safe and which a car
-    /// without hydraulics ignores. The Z of the position at 0x020 is the same input the track is
-    /// the X of, and it holds on every car: a wheel moved up into its arch is a body sat lower
-    /// over it, which is why negative drops the car.
+    /// without hydraulics ignores. Now it is the Z of the suspension line, both ends, the same
+    /// way track is the X of it: a wheel moved up into its arch is a body sat lower over it,
+    /// which is why negative drops the car.
     /// </summary>
     internal sealed class Stance
     {
         /// <summary>
-        /// Where a wheel keeps its lean and the negation of its lean, and where it keeps the place
-        /// it sits: the X of that is the track, the Z of it is the ride height.
+        /// The wheel's lean, as the two off-diagonal terms of a rotation about the car's long
+        /// axis, and the two diagonal ones.
         ///
-        /// 0x020, NOT 0x030. Both hold the wheel's position in the car, and the sweep told them
-        /// apart: 0x020 keeps what it is given, 0x030 is put back every frame from 0x020 and the
-        /// suspension. FiveM writes 0x030 and says to write it every frame; from here that is a
-        /// write the game undoes before anyone sees it, and a write to 0x020 is one it builds on.
+        /// A ROTATION, NOT AN ANGLE, WHICH IS WHAT LETS IT GO TO NINETY. FiveM writes an angle
+        /// into 0x008 and its negation into 0x010 and leaves 0x000 and 0x018 at one, which is a
+        /// rotation only while the angle is small: at ninety degrees it is a wheel stretched to
+        /// nearly twice its width and leaned about sixty. The dump reads (1, 0, 0) at 0x000 and
+        /// (0, 0, 1) at 0x010 -- the X and Z rows of a matrix -- so this writes the sine into the
+        /// off-diagonal pair and the cosine into the diagonal pair, and the wheel turns rather
+        /// than shears. The diagonal pair holds; the off-diagonal pair is raced.
         /// </summary>
-        private const int Camber = 0x008;
-        private const int CamberBack = 0x010;
-        private const int Track = 0x020;
-        private const int Up = 0x028;
+        private const int CosX = 0x000;
+        private const int Sin = 0x008;
+        private const int SinBack = 0x010;
+        private const int CosZ = 0x018;
 
         /// <summary>
-        /// And how big the wheel actually is: the tyre, the rim inside it, and how wide it is.
+        /// Where the wheel sits: the top of its suspension line at 0x020 and the bottom at 0x030,
+        /// a vector each, X across the car and Z up it.
         ///
-        /// THE SAME PROVENANCE AS THE OTHER THREE, from the same file: these are what FiveM's
-        /// SET_VEHICLE_WHEEL_TIRE_COLLIDER_SIZE, _RIM_COLLIDER_SIZE and _TIRE_COLLIDER_WIDTH
-        /// write, hardcoded rather than scanned for. They are the wheel the CAR uses -- what it
-        /// rolls on and what it stands at -- which is why a bigger number lifts the car as well
-        /// as filling the arch.
+        /// THE TOP HOLDS, THE BOTTOM IS PUT BACK, AND THE WHEEL IS PLACED FROM THE BOTTOM. The
+        /// sweep found 0x020 keeps what it is given and 0x030 does not, and a track written to
+        /// the top alone moved nothing anyone could see. So both ends are written -- the top from
+        /// the tick, because it holds, and the bottom from the race, because it does not -- and
+        /// the whole line moves sideways for track and up for height.
+        /// </summary>
+        private const int TopX = 0x020;
+        private const int TopZ = 0x028;
+        private const int BottomX = 0x030;
+        private const int BottomZ = 0x038;
+
+        /// <summary>
+        /// How big the wheel is: the tyre's radius, the collider's width, and the width it is
+        /// drawn at.
+        ///
+        /// 0x110 IS THE TYRE AND IT IS THE ONE THAT SHOWS: the wheel is drawn to it. 0x114, the
+        /// rim inside it, is the collider the car rolls on with the tyre gone and changes nothing
+        /// you can see, so it is not offered any more. 0x118 is the collider's width; 0x11C is a
+        /// fourth number the sweep found sitting beside them, the size of a tyre width and, unlike
+        /// the three before it, left alone by the game -- so width is written to both.
         /// </summary>
         private const int Tyre = 0x110;
-        private const int Rim = 0x114;
         private const int Width = 0x118;
+        private const int Tread = 0x11C;
 
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
-        /// <summary>The nine, in the order they are written onto a car.</summary>
-        private const int Values = 9;
+        /// <summary>The eight, in the order they are written onto a car.</summary>
+        private const int Values = 8;
 
         /// <summary>
         /// What each of the nine means "as the car came".
@@ -108,7 +127,7 @@ namespace VehicleTweaks.Driving
         /// stanced before the sizes existed carries six decorators, and reading the seventh as
         /// the nought the game hands back for a missing one would shrink its wheels to nothing.
         /// </summary>
-        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f };
+        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f };
 
         /// <summary>
         /// A wheel does not lean by five radians and does not sit five metres out.
@@ -132,7 +151,7 @@ namespace VehicleTweaks.Driving
         {
             public Vehicle Car;
             public float[] Values;
-            public Dictionary<int, float[]> Stock;
+            public Dictionary<int, Came> Stock;
         }
 
         private readonly Settings _cfg;
@@ -211,7 +230,7 @@ namespace VehicleTweaks.Driving
             {
                 _cfg.CamberFront, _cfg.CamberRear, _cfg.TrackFront,
                 _cfg.TrackRear, _cfg.HeightFront, _cfg.HeightRear,
-                _cfg.WheelSize, _cfg.RimSize, _cfg.WheelWidth,
+                _cfg.WheelSize, _cfg.WheelWidth,
             };
         }
 
@@ -361,8 +380,7 @@ namespace VehicleTweaks.Driving
             _cfg.HeightFront = kept[4];
             _cfg.HeightRear = kept[5];
             _cfg.WheelSize = kept[6];
-            _cfg.RimSize = kept[7];
-            _cfg.WheelWidth = kept[8];
+            _cfg.WheelWidth = kept[7];
 
             if (Flat(kept)) return;
 
@@ -521,12 +539,24 @@ namespace VehicleTweaks.Driving
             return !float.IsNaN(v) && v > 0.08f && v < 1.2f;
         }
 
+        /// <summary>What one wheel came with, read once, so nought can mean the car as it was.</summary>
+        private sealed class Came
+        {
+            /// <summary>The lean the car came with, worked back from the sine at 0x008.</summary>
+            public float Angle;
+
+            public float TopX, TopZ, BottomX, BottomZ;
+
+            /// <summary>Nought where the field did not read as a size.</summary>
+            public float Tyre, Width, Tread;
+        }
+
         /// <summary>Reads what a car came with, refusing any wheel that does not read sanely.</summary>
-        private Dictionary<int, float[]> Capture(Vehicle car)
+        private Dictionary<int, Came> Capture(Vehicle car)
         {
             Probe(car);
 
-            var stock = new Dictionary<int, float[]>();
+            var stock = new Dictionary<int, Came>();
 
             try
             {
@@ -536,33 +566,46 @@ namespace VehicleTweaks.Driving
 
                     if (at == IntPtr.Zero) continue;
 
-                    var camber = Read(at, Camber);
-                    var track = Read(at, Track);
-                    var up = Read(at, Up);
-                    var tyre = Read(at, Tyre);
-                    var rim = Read(at, Rim);
-                    var wide = Read(at, Width);
+                    var sin = Read(at, Sin);
+
+                    var came = new Came
+                    {
+                        TopX = Read(at, TopX),
+                        TopZ = Read(at, TopZ),
+                        BottomX = Read(at, BottomX),
+                        BottomZ = Read(at, BottomZ),
+                        Tyre = Read(at, Tyre),
+                        Width = Read(at, Width),
+                        Tread = Read(at, Tread),
+                    };
 
                     // THE GEOMETRY DECIDES WHETHER THE WHEEL IS USABLE AT ALL, and the sizes
                     // decide only for themselves. They were one test, which meant a tyre radius
                     // that would not read took camber and track down with it -- three fields
                     // hostage to the newest and least proven of the six.
-                    if (!Sound(camber) || !Sound(track) || !Sound(up))
+                    if (!Sound(sin) || Math.Abs(sin) > 1f || !Sound(came.TopX) || !Sound(came.TopZ) ||
+                        !Sound(came.BottomX) || !Sound(came.BottomZ))
                     {
                         Log.Warn("Stance: wheel " + wheel.BoneId + " does not read like a wheel (" +
-                                 camber + ", " + track + ", " + up + "), so it is left alone.");
+                                 sin + ", " + came.TopX + ", " + came.BottomZ + "), so it is left alone.");
                         continue;
                     }
 
-                    if (!Sound(tyre) || !Sound(rim) || !Sound(wide))
+                    came.Angle = (float)Math.Asin(sin);
+
+                    if (!Sound(came.Tyre) || !Sound(came.Width) || came.Tyre <= 0f || came.Width <= 0f)
                     {
-                        Log.Once("stance-size", "Wheel sizes do not read on this build (" + tyre +
-                                                ", " + rim + ", " + wide + "), so they are left " +
-                                                "alone. Camber and track are unaffected.");
-                        tyre = rim = wide = 0f;
+                        Log.Once("stance-size", "Wheel sizes do not read on this build (" + came.Tyre +
+                                                ", " + came.Width + "), so they are left alone. " +
+                                                "Camber and track are unaffected.");
+                        came.Tyre = came.Width = 0f;
                     }
 
-                    stock[(int)wheel.BoneId] = new[] { camber, track, up, tyre, rim, wide };
+                    // The fourth size is the sweep's find rather than FiveM's, so it answers to a
+                    // tighter test than the others: a tyre width, or nothing.
+                    if (!Sound(came.Tread) || came.Tread < 0.05f || came.Tread > 1.2f) came.Tread = 0f;
+
+                    stock[(int)wheel.BoneId] = came;
                 }
             }
             catch (Exception ex)
@@ -583,9 +626,9 @@ namespace VehicleTweaks.Driving
             {
                 foreach (var wheel in held.Car.Wheels)
                 {
-                    float[] stock;
+                    Came came;
 
-                    if (!held.Stock.TryGetValue((int)wheel.BoneId, out stock)) continue;
+                    if (!held.Stock.TryGetValue((int)wheel.BoneId, out came)) continue;
 
                     var at = wheel.MemoryAddress;
 
@@ -605,38 +648,50 @@ namespace VehicleTweaks.Driving
                     var wide = front ? held.Values[2] : held.Values[3];
                     var up = front ? held.Values[4] : held.Values[5];
 
-                    var camber = stock[0] + side * lean;
-                    var track = stock[1] - side * wide;
+                    var angle = came.Angle + side * lean;
+                    var sin = (float)Math.Sin(angle);
+                    var cos = (float)Math.Cos(angle);
+
+                    var bottomX = came.BottomX - side * wide;
+                    var bottomZ = came.BottomZ - up;
 
                     if (Trialling(held.Car)) continue;
 
-                    Before(held, wheel, at, camber, track);
+                    Before(held, wheel, at, sin, bottomX);
 
-                    // THE TWO THAT HOLD: the wheel's place in the car, sideways and up.
-                    Write(at, Track, track);
-                    Write(at, Up, stock[2] - up);
+                    // THE ONES THAT HOLD, written from here: the diagonal of the lean, the top of
+                    // the suspension line, and the width the wheel is drawn at.
+                    Write(at, CosX, cos);
+                    Write(at, CosZ, cos);
+                    Write(at, TopX, came.TopX - side * wide);
+                    Write(at, TopZ, came.TopZ - up);
 
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
                     // Barracks; five centimetres of tyre does not. A size is a proportion of what
                     // was there, so it is written as one.
                     // Nought means the field did not read as a size when this car was captured.
-                    var tyre = stock[3] > 0f ? stock[3] * held.Values[6] : 0f;
-                    var rim = stock[4] > 0f ? stock[4] * held.Values[7] : 0f;
-                    var width = stock[5] > 0f ? stock[5] * held.Values[8] : 0f;
+                    var tyre = came.Tyre > 0f ? came.Tyre * held.Values[6] : 0f;
+                    var width = came.Width > 0f ? came.Width * held.Values[7] : 0f;
 
-                    // THE FOUR THE GAME PUTS BACK, written here for the build where the timing
+                    if (came.Tread > 0f) Write(at, Tread, came.Tread * held.Values[7]);
+
+                    // THE ONES THE GAME PUTS BACK, written here for a build where the timing
                     // happens to work, and handed to the race for the one where it does not.
-                    Write(at, Camber, camber);
-                    Write(at, CamberBack, -camber);
+                    Write(at, Sin, sin);
+                    Write(at, SinBack, -sin);
+                    Write(at, BottomX, bottomX);
+                    Write(at, BottomZ, bottomZ);
 
                     if (tyre > 0f) Write(at, Tyre, tyre);
-                    if (rim > 0f) Write(at, Rim, rim);
                     if (width > 0f) Write(at, Width, width);
 
-                    shots.Add(new Shot { At = at, Camber = camber, Tyre = tyre, Rim = rim, Width = width });
+                    shots.Add(new Shot
+                    {
+                        At = at, Sin = sin, Tyre = tyre, Width = width, BottomX = bottomX, BottomZ = bottomZ,
+                    });
 
-                    Say(held, wheel, stock, camber);
+                    Say(held, wheel, came, angle);
                 }
             }
             catch (Exception ex)
@@ -652,7 +707,7 @@ namespace VehicleTweaks.Driving
         /// leans the wrong way or the track pulls in instead of out, this line says so -- and the
         /// fix is a minus sign in the ini rather than a rebuild.
         /// </summary>
-        private void Say(Held held, VehicleWheel wheel, float[] stock, float camber)
+        private void Say(Held held, VehicleWheel wheel, Came came, float angle)
         {
             if (held.Car.Handle != _car || wheel.BoneId != VehicleWheelBoneId.WheelLeftFront) return;
 
@@ -663,16 +718,16 @@ namespace VehicleTweaks.Driving
             // sixty lines a second.
             var now = Game.GameTime;
 
-            if (Math.Abs(camber - _saidCamber) < 0.0005f || now - _saidAt < 400) return;
+            if (Math.Abs(angle - _saidCamber) < 0.0005f || now - _saidAt < 400) return;
 
-            _saidCamber = camber;
+            _saidCamber = angle;
             _saidAt = now;
 
-            Log.Info("Stance: front left camber " + stock[0].ToString("0.0000") + " to " +
-                     camber.ToString("0.0000") + " rad, track " + stock[1].ToString("0.0000") +
-                     " to " + (stock[1] - held.Values[2]).ToString("0.0000") + " m, z " +
-                     stock[2].ToString("0.00") + " to " + (stock[2] - held.Values[4]).ToString("0.00") +
-                     ", tyre x" +
+            Log.Info("Stance: front left lean " + came.Angle.ToString("0.0000") + " to " +
+                     angle.ToString("0.0000") + " rad, x " + came.BottomX.ToString("0.0000") + " to " +
+                     (came.BottomX - held.Values[2]).ToString("0.0000") + " m, z " +
+                     came.BottomZ.ToString("0.00") + " to " +
+                     (came.BottomZ - held.Values[4]).ToString("0.00") + ", tyre x" +
                      held.Values[6].ToString("0.00") + ". Holding " + _held.Count + " car(s).");
         }
 
@@ -751,9 +806,9 @@ namespace VehicleTweaks.Driving
             {
                 _beforeAt = now;
 
-                var c = Read(at, Camber);
-                var b = Read(at, CamberBack);
-                var t = Read(at, Track);
+                var c = Read(at, Sin);
+                var b = Read(at, SinBack);
+                var t = Read(at, BottomX);
                 var kept = Math.Abs(c - _wrote[0]) < 0.0005f;
 
                 Log.Info("Stance probe: a frame on, 0x008 reads " + c.ToString("0.0000") +
@@ -895,7 +950,7 @@ namespace VehicleTweaks.Driving
         /// <summary>Every field of the wheel worth trying, in the order worth trying them.</summary>
         private static List<int> Candidates(IntPtr fl)
         {
-            var known = new List<int> { Camber, CamberBack, Track, Up, 0x030 };
+            var known = new List<int> { Sin, SinBack, TopX, TopZ, BottomX };
             var rest = new List<int>();
 
             for (var off = 0; off < 0x230; off += 4)
@@ -927,10 +982,11 @@ namespace VehicleTweaks.Driving
         private sealed class Shot
         {
             public IntPtr At;
-            public float Camber;
+            public float Sin;
             public float Tyre;
-            public float Rim;
             public float Width;
+            public float BottomX;
+            public float BottomZ;
         }
 
         private volatile Shot[] _shots;
@@ -941,12 +997,13 @@ namespace VehicleTweaks.Driving
         /// Hands the other thread this frame's wheels, and starts it the first time.
         ///
         /// WHAT THE SWEEP FOUND, AND WHAT THIS DOES ABOUT IT. Every field a stance needs is one
-        /// of two kinds. The wheel's position in the car at 0x020 is an INPUT: write it and it
-        /// stays, and the game builds the next frame's suspension on top of it -- so track and
-        /// height go there and go there once a frame from the ordinary tick, and they hold. The
-        /// lean at 0x008 and 0x010 and the radii at 0x110 to 0x118 are OUTPUTS: the game
-        /// rewrites every one of them every frame, after this script has had its turn and
-        /// before the wheel is drawn, so a write from the tick is gone before anyone sees it.
+        /// of two kinds. The top of the suspension line at 0x020, the diagonal of the lean at
+        /// 0x000 and the drawn width at 0x11C HOLD: write them and they stay, so they are written
+        /// once a frame from the ordinary tick. The lean at 0x008 and 0x010, the bottom of the
+        /// line at 0x030 and the radii at 0x110 and 0x118 are PUT BACK: the game rewrites every
+        /// one of them every frame, after this script has had its turn and before the wheel is
+        /// drawn, so a write from the tick is gone before anyone sees it -- and the wheel is
+        /// drawn from those.
         /// FiveM's natives write these same fields and work because FiveM ticks its scripts at
         /// a different point in the frame; VStancer works because it patches the game's code.
         /// A script under ScriptHookV can do neither.
@@ -1001,11 +1058,12 @@ namespace VehicleTweaks.Driving
                     {
                         var s = shots[i];
 
-                        Write(s.At, Camber, s.Camber);
-                        Write(s.At, CamberBack, -s.Camber);
+                        Write(s.At, Sin, s.Sin);
+                        Write(s.At, SinBack, -s.Sin);
+                        Write(s.At, BottomX, s.BottomX);
+                        Write(s.At, BottomZ, s.BottomZ);
 
                         if (s.Tyre > 0f) Write(s.At, Tyre, s.Tyre);
-                        if (s.Rim > 0f) Write(s.At, Rim, s.Rim);
                         if (s.Width > 0f) Write(s.At, Width, s.Width);
                     }
 
@@ -1041,7 +1099,7 @@ namespace VehicleTweaks.Driving
         private static readonly string[] Decors =
         {
             "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
-            "vt_size", "vt_rim", "vt_width",
+            "vt_size", "vt_width",
         };
 
         private static bool _registered;

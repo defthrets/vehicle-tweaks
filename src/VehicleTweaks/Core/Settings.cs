@@ -584,7 +584,6 @@ namespace VehicleTweaks.Core
         /// the executable for a code pattern. This mod does not scan for anything.
         /// </summary>
         public float WheelSize = 1f;
-        public float RimSize = 1f;
         public float WheelWidth = 1f;
 
         /// <summary>
@@ -1283,14 +1282,13 @@ namespace VehicleTweaks.Core
                 s.WheelsNeverDeform = ini.GetBool("Driving", "WheelsNeverDeform", s.WheelsNeverDeform);
                 s.HydraulicRaise = ini.GetFloat("Driving", "HydraulicRaise", s.HydraulicRaise, 0f, 1f);
 
-                s.CamberFront = ini.GetFloat("Driving", "CamberFront", s.CamberFront, -20f, 20f);
-                s.CamberRear = ini.GetFloat("Driving", "CamberRear", s.CamberRear, -20f, 20f);
+                s.CamberFront = ini.GetFloat("Driving", "CamberFront", s.CamberFront, -90f, 90f);
+                s.CamberRear = ini.GetFloat("Driving", "CamberRear", s.CamberRear, -90f, 90f);
                 s.TrackFront = ini.GetFloat("Driving", "TrackFront", s.TrackFront, -0.3f, 0.3f);
                 s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
                 s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -1f, 1f);
                 s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -1f, 1f);
                 s.WheelSize = ini.GetFloat("Driving", "WheelSize", s.WheelSize, 0.4f, 2.5f);
-                s.RimSize = ini.GetFloat("Driving", "RimSize", s.RimSize, 0.4f, 2.5f);
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);

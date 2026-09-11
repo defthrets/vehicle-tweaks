@@ -941,9 +941,9 @@ namespace VehicleTweaks.UI
             stance.Items.Add(Header("THE FRONT AXLE"));
 
             stance.Items.Add(Scale("Camber front", () => _cfg.CamberFront,
-                                   v => _cfg.CamberFront = v, 0.5f, -20f, 20f, "0.0", "deg",
+                                   v => _cfg.CamberFront = v, 0.5f, -90f, 90f, "0.0", "deg",
                                    "Driving", "CamberFront",
-                                   "How far the tops of the wheels lean. 0 is standard."));
+                                   "How far the tops of the wheels lean. 90 is flat."));
 
             stance.Items.Add(Scale("Track front", () => _cfg.TrackFront,
                                    v => _cfg.TrackFront = v, 0.01f, -0.3f, 0.3f, "0.00", "m",
@@ -958,7 +958,7 @@ namespace VehicleTweaks.UI
             stance.Items.Add(Header("THE REAR AXLE"));
 
             stance.Items.Add(Scale("Camber rear", () => _cfg.CamberRear,
-                                   v => _cfg.CamberRear = v, 0.5f, -20f, 20f, "0.0", "deg",
+                                   v => _cfg.CamberRear = v, 0.5f, -90f, 90f, "0.0", "deg",
                                    "Driving", "CamberRear",
                                    "If it leans the wrong way, use the other sign."));
 
@@ -977,10 +977,6 @@ namespace VehicleTweaks.UI
             stance.Items.Add(Number("Wheel size", () => _cfg.WheelSize, v => _cfg.WheelSize = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelSize",
                                     "The tyre. Bigger lifts the car and fills the arch."));
-
-            stance.Items.Add(Number("Rim size", () => _cfg.RimSize, v => _cfg.RimSize = v,
-                                    0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "RimSize",
-                                    "The rim inside the tyre. Bigger is a lower profile."));
 
             stance.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",

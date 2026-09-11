@@ -734,6 +734,16 @@ every car exists. It costs a core while a stanced car exists and nothing while n
 the price of not being allowed to patch, and it is a setting: `StanceRace`, with `StanceRaceRest`
 to trade the core for an occasional flicker.
 
+**Second pass.** Camber raced and showed; track and height written to `0x020` held and showed
+nothing, because the wheel is drawn from the *bottom* of its suspension line at `0x030`, which is
+one of the fields the game puts back. So both ends of the line are written now — the top from the
+tick, the bottom from the race — and the whole line moves sideways for track and up for height. The
+lean is written as a rotation rather than an angle: the sine into the pair FiveM writes, the cosine
+into the diagonal pair beside them (which hold), so it goes to ninety degrees without the wheel
+shearing. Rim size is gone — it is the collider the car rolls on with the tyre burst, and changes
+nothing you can see — and width goes to the collider and to a fourth size field the sweep found at
+`0x11C`, which the game leaves alone.
+
 The sweep no longer tries fields that read as nought — a nought might be an integer, a float
 written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the
 end of the struct, which is `0x230` bytes on this build because that is how far apart two wheels
