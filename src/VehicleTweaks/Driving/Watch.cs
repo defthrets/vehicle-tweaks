@@ -117,10 +117,15 @@ namespace VehicleTweaks.Driving
 
                     if (Scan.Object(handler))
                     {
+                        // AS FAR AS THE RENDER DATA, AND AS DEEP AS THE WIDTH. VStancer's own log
+                        // puts the render data 0x4B0 into the handler and the drawn width 0xBA0
+                        // into that, which the first version of this never reached: it stopped
+                        // at 0x100 and 0x300, and would have watched VStancer write the two
+                        // numbers that matter most without seeing either.
                         wanted.Add(new KeyValuePair<string, IntPtr>("handler", handler));
-                        lengths["handler"] = 0x100;
+                        lengths["handler"] = Fits(handler, 0x800, 0x100);
 
-                        for (var slot = 0; slot < 0x100; slot += 8)
+                        for (var slot = 0; slot < 0x800; slot += 8)
                         {
                             if (!Scan.Readable(IntPtr.Add(handler, slot), 8)) continue;
 
@@ -128,10 +133,11 @@ namespace VehicleTweaks.Driving
 
                             if (target == handler || target == vehicle || !Scan.Object(target)) continue;
 
-                            var name = "handler+0x" + slot.ToString("X") + " object";
+                            var name = slot == 0x4B0 ? "render data (handler+0x4B0)"
+                                                     : "handler+0x" + slot.ToString("X") + " object";
 
                             wanted.Add(new KeyValuePair<string, IntPtr>(name, target));
-                            lengths[name] = 0x300;
+                            lengths[name] = Fits(target, 0x1000, 0x200);
                         }
                     }
                 }
@@ -173,6 +179,17 @@ namespace VehicleTweaks.Driving
 
             _regions.Clear();
             _regions.AddRange(kept);
+        }
+
+        /// <summary>As much of a region as can be read, wanting this much and settling for that much.</summary>
+        private static int Fits(IntPtr at, int wanted, int least)
+        {
+            for (var length = wanted; length >= least; length /= 2)
+            {
+                if (Scan.Readable(at, length)) return length;
+            }
+
+            return least;
         }
 
         /// <summary>Compares one region with its last frame. Says whether its noise is learned yet.</summary>
