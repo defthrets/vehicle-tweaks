@@ -58,6 +58,20 @@ namespace VehicleTweaks.Driving
         /// <summary>Cars already told about their stock wheels, so they are told once.</summary>
         private readonly HashSet<int> _toldStock = new HashSet<int>();
 
+        /// <summary>What each car was last asked to be, when that last changed, and whether the rim has been re-fitted since.</summary>
+        private sealed class Asked
+        {
+            public float Size;
+            public float Width;
+            public int ChangedAt;
+            public bool Refitted;
+        }
+
+        private readonly Dictionary<int, Asked> _asked = new Dictionary<int, Asked>();
+
+        /// <summary>How long a change sits still before the rim is re-fitted to take it up.</summary>
+        private const int RefitMs = 400;
+
         /// <summary>Finds the offsets once, and says where they came from.</summary>
         public void Find()
         {
@@ -158,11 +172,69 @@ namespace VehicleTweaks.Driving
                 Put(gfx, _size, size);
                 Put(gfx, _width, width);
 
+                Take(car, size, width);
+
                 if (OnStockWheels(car)) TellStock(car, "is on its stock wheels");
             }
             catch (Exception ex)
             {
                 Log.Once("drawn-write", "Could not write a drawn wheel size: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-fits the rim once a change has settled, so the game builds the wheel with the new factors.
+        ///
+        /// THE FACTORS ARE READ WHEN THE WHEEL IS BUILT, NOT WHEN IT IS DRAWN. Watching VStancer
+        /// showed it: every step of its visual size re-created the car's render data, which is
+        /// what fitting a rim does, and the wheel took the new size each time. Written into a
+        /// wheel that is already built, the factors sit there and change nothing you can see. So
+        /// once a slider has sat still for a moment the rim is put on again, the same rim, and
+        /// the game rebuilds the wheel and reads the factors on the way -- which this keeps
+        /// writing, every frame, into whatever render data exists, so the rebuilt wheel finds
+        /// them there.
+        /// </summary>
+        private void Take(Vehicle car, float size, float width)
+        {
+            var now = Game.GameTime;
+            Asked asked;
+
+            if (!_asked.TryGetValue(car.Handle, out asked))
+            {
+                if (_asked.Count > 64) _asked.Clear();
+
+                // The first time is the fitting itself, which builds the wheel; nothing to re-fit.
+                _asked[car.Handle] = new Asked { Size = size, Width = width, ChangedAt = now, Refitted = true };
+                return;
+            }
+
+            if (asked.Size != size || asked.Width != width)
+            {
+                asked.Size = size;
+                asked.Width = width;
+                asked.ChangedAt = now;
+                asked.Refitted = false;
+                return;
+            }
+
+            if (asked.Refitted || now - asked.ChangedAt < RefitMs) return;
+
+            asked.Refitted = true;
+
+            try
+            {
+                var front = car.Mods[VehicleModType.FrontWheel];
+                var rear = car.Mods[VehicleModType.RearWheel];
+
+                if (front.Index >= 0) front.Index = front.Index;
+                if (rear.Index >= 0) rear.Index = rear.Index;
+
+                Log.Debug("Drawn wheels: rim re-fitted at " + size.ToString("0.00") + " x " +
+                          width.ToString("0.00") + " so the wheel is rebuilt with it.");
+            }
+            catch (Exception ex)
+            {
+                Log.Once("drawn-refit", "Could not re-fit a rim: " + ex.Message);
             }
         }
 
