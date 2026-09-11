@@ -678,6 +678,15 @@ namespace VehicleTweaks.Core
         public bool StanceRace = true;
 
         /// <summary>
+        /// Watch the car's memory for another mod's writes, and log what changed and where.
+        ///
+        /// FOR SITTING BESIDE VSTANCER. It knows where the fields this mod cannot find are, and
+        /// with this on, every field it changes is named in the log with its old and new value.
+        /// Off, and it costs nothing.
+        /// </summary>
+        public bool StanceWatch = false;
+
+        /// <summary>
         /// How long the race rests between passes, in milliseconds.
         ///
         /// NOUGHT NEVER RESTS: a whole core, and the best chance the wheel never flickers. One is
@@ -1294,6 +1303,7 @@ namespace VehicleTweaks.Core
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
                 s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 560f);
                 s.StanceRace = ini.GetBool("Driving", "StanceRace", s.StanceRace);
+                s.StanceWatch = ini.GetBool("Driving", "StanceWatch", s.StanceWatch);
                 s.StanceRaceRest = ini.GetFloat("Driving", "StanceRaceRest", s.StanceRaceRest, 0f, 20f);
                 s.TyreSmoke = ini.GetFloat("Driving", "TyreSmoke", s.TyreSmoke, 0f, 5f);
 

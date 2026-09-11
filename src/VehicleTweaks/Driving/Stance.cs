@@ -168,6 +168,9 @@ namespace VehicleTweaks.Driving
         /// <summary>The size a wheel is drawn at, which is the car's to say and not the wheel's.</summary>
         private readonly Drawn _drawn = new Drawn();
 
+        /// <summary>Watches for another mod's writes, so that mod can show where the fields are.</summary>
+        private readonly Watch _watch = new Watch();
+
         /// <summary>Every car this is holding, by handle. Usually one, sometimes a garage full.</summary>
         private readonly Dictionary<int, Held> _held = new Dictionary<int, Held>();
 
@@ -246,6 +249,8 @@ namespace VehicleTweaks.Driving
                 {
                     _drawn.Trial(car, now, Math.Abs(_cfg.WheelWidth - 1f) >= Nothing);
                 }
+
+                if (_cfg.StanceWatch) _watch.Update(car);
             }
             catch (Exception ex)
             {
