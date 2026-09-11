@@ -951,7 +951,7 @@ namespace VehicleTweaks.UI
                                    "How much further apart they sit. Positive is wider."));
 
             stance.Items.Add(Scale("Height front", () => _cfg.HeightFront,
-                                   v => _cfg.HeightFront = v, 0.05f, -1f, 1f, "0.00", "",
+                                   v => _cfg.HeightFront = v, 0.01f, -0.5f, 0.5f, "0.00", "m",
                                    "Driving", "HeightFront",
                                    "Moves the wheel up into its arch. Negative drops the car."));
 
@@ -968,7 +968,7 @@ namespace VehicleTweaks.UI
                                    "Mirrored across the axle, so both go the same way."));
 
             stance.Items.Add(Scale("Height rear", () => _cfg.HeightRear,
-                                   v => _cfg.HeightRear = v, 0.05f, -1f, 1f, "0.00", "",
+                                   v => _cfg.HeightRear = v, 0.01f, -0.5f, 0.5f, "0.00", "m",
                                    "Driving", "HeightRear",
                                    "Mirrored across the axle, so both wheels move together."));
 
@@ -980,7 +980,7 @@ namespace VehicleTweaks.UI
 
             stance.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
-                                    "The collider only, so far. The drawn width lives on the car, not the wheel."));
+                                    "The collider, and the drawn wheel when the log says it was found."));
 
             stance.Items.Add(Header("KEEPING IT"));
 

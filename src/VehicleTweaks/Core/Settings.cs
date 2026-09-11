@@ -1286,8 +1286,8 @@ namespace VehicleTweaks.Core
                 s.CamberRear = ini.GetFloat("Driving", "CamberRear", s.CamberRear, -90f, 90f);
                 s.TrackFront = ini.GetFloat("Driving", "TrackFront", s.TrackFront, -0.3f, 0.3f);
                 s.TrackRear = ini.GetFloat("Driving", "TrackRear", s.TrackRear, -0.3f, 0.3f);
-                s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -1f, 1f);
-                s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -1f, 1f);
+                s.HeightFront = ini.GetFloat("Driving", "HeightFront", s.HeightFront, -0.5f, 0.5f);
+                s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -0.5f, 0.5f);
                 s.WheelSize = ini.GetFloat("Driving", "WheelSize", s.WheelSize, 0.4f, 2.5f);
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);

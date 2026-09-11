@@ -157,6 +157,9 @@ namespace VehicleTweaks.Driving
 
         private readonly Settings _cfg;
 
+        /// <summary>The size a wheel is drawn at, which is the car's to say and not the wheel's.</summary>
+        private readonly Drawn _drawn = new Drawn();
+
         /// <summary>Every car this is holding, by handle. Usually one, sometimes a garage full.</summary>
         private readonly Dictionary<int, Held> _held = new Dictionary<int, Held>();
 
@@ -167,6 +170,9 @@ namespace VehicleTweaks.Driving
         private int _saidAt;
 
         private float[] _pending;
+
+        /// <summary>The car being driven, kept so a change can be written onto it on the way out.</summary>
+        private Vehicle _driving;
         private int _changedAt;
         private int _sweptAt;
 
@@ -191,8 +197,12 @@ namespace VehicleTweaks.Driving
                 {
                     if (car.Handle != _car)
                     {
+                        // Straight from one car into another: what the last one was owed, it gets.
+                        Flush();
+
                         _car = car.Handle;
                         _model = Name(car);
+                        _driving = car;
                         _saidCamber = float.NaN;
 
                         Recall(car);
@@ -208,15 +218,26 @@ namespace VehicleTweaks.Driving
                 }
                 else
                 {
+                    // ON THE WAY OUT, WHATEVER IS STILL OWED IS WRITTEN. A change waits nine
+                    // tenths of a second for the sliders to sit still before it goes onto the
+                    // car, and getting out inside that window used to throw it away -- which is
+                    // a height set and then lost the moment you climbed back in. Nothing is
+                    // owed for long; it is only ever owed at all when you leave quickly.
+                    Flush();
+
                     _car = 0;
                     _model = null;
-                    _pending = null;
-                    _changedAt = 0;
+                    _driving = null;
                 }
 
                 Sweep(me, now);
                 Keep();
                 Trial(car, now);
+
+                if (_cfg.StanceProbe)
+                {
+                    _drawn.Trial(car, now, Math.Abs(_cfg.WheelWidth - 1f) >= Nothing);
+                }
             }
             catch (Exception ex)
             {
@@ -260,6 +281,8 @@ namespace VehicleTweaks.Driving
 
             held = new Held { Car = car, Values = Live(), Stock = Capture(car) };
             _held[car.Handle] = held;
+
+            _drawn.Find(car);
 
             // AND IT STOPS BEING TRAFFIC. A car the game owns is cleaned up the moment you are
             // far enough away and looking elsewhere -- which for an ordinary car is exactly
@@ -419,6 +442,26 @@ namespace VehicleTweaks.Driving
             // also filed by model came back on every other car of that model, which is the thing
             // this was asked to stop doing.
             ToCar(car, live);
+        }
+
+        /// <summary>Writes a change that has not settled yet onto the car it belongs to, now.</summary>
+        private void Flush()
+        {
+            try
+            {
+                if (_cfg.StanceRemember && _pending != null && _changedAt != 0 &&
+                    _driving != null && _driving.Exists())
+                {
+                    ToCar(_driving, _pending);
+                }
+            }
+            catch
+            {
+                // Nothing to flush onto, which is what happens when the car is already gone.
+            }
+
+            _pending = null;
+            _changedAt = 0;
         }
 
         private static bool Moved(float[] a, float[] b)
@@ -701,6 +744,11 @@ namespace VehicleTweaks.Driving
                     if (tyre > 0f) Write(at, Tyre, tyre);
                     if (width > 0f) Write(at, Width, width);
 
+                    // AND THE ONE YOU CAN SEE, which is the car's rather than the wheel's. Written
+                    // once per car per frame would do; once per wheel is the same number again
+                    // and costs three checked reads, which is nothing.
+                    if (width > 0f) _drawn.Write(held.Car, held.Values[7]);
+
                     shots.Add(new Shot
                     {
                         At = at,
@@ -763,6 +811,8 @@ namespace VehicleTweaks.Driving
         /// </summary>
         public void Release()
         {
+            Flush();
+
             _stopRacing = true;
             _shots = null;
             _held.Clear();

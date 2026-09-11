@@ -755,6 +755,16 @@ its own by exact comparison, since a read gives back the very bits that were wri
 the hidden half: the drawn width lives on the *car*, in the render data the game keeps for the
 Arena wheel sizes, reachable only by scanning the executable for a code pattern.
 
+**The drawn width, looked for.** It lives on the car, three hops away: vehicle to draw handler,
+draw handler to the streamed render data, then two floats — a size factor and a width factor for
+the Arena wheel sizes, each exactly `1.0` as the car came, which is a fingerprint. FiveM finds all
+three offsets by pattern, so the first time a car is stanced this mod searches the game's code *in
+memory* for the same three patterns ([Scan.cs](src/VehicleTweaks/Core/Scan.cs)), walks the chain
+on a real car with every pointer checked against Windows before it is followed, and trusts it only
+if both floats read one ([Drawn.cs](src/VehicleTweaks/Driving/Drawn.cs)). If a pattern does not
+fit this build, the log says which, and the probe can sweep instead: every float reading one in
+every object off the draw handler, pushed for a moment with the offsets on screen.
+
 The sweep no longer tries fields that read as nought — a nought might be an integer, a float
 written into an integer is how a probe becomes a crash, and `0x128` was one — and it runs to the
 end of the struct, which is `0x230` bytes on this build because that is how far apart two wheels
