@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GTA;
 using GTA.Native;
+using System.Drawing;
 using VehicleTweaks.Core;
+using VehicleTweaks.UI;
 
 namespace VehicleTweaks.Driving
 {
@@ -176,6 +178,7 @@ namespace VehicleTweaks.Driving
 
                 Sweep(me, now);
                 Keep();
+                Trial(car, now);
             }
             catch (Exception ex)
             {
@@ -426,8 +429,14 @@ namespace VehicleTweaks.Driving
                     return;
                 }
 
+                string build;
+
+                try { build = Game.Version.ToString(); }
+                catch { build = "?"; }
+
                 Log.Info("Stance probe: " + (Name(car) ?? "?") + ", front wheels at " +
-                         left.ToString("X") + " and " + right.ToString("X") + ".");
+                         left.ToString("X") + " and " + right.ToString("X") + ", game version " +
+                         build + ".");
 
                 var mirrored = new System.Text.StringBuilder();
                 var sizes = new System.Text.StringBuilder();
@@ -573,10 +582,15 @@ namespace VehicleTweaks.Driving
                     var up = front ? held.Values[4] : held.Values[5];
 
                     var camber = stock[0] + side * lean;
+                    var track = stock[1] - side * wide;
+
+                    if (Trialling(held.Car)) continue;
+
+                    Before(held, wheel, at, camber, track);
 
                     Write(at, Camber, camber);
                     Write(at, CamberBack, -camber);
-                    Write(at, Track, stock[1] - side * wide);
+                    Write(at, Track, track);
 
                     // MULTIPLIED, NOT ADDED, WHICH IS THE ONE PLACE THIS FEATURE CHANGES ITS MIND.
                     // Five centimetres of camber means the same thing on a Panto and on a
@@ -645,6 +659,230 @@ namespace VehicleTweaks.Driving
             _model = null;
             _pending = null;
             _changedAt = 0;
+        }
+
+
+        // ==================================================================
+        // The sweep: the one experiment that answers the question
+        // ==================================================================
+
+        /// <summary>How long each field is tried for, and by how much it is pushed.</summary>
+        private const int TrialMs = 2500;
+        private const float TrialNudge = 0.35f;
+
+        private List<int> _trial;
+        private int _trialIndex = -1;
+        private int _trialAt;
+        private int _trialCar;
+        private float _trialOrig;
+        private float _trialSeen;
+        private bool _trialDone;
+
+        /// <summary>What the front left wheel was last given, and when that was last said.</summary>
+        private float[] _wrote;
+        private int _beforeAt;
+
+        /// <summary>Whether the sweep has this car, in which case the ordinary writes stand aside.</summary>
+        private bool Trialling(Vehicle car)
+        {
+            return _cfg.StanceProbe && !_trialDone && _trialIndex >= 0 && car.Handle == _trialCar;
+        }
+
+        /// <summary>
+        /// Says what the front left wheel reads NOW, a frame after it was last written.
+        ///
+        /// THE WHOLE QUESTION, ASKED OF THE GAME. The writes go in; the wheel does not move. Either
+        /// the field is not the one this build draws from, in which case what was written is
+        /// still there a frame later -- or it is exactly the one, and the game rewrites it every
+        /// frame AFTER this script has run, in which case it reads as the car came. Those two
+        /// look identical from the driver's seat and want opposite fixes.
+        ///
+        /// That second answer is the one everything else points at. VStancer works on this
+        /// build and its author calls what it does "suspension patching" and lists "wheel
+        /// deformation stops while it is active" as a known issue: it patches the game code that
+        /// rebuilds the wheel from the suspension each frame, rather than writing after it.
+        /// FiveM's natives write plainly and need calling every frame, and FiveM ticks its
+        /// scripts at a different point in the frame from ScriptHookV -- after that rebuild
+        /// rather than before it. A script here cannot choose when it runs.
+        /// </summary>
+        private void Before(Held held, VehicleWheel wheel, IntPtr at, float camber, float track)
+        {
+            if (!_cfg.StanceProbe || held.Car.Handle != _car ||
+                wheel.BoneId != VehicleWheelBoneId.WheelLeftFront) return;
+
+            var now = Game.GameTime;
+
+            if (_wrote != null && Math.Abs(_wrote[0]) > 0.001f && now - _beforeAt >= 1000)
+            {
+                _beforeAt = now;
+
+                var c = Read(at, Camber);
+                var b = Read(at, CamberBack);
+                var t = Read(at, Track);
+                var kept = Math.Abs(c - _wrote[0]) < 0.0005f;
+
+                Log.Info("Stance probe: a frame on, 0x008 reads " + c.ToString("0.0000") +
+                         " (wrote " + _wrote[0].ToString("0.0000") + "), 0x010 reads " +
+                         b.ToString("0.0000") + " (wrote " + _wrote[1].ToString("0.0000") +
+                         "), 0x030 reads " + t.ToString("0.0000") + " (wrote " +
+                         _wrote[2].ToString("0.0000") + ") -- " +
+                         (kept ? "the camber HELD, so the game does not touch this field and it " +
+                                 "is not where this build draws from."
+                               : "the camber was PUT BACK, so the game rewrites this field every " +
+                                 "frame after this script has run."));
+            }
+
+            _wrote = new[] { camber, -camber, track };
+        }
+
+        /// <summary>
+        /// Tries every plausible field of the front left wheel in turn, so a person can watch.
+        ///
+        /// A PROBE THAT NEEDS EYES, because the one thing a log cannot say is whether a wheel
+        /// moved. Each float in the wheel that reads like a float and is small enough to be an
+        /// angle or a distance is pushed by a third of a radian, or a third of a metre, for two
+        /// and a half seconds, with the offset written across the top of the screen -- and then
+        /// put back. Whoever is watching says which offset the wheel moved on, and that offset is
+        /// where this build keeps the thing this mod is looking for. If it moves on none of them,
+        /// the answer is the one in Before, and it is not a matter of offsets at all.
+        ///
+        /// STARTS WHEN THE FRONT CAMBER SLIDER LEAVES NOUGHT, which is the sign that somebody is
+        /// looking. The known four go first; then everything else that is not nought; then the
+        /// noughts, last, because a nought might be an integer and a float written into an
+        /// integer is how a probe becomes a crash. Each is named in the log before it is
+        /// touched, so a crash says which one.
+        ///
+        /// WHILE IT RUNS, THE ORDINARY WRITES STAND ASIDE for this car, or every step would be
+        /// two changes at once.
+        /// </summary>
+        private void Trial(Vehicle car, int now)
+        {
+            if (!_cfg.StanceProbe || _trialDone) return;
+
+            if (car == null || !car.Exists() || car.Handle != _car)
+            {
+                // Between cars nothing is tried. A sweep half done starts again on the next car.
+                _trial = null;
+                _trialIndex = -1;
+                return;
+            }
+
+            if (_trialIndex < 0 && Math.Abs(_cfg.CamberFront) < 0.5f) return;
+
+            var fl = FrontLeft(car);
+
+            if (fl == IntPtr.Zero) return;
+
+            if (_trial == null || _trialCar != car.Handle)
+            {
+                _trial = Candidates(fl);
+                _trialCar = car.Handle;
+                _trialIndex = -1;
+
+                Log.Info("Stance probe: sweeping " + _trial.Count + " fields of the front left " +
+                         "wheel, " + (TrialMs / 1000f).ToString("0.0") + " s each. Watch that wheel.");
+            }
+
+            if (_trialIndex < 0 || now - _trialAt >= TrialMs)
+            {
+                if (_trialIndex >= 0)
+                {
+                    var was = _trial[_trialIndex];
+                    var held = Math.Abs(_trialSeen - (_trialOrig + TrialNudge)) < 0.0005f;
+
+                    Log.Info("Stance probe: 0x" + was.ToString("X3") + " read " +
+                             _trialSeen.ToString("0.0000") + " a frame after being written (" +
+                             (held ? "held" : "put back") + "); restored " +
+                             _trialOrig.ToString("0.0000") + ".");
+
+                    Write(fl, was, _trialOrig);
+                }
+
+                _trialIndex++;
+
+                if (_trialIndex >= _trial.Count)
+                {
+                    _trialDone = true;
+                    Log.Info("Stance probe: sweep done. The wheel moved on the field named at " +
+                             "the time, or on none of them.");
+                    return;
+                }
+
+                _trialOrig = Read(fl, _trial[_trialIndex]);
+                _trialSeen = _trialOrig;
+                _trialAt = now;
+
+                Log.Info("Stance probe: trying 0x" + _trial[_trialIndex].ToString("X3") + " (" +
+                         (_trialIndex + 1) + " of " + _trial.Count + "), which reads " +
+                         _trialOrig.ToString("0.0000") + ".");
+            }
+
+            var off = _trial[_trialIndex];
+
+            // READ BEFORE WRITING, on every frame but the first: that is the value the game left
+            // there after it had its turn, which is the only reading that says anything.
+            if (now != _trialAt) _trialSeen = Read(fl, off);
+
+            Write(fl, off, _trialOrig + TrialNudge);
+
+            Draw.Text("STANCE PROBE  0x" + off.ToString("X3") + "   " + (_trialIndex + 1) + " / " +
+                      _trial.Count + "   watch the front left wheel", 0.5f, 0.10f, 0.55f,
+                      Color.FromArgb(255, 245, 196, 60), 4, true);
+        }
+
+        private static IntPtr FrontLeft(Vehicle car)
+        {
+            try
+            {
+                foreach (var wheel in car.Wheels)
+                {
+                    if (wheel.BoneId == VehicleWheelBoneId.WheelLeftFront) return wheel.MemoryAddress;
+                }
+            }
+            catch
+            {
+                // no wheel, no sweep
+            }
+
+            return IntPtr.Zero;
+        }
+
+        /// <summary>Every field of the wheel worth trying, in the order worth trying them.</summary>
+        private static List<int> Candidates(IntPtr fl)
+        {
+            var known = new List<int> { Camber, CamberBack, 0x020, Track };
+            var rest = new List<int>();
+            var noughts = new List<int>();
+
+            for (var off = 0; off < 0x1C0; off += 4)
+            {
+                if (known.Contains(off)) continue;
+
+                var bits = Marshal.ReadInt32(fl, off);
+                var v = Read(fl, off);
+
+                // NOT A FLOAT: a small integer, a flag, the top half of a pointer. All of those
+                // read as denormals, and none of them wants a third of a radian written in.
+                if (bits != 0 && (bits & 0x7F800000) == 0) continue;
+                if (float.IsNaN(v) || float.IsInfinity(v) || Math.Abs(v) >= 3f) continue;
+
+                if (bits == 0)
+                {
+                    // A nought beside something enormous is the other half of a pointer.
+                    var neighbour = off >= 4 ? Read(fl, off - 4) : 0f;
+
+                    if (float.IsNaN(neighbour) || Math.Abs(neighbour) > 1e6f) continue;
+
+                    noughts.Add(off);
+                    continue;
+                }
+
+                rest.Add(off);
+            }
+
+            known.AddRange(rest);
+            known.AddRange(noughts);
+            return known;
         }
 
         // ==================================================================
