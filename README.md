@@ -6,6 +6,16 @@ says a word while it works.
 Both were written inside [Fumes](https://github.com/defthrets/fumes), the fuel mod, because
 that is where the car code was. Neither is about fuel, so they live here instead.
 
+## Install
+
+Download the zip from [Releases](https://github.com/defthrets/vehicle-tweaks/releases/latest)
+and drop the contents of its `scripts` folder into your GTA V `scripts` folder. Needs
+[ScriptHookV](http://www.dev-c.com/gtav/scripthookv/) and
+[ScriptHookVDotNet 3](https://github.com/scripthookvdotnet/scripthookvdotnet/releases).
+
+No asset replacement and no `.rpf` edits, so it installs and uninstalls by copying files.
+One build runs on both Legacy and Enhanced.
+
 ## Manual ignition
 
 The engine is something you operate rather than a side effect of sitting in the seat.

@@ -11,6 +11,7 @@
     .\build.ps1 -Deploy                # build, then install into both GTA V editions
     .\build.ps1 -Deploy -Target Legacy # ...into one of them
     .\build.ps1 -Package               # build a release zip in .\release\
+    .\build.ps1 -Publish               # ...and put it on GitHub as a release people can download
 #>
 [CmdletBinding()]
 param(
@@ -20,6 +21,13 @@ param(
     [switch]$Deploy,
     [switch]$Package,
     [switch]$Test,
+
+    # Package, then tag the commit and put the zip on GitHub as a release.
+    #
+    # THE DOWNLOAD IS THE MOD, as far as anybody who is not us is concerned, so this is not an
+    # extra step at the end of a release -- it is the release. It implies -Package and -Test,
+    # because a zip nobody built and a build nobody tested are not things to publish.
+    [switch]$Publish,
 
     # Which install(s) -Deploy writes to. This is a pure SHVDN script with no asset
     # dependencies and both editions ship the identical ScriptHookVDotNet3.dll, so one build
@@ -54,6 +62,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+
+# Publishing is packaging plus one more step, and there is nothing worth publishing that has
+# not been through the tests first.
+if ($Publish) {
+    $Package = $true
+    $Test = $true
+}
 
 $csc    = Join-Path $root 'tools\roslyn\tasks\net472\csc.exe'
 $refDir = Join-Path $root 'tools\refasm\build\.NETFramework\v4.8'
@@ -592,3 +607,98 @@ if ($Package) {
     Write-Host "Packaged  $zip" -ForegroundColor Green
     Write-Host "          $files files, $size KB, version $version"
 }
+
+# --- publishing --------------------------------------------------------------
+# A RELEASE THAT IS NOT ON GITHUB IS A ZIP ON ONE MACHINE. The repo is public and that zip is
+# the only thing anybody else can actually use, so packaging and publishing are one step rather
+# than two -- the second of which is the one that gets forgotten.
+#
+# IT REFUSES MORE THAN IT DOES. A release is a permanent public marker pointing at a commit, so
+# the commit has to exist, be pushed, and be exactly what was built: a dirty tree means the zip
+# holds changes nobody can check out, and an unpushed HEAD means the tag names a commit GitHub
+# has never seen. Both are silent disasters a week later and loud ones here.
+if ($Publish) {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        throw "Publishing needs the GitHub CLI (gh) on PATH. See https://cli.github.com."
+    }
+
+    if (git -C $root status --porcelain) {
+        throw "The working tree is dirty, so a release from it could not be checked out again. Commit first."
+    }
+
+    $head   = (git -C $root rev-parse HEAD).Trim()
+    $remote = ((git -C $root ls-remote origin HEAD) -split '\s+')[0]
+
+    if ($head -ne $remote) {
+        throw "HEAD ($($head.Substring(0,7))) is not what origin has ($($remote.Substring(0,7))). Push first."
+    }
+
+    $tag = "v$version"
+
+    if (git -C $root tag -l $tag) {
+        $at = (git -C $root rev-list -n 1 $tag).Trim()
+
+        if ($at -ne $head) {
+            throw "Tag $tag is already at $($at.Substring(0,7)) and HEAD is $($head.Substring(0,7)). Bump Version in src\VehicleTweaks\Core\Log.cs."
+        }
+    }
+    else {
+        git -C $root tag -a $tag -m "Vehicle Tweaks $version" | Out-Null
+        Write-Host "  TAG    $tag at $($head.Substring(0,7))" -ForegroundColor DarkGray
+    }
+
+    git -C $root push -q origin $tag
+    Write-Host "  PUSHED $tag" -ForegroundColor DarkGray
+
+    # WHAT CHANGED, FROM THE HISTORY RATHER THAN FROM MEMORY. Every commit in this repo has a
+    # subject written as a sentence about what it did, which is a release note already; the
+    # alternative is somebody writing the same list again from worse information.
+    $prev = git -C $root describe --tags --abbrev=0 "$tag^" 2>$null
+    $span = if ($prev) { "$prev..$tag" } else { $tag }
+
+    $notes = @(
+        'Unzip and drop the contents of the scripts folder into your GTA V scripts folder.',
+        '',
+        'Requires ScriptHookV and ScriptHookVDotNet 3.',
+        '',
+        'No asset replacement, no .rpf edits. Legacy and Enhanced from one build.',
+        ''
+    )
+
+    $changes = @(git -C $root log --reverse --no-merges --format='- %s' $span)
+
+    if ($changes) {
+        $notes += if ($prev) { "## Since $prev" } else { '## Changes' }
+        $notes += ''
+        $notes += $changes
+        $notes += ''
+    }
+
+    $notes += 'spitmux.me'
+
+    $notesFile = Join-Path $relDir "notes-$version.md"
+    Set-Content -Path $notesFile -Value $notes -Encoding UTF8
+
+    # Whether the release is already there decides between making one and replacing its zip.
+    # Asked in a way that cannot throw: gh exits non-zero for "no such release", which is an
+    # answer here and not a failure.
+    $exists = $false
+    try {
+        $null = gh release view $tag 2>$null
+        $exists = $LASTEXITCODE -eq 0
+    }
+    catch { $exists = $false }
+
+    if ($exists) {
+        gh release edit   $tag --title "Vehicle Tweaks $version" --notes-file $notesFile | Out-Null
+        gh release upload $tag $zip --clobber | Out-Null
+        Write-Host "Updated   the $tag release on GitHub with a new zip." -ForegroundColor Green
+    }
+    else {
+        gh release create $tag $zip --title "Vehicle Tweaks $version" --notes-file $notesFile | Out-Null
+        Write-Host "Released  $tag on GitHub." -ForegroundColor Green
+    }
+
+    Write-Host "          $(gh release view $tag --json url --jq '.url')"
+}
+
