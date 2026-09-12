@@ -690,6 +690,20 @@ adopted and held like the rest — which is what makes one survive a save, a rel
 driving something else for an hour. A car put back to nought gets its stock values written one last
 time and is then let go, so the lease ends when you end it.
 
+**And it ends at three hundred metres, or it is a leak.** Holding a car means making it persistent so
+the game cannot clean it up, and a lease with no end is every car you have ever stanced pinned in the
+world at once, each written to every frame, until you close the game. Past that distance the car is
+handed back: its geometry goes back to what it came with, it becomes ordinary traffic, and the stance
+stays written *on* it — so coming back within the adoption range picks it up again exactly as it was,
+and if the game tidied it away meanwhile, that is what happens to traffic you drove away from. The
+gap between 120 m to adopt and 300 m to release is what stops a car parked on the boundary being
+taken on and handed back once a second.
+
+The geometry has to go back, because half of it would not. The lean is two pairs: a cosine written
+once that the game leaves alone, and a sine the race writes because the game puts it back. Stop
+racing and the sine returns to the car's own while the cosine sits where it was left — which is not a
+wheel leaning less, it is a wheel uniformly *shrunk* by the cosine.
+
 **It stays on the car, and it is remembered.** Getting out used to put the wheels back, on the house
 rule that an override is handed back by handle — right for power, torque and grip, which are how a
 car *behaves* while you are in it, and wrong for a stance, which is what the car *looks like* and is

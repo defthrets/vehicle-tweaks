@@ -42,6 +42,14 @@ namespace VehicleTweaks.Driving
     /// anybody is in it or not, so a car does not straighten up the moment you walk away from
     /// it.
     ///
+    /// AND THE LEASE ENDS AT THREE HUNDRED METRES, or it is a leak. Holding a car means making
+    /// it persistent so the game cannot clean it up, and a lease with no end is every car ever
+    /// stanced pinned in the world at once, each written to every frame, for as long as the
+    /// game is open. Past that distance the car is handed back: its geometry is put back to
+    /// what it came with, it becomes ordinary traffic again, and its stance stays written ON
+    /// it -- so coming back to it picks it up again exactly as it was, and if the game tidied
+    /// it away in the meantime then that is what happens to traffic you drove away from.
+    ///
     /// AND CARS IT HAS NEVER SEEN ARE PICKED UP BY THEIR OWN DECORATOR. A stance is written onto
     /// the vehicle as well as into a file, so a car found nearby carrying one is adopted and held
     /// like any other -- which is what makes it survive a save, a reload of the mod, and driving
@@ -152,6 +160,17 @@ namespace VehicleTweaks.Driving
         /// <summary>How far to look. Beyond this a car is not drawn, so its wheels do not matter.</summary>
         private const float SweepRange = 120f;
 
+        /// <summary>
+        /// How far a held car may get before it is handed back to the game.
+        ///
+        /// WELL OUTSIDE THE RANGE IT IS ADOPTED AT, and that gap is the whole point of the
+        /// number. Let go at the same distance it is picked up at and a car parked on the
+        /// boundary would be taken on and handed back every second for as long as you stood
+        /// there. Three hundred against a hundred and twenty is a wide enough band that
+        /// wandering about near a stanced car never crosses both edges.
+        /// </summary>
+        private const float LetGoRange = 300f;
+
         /// <summary>One car being held at a stance, and what it looked like before.</summary>
         private sealed class Held
         {
@@ -239,7 +258,7 @@ namespace VehicleTweaks.Driving
                 }
 
                 Sweep(me, now);
-                Keep();
+                Keep(me);
                 Trial(car, now);
 
                 if (_cfg.StanceWatch) _watch.Update(car);
@@ -302,7 +321,7 @@ namespace VehicleTweaks.Driving
         /// <summary>
         /// Writes every held car again, and lets go of the ones that are gone or back to stock.
         /// </summary>
-        private void Keep()
+        private void Keep(Ped me)
         {
             if (_held.Count == 0)
             {
@@ -320,6 +339,20 @@ namespace VehicleTweaks.Driving
                 if (held.Car == null || !held.Car.Exists())
                 {
                     (drop ?? (drop = new List<int>())).Add(pair.Key);
+                    continue;
+                }
+
+                // TOO FAR TO BE WORTH HOLDING. Never the car being driven, which cannot be far
+                // from the person driving it, and which would only be taken straight back.
+                if (pair.Key != _car && Away(held.Car, me))
+                {
+                    (drop ?? (drop = new List<int>())).Add(pair.Key);
+
+                    Unhold(held);
+
+                    Log.Debug("Stance: let go of " + (Name(held.Car) ?? "a car") + " at " +
+                              LetGoRange.ToString("0") + "m. It keeps its stance and is picked " +
+                              "up again if it is still there when you come back.");
                     continue;
                 }
 
@@ -342,6 +375,65 @@ namespace VehicleTweaks.Driving
             if (drop == null) return;
 
             foreach (var handle in drop) _held.Remove(handle);
+        }
+
+
+        /// <summary>
+        /// Puts one car's own geometry back and hands it to the game, without forgetting its stance.
+        ///
+        /// NOT THE SAME AS UNDOING A STANCE. The decorators stay exactly where they are, so this
+        /// car is still a stanced car -- it is simply not one this mod is holding any more, and
+        /// Sweep will pick it up again the moment it is near enough to matter.
+        ///
+        /// THE GEOMETRY GOES BACK BECAUSE HALF OF IT WOULD NOT. The lean is two pairs: a cosine
+        /// this writes and the game leaves alone, and a sine the race writes because the game
+        /// puts it back. Stop racing and the sine returns to the car's own while the cosine sits
+        /// where it was left -- which is not a wheel leaning less, it is a wheel uniformly
+        /// SHRUNK by the cosine. So the four fields that hold are written back to what the car
+        /// came with, and the ones the game overwrites are left for the game to overwrite.
+        /// </summary>
+        private void Unhold(Held held)
+        {
+            try
+            {
+                foreach (var wheel in held.Car.Wheels)
+                {
+                    Came came;
+
+                    if (!held.Stock.TryGetValue((int)wheel.BoneId, out came)) continue;
+
+                    var at = wheel.MemoryAddress;
+
+                    if (at == IntPtr.Zero) continue;
+
+                    var cos = (float)Math.Cos(came.Angle);
+
+                    Write(at, CosX, cos);
+                    Write(at, CosZ, cos);
+                    Write(at, TopX, came.TopX);
+                    Write(at, TopZ, came.TopZ);
+
+                    if (came.Tread > 0f) Write(at, Tread, came.Tread);
+                }
+            }
+            catch
+            {
+                // It is going back to the game either way, and the game owns these fields next.
+            }
+
+            // AND IT STOPS BEING OURS. Made persistent when it was taken on, so the game could
+            // not clean it up while it was stanced; that reason has run out at this distance.
+            try { held.Car.MarkAsNoLongerNeeded(); }
+            catch { /* the game will have it back regardless */ }
+        }
+
+        /// <summary>Whether a car has got far enough away to stop being this mod's problem.</summary>
+        private static bool Away(Vehicle car, Ped me)
+        {
+            if (me == null || !me.Exists()) return false;
+
+            try { return car.Position.DistanceTo(me.Position) > LetGoRange; }
+            catch { return false; }
         }
 
         /// <summary>
