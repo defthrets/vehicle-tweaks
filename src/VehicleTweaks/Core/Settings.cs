@@ -710,11 +710,17 @@ namespace VehicleTweaks.Core
         /// <summary>
         /// How long the race rests between passes, in milliseconds.
         ///
-        /// NOUGHT NEVER RESTS: a whole core, and the best chance the wheel never flickers. One is
-        /// a thousand passes a second for almost nothing, and a flicker whenever the game happens
-        /// to draw inside the gap.
+        /// ONE, BECAUSE NOUGHT IS A WHOLE CORE FOR EVER. Nought spins rather than sleeps, so the
+        /// moment a single car is stanced one core sits at a hundred per cent for the rest of the
+        /// session -- and since a stanced car is made persistent, nothing ever ends it. That is a
+        /// frame rate people notice half an hour in and never connect to a wheel.
+        ///
+        /// One millisecond is a thousand passes a second against a game drawing sixty: sixteen
+        /// chances a frame to be the last one to write, for a thread that is asleep 99% of the
+        /// time. Nought is still there for anyone who sees a flicker and would rather spend the
+        /// core.
         /// </summary>
-        public float StanceRaceRest = 0f;
+        public float StanceRaceRest = 1f;
 
         /// <summary>
         /// The engine keeps pulling while the car is sideways.
