@@ -784,7 +784,9 @@ namespace VehicleTweaks.Driving
                 // THE LOOK IS TWO FACTORS ON THE CAR'S RENDER DATA, and only a fitted wheel has
                 // them. A stock-wheeled car gets a rim fitted first, if the setting allows, and
                 // gets it taken off again when the look goes back to stock. See Drawn and Fit.
-                var look = Math.Abs(held.Values[8] - 1f) >= Nothing || Math.Abs(held.Values[9] - 1f) >= Nothing;
+                var look = _cfg.DrawnWheels &&
+                           (Math.Abs(held.Values[8] - 1f) >= Nothing ||
+                            Math.Abs(held.Values[9] - 1f) >= Nothing);
 
                 if (look)
                 {

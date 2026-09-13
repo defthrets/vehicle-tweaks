@@ -815,7 +815,18 @@ log, though, names the offsets it found on this build, and its own menu says the
 drawable, and a stock wheel is part of the car's model. So there are two rows for the look, **Drawn
 size** and **Drawn width**, separate from the physical size the car rolls on, reached by VStancer's
 offsets where FiveM's patterns do not fit and trusted only once a real car reads sanely through
-them. Fit any rim and they take — or let the mod do it: with `DrawnFitsRim` on, a stock-wheeled car gets
+them. **And it is off by default, because it took the game down.** Through those offsets the two factors
+read `0.64` and `0.40` on a car nobody had scaled, where a factor reads `1`. They are not the wheel
+sizes on this build — they are two floats belonging to something else, nearly three kilobytes into
+an object of unknown length — and writing `1.75` over one of them ended the session with a
+breakpoint, which is what a corrupted heap looks like when the allocator next checks itself. The
+guard that let that through accepted anything between a fifth and five, which tests that a float is
+a float rather than that an offset is the right offset. It now requires both to read `1` within a
+twentieth and refuses otherwise, so `DrawnWheels` is safe to turn on: where the offsets are wrong it
+does nothing and says so. It stays off because the cost of being wrong here is not a wheel that
+looks odd.
+
+Fit any rim and they take — or let the mod do it: with `DrawnFitsRim` on, a stock-wheeled car gets
 the first rim of its own kind the moment either slider leaves one, marked as this mod's, and gets
 it taken off again when both are back at one. (Stretching the wheel's own matrix rows was tried
 for stock wheels first; the renderer takes the rotation and discards the length, so it is gone.)

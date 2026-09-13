@@ -15,6 +15,19 @@ namespace VehicleTweaks.Driving
     /// can see on a FITTED wheel are two factors the game keeps for the Arena wheel sizes, on the
     /// vehicle's render data: each a proportion of the model, each one as the car came.
     ///
+    /// AND ON THIS BUILD THEY ARE NOT WHERE VSTANCER SAID. Through these offsets the two
+    /// factors read 0.64 and 0.40 on a car nobody had touched, and a factor on an untouched car
+    /// is one. They are not the wheel sizes; they are two floats belonging to something else,
+    /// nearly three kilobytes into an object of unknown length -- and writing 1.75 over one of
+    /// them took the game down with a breakpoint, which is what a corrupted heap looks like when
+    /// the allocator next checks itself. The guard that let that through accepted anything
+    /// between a fifth and five, which is not a test of an offset, it is a test of a float.
+    ///
+    /// SO THE TEST IS NOW WHAT IT SHOULD ALWAYS HAVE BEEN: both factors must read one, within a
+    /// twentieth, or the whole thing refuses and says so. A right offset reads one on a stock
+    /// car; every wrong one in the neighbourhood does not. And the feature is off until it is
+    /// asked for, because a wrong guess here does not misdraw a wheel, it ends the session.
+    ///
     /// THREE HOPS FROM THE VEHICLE, AND EVERY ONE IS CHECKED. Vehicle to draw handler, draw
     /// handler to the streamed render data, then the two floats. FiveM finds the offsets by
     /// pattern, so this searches the game's code in memory for the same patterns first; where
@@ -146,18 +159,24 @@ namespace VehicleTweaks.Driving
 
                 if (!_trusted.Contains(key))
                 {
-                    // THE FACTORS HAVE TO READ LIKE FACTORS before they are written. A wrong offset
-                    // reads as a pointer's half, a count, nought or garbage; a right one reads as
-                    // one, or as whatever the last mod left there, and either is a small number.
+                    // THE FACTORS HAVE TO READ EXACTLY WHAT A FACTOR READS, which is one. A
+                    // proportion of the model on a car nobody has scaled is one and nothing else,
+                    // so this is a test of the OFFSET and not merely of the float that happens to
+                    // be there. The version of this that asked for "a small number" accepted 0.64
+                    // and 0.40 and wrote over whatever they really were, which ended the session.
                     var s = Read(gfx, _size);
                     var w = Read(gfx, _width);
 
-                    if (float.IsNaN(s) || float.IsNaN(w) || s < 0.2f || s > 5f || w < 0.2f || w > 5f)
+                    if (float.IsNaN(s) || float.IsNaN(w) ||
+                        Math.Abs(s - 1f) > 0.05f || Math.Abs(w - 1f) > 0.05f)
                     {
                         _broken = true;
-                        Log.Warn("Drawn wheels: through these offsets the factors read " + s + " and " + w +
-                                 " rather than about one, so the offsets are wrong for this build and the " +
-                                 "drawn sizes are off.");
+                        Log.Warn("Drawn wheels: through these offsets the factors read " +
+                                 s.ToString("0.000") + " and " + w.ToString("0.000") + " on a car " +
+                                 "nobody has scaled, where a factor reads 1.000. They are not the " +
+                                 "wheel sizes on this build, so nothing is written and the drawn " +
+                                 "rows do nothing. Camber, track, height and the physical sizes " +
+                                 "are not affected.");
                         return;
                     }
 

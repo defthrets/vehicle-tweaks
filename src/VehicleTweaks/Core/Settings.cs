@@ -598,6 +598,22 @@ namespace VehicleTweaks.Core
         public float DrawnWidth = 1f;
 
         /// <summary>
+        /// Whether the two drawn sizes are written at all.
+        ///
+        /// OFF, BECAUSE IT TOOK THE GAME DOWN. The numbers it writes are reached by walking three
+        /// pointers and then going nearly three kilobytes into an object of unknown length, at
+        /// offsets another mod reported for a build it says it does not support. On this one they
+        /// are not the wheel sizes -- the factors read 0.64 and 0.40 where a factor reads one --
+        /// and writing over whatever they really were ended the session with a breakpoint.
+        ///
+        /// THE GUARD IS NOW STRICT ENOUGH THAT TURNING THIS ON IS SAFE: both factors must read
+        /// one within a twentieth, on a car nobody has scaled, or nothing is written and the log
+        /// says why. It is still off by default, because the cost of being wrong here is not a
+        /// wheel that looks odd.
+        /// </summary>
+        public bool DrawnWheels = false;
+
+        /// <summary>
         /// Fit a rim to a stock-wheeled car when a drawn size is asked for, and take it off again.
         ///
         /// THE GAME SCALES A FITTED WHEEL AND NOT A STOCK ONE, so on a car straight from the
@@ -1256,6 +1272,7 @@ namespace VehicleTweaks.Core
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
                 s.DrawnSize = ini.GetFloat("Driving", "DrawnSize", s.DrawnSize, 0.4f, 2.5f);
                 s.DrawnWidth = ini.GetFloat("Driving", "DrawnWidth", s.DrawnWidth, 0.4f, 2.5f);
+                s.DrawnWheels = ini.GetBool("Driving", "DrawnWheels", s.DrawnWheels);
                 s.DrawnFitsRim = ini.GetBool("Driving", "DrawnFitsRim", s.DrawnFitsRim);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
