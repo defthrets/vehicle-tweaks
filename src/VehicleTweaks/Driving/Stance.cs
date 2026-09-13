@@ -50,10 +50,16 @@ namespace VehicleTweaks.Driving
     /// it -- so coming back to it picks it up again exactly as it was, and if the game tidied
     /// it away in the meantime then that is what happens to traffic you drove away from.
     ///
-    /// AND CARS IT HAS NEVER SEEN ARE PICKED UP BY THEIR OWN DECORATOR. A stance is written onto
-    /// the vehicle as well as into a file, so a car found nearby carrying one is adopted and held
-    /// like any other -- which is what makes it survive a save, a reload of the mod, and driving
-    /// something else for an hour.
+    /// AND CARS IT HAS NEVER SEEN ARE PICKED UP FROM WHAT IS WRITTEN DOWN. A stance is filed
+    /// against the car's handle, so a car found nearby that has one is adopted and held like any
+    /// other -- which is what makes it survive getting out, driving something else for an hour,
+    /// and reloading the script.
+    ///
+    /// IT IS A FILE AND NOT A DECORATOR, HAVING BEEN BOTH. A decorator is the proper way to put
+    /// a value on one entity and it does not work from here: DECOR_REGISTER is only accepted
+    /// before the game locks its registry during session startup, which is always before a
+    /// script's constructor runs, so every write was ignored and every read came back empty in
+    /// silence. Two megabytes of log without one recall. See Stances for what replaced it.
     ///
     /// AND IT LOOKS BEFORE IT WRITES. Every wheel's own values are read once, and a reading that
     /// is not a finite number in a sane range means the address is not what this thinks it is --
@@ -211,6 +217,7 @@ namespace VehicleTweaks.Driving
             _cfg = cfg;
 
             Register();
+            Stances.Load(Values);
         }
 
         public void Update(Ped me)
@@ -364,6 +371,11 @@ namespace VehicleTweaks.Driving
 
                 (drop ?? (drop = new List<int>())).Add(pair.Key);
 
+                // AND IT IS FORGOTTEN, or it would be given its old stance back the next time it
+                // came near. Only here: letting go of one at distance keeps the file entry, which
+                // is the whole point of letting go of it.
+                Stances.Drop(pair.Key);
+
                 // AND IT GOES BACK TO BEING TRAFFIC. Kept alive because it was stanced; stanced
                 // no longer, so there is nothing left to keep it for.
                 try { held.Car.MarkAsNoLongerNeeded(); }
@@ -454,7 +466,7 @@ namespace VehicleTweaks.Driving
                 {
                     if (near == null || !near.Exists() || _held.ContainsKey(near.Handle)) continue;
 
-                    var kept = FromCar(near);
+                    var kept = FromCar(near) ?? Stances.Get(near.Handle, Name(near));
 
                     if (kept == null || Flat(kept)) continue;
 
@@ -492,7 +504,7 @@ namespace VehicleTweaks.Driving
 
             if (!_cfg.StanceRemember) return;
 
-            var kept = FromCar(car) ?? Stock;
+            var kept = FromCar(car) ?? Stances.Get(car.Handle, Name(car)) ?? Stock;
 
             _cfg.CamberFront = kept[0];
             _cfg.CamberRear = kept[1];
@@ -537,10 +549,11 @@ namespace VehicleTweaks.Driving
 
             _changedAt = 0;
 
-            // ONTO THE CAR, AND ONLY ONTO THE CAR. There is no file any more: a stance that was
-            // also filed by model came back on every other car of that model, which is the thing
-            // this was asked to stop doing.
+            // ONTO THE CAR IF THE GAME ALLOWS IT, AND WRITTEN DOWN EITHER WAY. The file is
+            // keyed by this car's handle and not by its model -- filing by model is what put one
+            // Sultan's stance on every Sultan, and it is the thing this was asked to stop doing.
             ToCar(car, live);
+            Stances.Put(car.Handle, Name(car), live);
         }
 
         /// <summary>Writes a change that has not settled yet onto the car it belongs to, now.</summary>
@@ -552,6 +565,7 @@ namespace VehicleTweaks.Driving
                     _driving != null && _driving.Exists())
                 {
                     ToCar(_driving, _pending);
+                    Stances.Put(_driving.Handle, Name(_driving), _pending);
                 }
             }
             catch
@@ -1442,6 +1456,9 @@ namespace VehicleTweaks.Driving
 
         private static bool _registered;
 
+        /// <summary>Whether the game accepted the decorators, which it usually does not.</summary>
+        private static bool _decorators;
+
         private static void Register()
         {
             if (_registered) return;
@@ -1454,6 +1471,19 @@ namespace VehicleTweaks.Driving
                 foreach (var name in Decors) Function.Call(Hash.DECOR_REGISTER, name, 1);
 
                 Function.Call(Hash.DECOR_REGISTER, Fitted, 3);
+
+                // AND IT IS ASKED WHETHER THAT TOOK, because for two megabytes of log it did not
+                // and said nothing. DECOR_REGISTER is only accepted before the game locks its
+                // registry, which it does during session startup -- always before this runs.
+                // Kept anyway: it costs one call, it is the right way to do this, and the day a
+                // loader registers early enough it starts working on its own.
+                _decorators = Function.Call<bool>(Hash.DECOR_IS_REGISTERED_AS_TYPE, Decors[0], 1);
+
+                Log.Info(_decorators
+                             ? "Stances: decorators took, so they are written onto the cars themselves."
+                             : "Stances: the game would not register decorators, which is usual -- " +
+                               "they are locked before a script loads. Stances are written down in " +
+                               "VehicleTweaks.stances.txt instead.");
             }
             catch (Exception ex)
             {

@@ -178,6 +178,9 @@ namespace VehicleTweaks.Core
         /// <summary>Extra model names the player keeps by hand. See Models.Found.</summary>
         public static string ModelsFile => Path.Combine(Writable, "VehicleTweaks.models.txt");
 
+        /// <summary>Where stances are written down, beside the log, so a script reload keeps them.</summary>
+        public static string StanceFile => Path.Combine(Writable, "VehicleTweaks.stances.txt");
+
         /// <summary>
         /// A picture shipped with the mod, next to the log.
         ///

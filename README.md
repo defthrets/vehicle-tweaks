@@ -704,6 +704,22 @@ once that the game leaves alone, and a sine the race writes because the game put
 racing and the sine returns to the car's own while the cosine sits where it was left — which is not a
 wheel leaning less, it is a wheel uniformly *shrunk* by the cosine.
 
+**Where a stance actually lives.** Against the car's **handle**, in
+`VehicleTweaks.stances.txt` beside the log — what the game calls that one car for as long as it
+exists. Not against its model: filing by model is what put one Sultan's stance on every Sultan, and
+being asked to stop doing that is why the file was deleted the first time. Each line carries the
+model name as a *check*, so a handle the game has since given to something else is thrown away
+rather than dressing a stranger in somebody's stance. It survives reloading the script; it cannot
+survive restarting the game, because the car does not either.
+
+It would rather be a **decorator**, which is the proper way to hang a value on one entity, and the
+game will not have it. `DECOR_REGISTER` is only accepted before the game locks its decorator
+registry during session startup — always before a script's constructor runs — so every write was
+ignored and every read came back empty, in silence, because that native reports failure by returning
+false and nothing was asking it. Two megabytes of log without a single recall. The mod still asks,
+because it costs one call and the day a loader registers early enough it starts working on its own,
+and it now says in the log which of the two it got.
+
 **It stays on the car, and it is remembered.** Getting out used to put the wheels back, on the house
 rule that an override is handed back by handle — right for power, torque and grip, which are how a
 car *behaves* while you are in it, and wrong for a stance, which is what the car *looks like* and is
