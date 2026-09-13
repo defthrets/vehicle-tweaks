@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
 using GTA;
@@ -456,7 +457,11 @@ namespace VehicleTweaks.Driving
         /// </summary>
         private void Sweep(Ped me, int now)
         {
-            if (!_cfg.StanceRemember || me == null || now - _sweptAt < SweepMs) return;
+            // BUILT MODELS ARE NOT REMEMBERING. StanceRemember is about holding on to what
+            // you set; a car that is supposed to sit like that is supposed to sit like that
+            // whether or not anybody wants their own stances kept.
+            if (me == null || now - _sweptAt < SweepMs) return;
+            if (!_cfg.StanceRemember && Built().Count == 0) return;
 
             _sweptAt = now;
 
@@ -466,7 +471,11 @@ namespace VehicleTweaks.Driving
                 {
                     if (near == null || !near.Exists() || _held.ContainsKey(near.Handle)) continue;
 
-                    var kept = FromCar(near) ?? Stances.Get(near.Handle, Name(near));
+                    // ORDER IS THE POINT. What this car itself carries wins; then what was
+                    // set on it this session; and only then what its model is built like --
+                    // so dropping the rear of a built car by hand still means something.
+                    var kept = FromCar(near) ?? Stances.Get(near.Handle, Name(near)) ??
+                               Always(Name(near));
 
                     if (kept == null || Flat(kept)) continue;
 
@@ -504,7 +513,8 @@ namespace VehicleTweaks.Driving
 
             if (!_cfg.StanceRemember) return;
 
-            var kept = FromCar(car) ?? Stances.Get(car.Handle, Name(car)) ?? Stock;
+            var kept = FromCar(car) ?? Stances.Get(car.Handle, Name(car)) ??
+                       Always(Name(car)) ?? Stock;
 
             _cfg.CamberFront = kept[0];
             _cfg.CamberRear = kept[1];
@@ -1573,6 +1583,97 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>The stance this particular car is carrying, or null if it has never had one.</summary>
+        /// <summary>
+        /// The models that are built that way, read out of the setting once. See StanceAlways.
+        ///
+        /// PARSED LAZILY AND KEPT, because this is asked of every vehicle that comes near you
+        /// and re-reading a string for each one is a sweep that costs more than the thing it is
+        /// looking for. Rebuilt when the setting changes, so editing it on the panel takes
+        /// without a reload.
+        /// </summary>
+        private Dictionary<string, float[]> Built()
+        {
+            var text = _cfg.StanceAlways ?? "";
+
+            if (_builtFrom == text) return _built;
+
+            _builtFrom = text;
+            _built = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in text.Split(';'))
+            {
+                var cut = entry.IndexOf('=');
+                if (cut <= 0) continue;
+
+                var model = entry.Substring(0, cut).Trim();
+                if (model.Length == 0) continue;
+
+                var values = (float[])Stock.Clone();
+                var any = false;
+
+                foreach (var pair in entry.Substring(cut + 1).Split(','))
+                {
+                    var colon = pair.IndexOf(':');
+                    if (colon <= 0) continue;
+
+                    var slot = Slot(pair.Substring(0, colon).Trim());
+                    if (slot < 0) continue;
+
+                    float amount;
+                    if (!float.TryParse(pair.Substring(colon + 1).Trim(),
+                                        NumberStyles.Float, CultureInfo.InvariantCulture,
+                                        out amount))
+                    {
+                        continue;
+                    }
+
+                    values[slot] = amount;
+                    any = true;
+                }
+
+                if (!any) continue;
+
+                _built[model] = values;
+
+                Log.Info("Stance: the " + model + " is built that way -- " +
+                         entry.Substring(cut + 1).Trim() + ".");
+            }
+
+            return _built;
+        }
+
+        private Dictionary<string, float[]> _built;
+        private string _builtFrom;
+
+        /// <summary>Which of the ten a name means, or below nought for a name that is not one.</summary>
+        private static int Slot(string name)
+        {
+            for (var i = 0; i < Named.Length; i++)
+            {
+                if (string.Equals(name, Named[i], StringComparison.OrdinalIgnoreCase)) return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>The ten, by the names the panel gives them. Order matters: it is the order.</summary>
+        private static readonly string[] Named =
+        {
+            "CamberFront", "CamberRear", "TrackFront", "TrackRear",
+            "HeightFront", "HeightRear", "WheelSize", "WheelWidth", "DrawnSize", "DrawnWidth",
+        };
+
+        /// <summary>What this model is built like, if somebody has said. See StanceAlways.</summary>
+        private float[] Always(string model)
+        {
+            if (string.IsNullOrEmpty(model)) return null;
+
+            var built = Built();
+
+            float[] values;
+            return built.TryGetValue(model, out values) ? (float[])values.Clone() : null;
+        }
+
         private static float[] FromCar(Vehicle car)
         {
             try
