@@ -1,11 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
 using GTA;
 using GTA.Native;
-using GTA.Math;
 using System.Drawing;
 using VehicleTweaks.Core;
 using VehicleTweaks.UI;
@@ -458,11 +456,7 @@ namespace VehicleTweaks.Driving
         /// </summary>
         private void Sweep(Ped me, int now)
         {
-            // BUILT MODELS ARE NOT REMEMBERING. StanceRemember is about holding on to what
-            // you set; a car that is supposed to sit like that is supposed to sit like that
-            // whether or not anybody wants their own stances kept.
-            if (me == null || now - _sweptAt < SweepMs) return;
-            if (!_cfg.StanceRemember && Built().Count == 0) return;
+            if (!_cfg.StanceRemember || me == null || now - _sweptAt < SweepMs) return;
 
             _sweptAt = now;
 
@@ -472,11 +466,7 @@ namespace VehicleTweaks.Driving
                 {
                     if (near == null || !near.Exists() || _held.ContainsKey(near.Handle)) continue;
 
-                    // ORDER IS THE POINT. What this car itself carries wins; then what was
-                    // set on it this session; and only then what its model is built like --
-                    // so dropping the rear of a built car by hand still means something.
-                    var kept = FromCar(near) ?? Stances.Get(near.Handle, Name(near)) ??
-                               Always(near);
+                    var kept = FromCar(near) ?? Stances.Get(near.Handle, Name(near));
 
                     if (kept == null || Flat(kept)) continue;
 
@@ -514,8 +504,7 @@ namespace VehicleTweaks.Driving
 
             if (!_cfg.StanceRemember) return;
 
-            var kept = FromCar(car) ?? Stances.Get(car.Handle, Name(car)) ??
-                       Always(car) ?? Stock;
+            var kept = FromCar(car) ?? Stances.Get(car.Handle, Name(car)) ?? Stock;
 
             _cfg.CamberFront = kept[0];
             _cfg.CamberRear = kept[1];
@@ -1584,188 +1573,6 @@ namespace VehicleTweaks.Driving
         }
 
         /// <summary>The stance this particular car is carrying, or null if it has never had one.</summary>
-        /// <summary>
-        /// The models that are built that way, read out of the setting once. See StanceAlways.
-        ///
-        /// PARSED LAZILY AND KEPT, because this is asked of every vehicle that comes near you
-        /// and re-reading a string for each one is a sweep that costs more than the thing it is
-        /// looking for. Rebuilt when the setting changes, so editing it on the panel takes
-        /// without a reload.
-        /// </summary>
-        private sealed class Rule
-        {
-            public string Model;
-            public float[] Values;
-
-            /// <summary>Where that one car lives, or Zero for every car of the model.</summary>
-            public Vector3 Where;
-            public float Within;
-        }
-
-        private List<Rule> Built()
-        {
-            var text = _cfg.StanceAlways ?? "";
-
-            if (_builtFrom == text) return _built;
-
-            _builtFrom = text;
-            _built = new List<Rule>();
-
-            foreach (var entry in text.Split(';'))
-            {
-                var cut = entry.IndexOf('=');
-                if (cut <= 0) continue;
-
-                var model = entry.Substring(0, cut).Trim();
-                if (model.Length == 0) continue;
-
-                // ---- ONE CAR, OR EVERY CAR OF ITS KIND ----
-                //
-                // "dorado" is every Dorado in the world. "dorado @ 38.8,-1450.3,28.8" is the one
-                // parked at that spot and no other -- which is the whole difference between a
-                // model being the key and a model being how you FIND the car whose key it is.
-                //
-                // The place is only ever asked ONCE, when the car is first picked up. After
-                // that it is held by handle like everything else, so it keeps the stance when
-                // you drive it away -- which you are going to, since the reason a parked car
-                // needed one of these is that somebody else's mod parks it.
-                var where = Vector3.Zero;
-                var within = SameCar;
-
-                var at = model.IndexOf('@');
-
-                if (at >= 0)
-                {
-                    var place = model.Substring(at + 1);
-                    model = model.Substring(0, at).Trim();
-
-                    var tilde = place.IndexOf('~');
-
-                    if (tilde >= 0)
-                    {
-                        float said;
-                        if (float.TryParse(place.Substring(tilde + 1).Trim(), NumberStyles.Float,
-                                           CultureInfo.InvariantCulture, out said) && said > 0f)
-                        {
-                            within = said;
-                        }
-
-                        place = place.Substring(0, tilde);
-                    }
-
-                    var bits = place.Split(',');
-
-                    if (bits.Length >= 3)
-                    {
-                        float x, y, z;
-
-                        if (float.TryParse(bits[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out x) &&
-                            float.TryParse(bits[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out y) &&
-                            float.TryParse(bits[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out z))
-                        {
-                            where = new Vector3(x, y, z);
-                        }
-                    }
-
-                    if (where == Vector3.Zero)
-                    {
-                        Log.Warn("Stance: could not read a place out of '" + entry.Trim() +
-                                 "' -- it wants model @ x,y,z and will be every " + model +
-                                 " until it gets one.");
-                    }
-                }
-
-                if (model.Length == 0) continue;
-
-                var values = (float[])Stock.Clone();
-                var any = false;
-
-                foreach (var pair in entry.Substring(cut + 1).Split(','))
-                {
-                    var colon = pair.IndexOf(':');
-                    if (colon <= 0) continue;
-
-                    var slot = Slot(pair.Substring(0, colon).Trim());
-                    if (slot < 0) continue;
-
-                    float amount;
-                    if (!float.TryParse(pair.Substring(colon + 1).Trim(),
-                                        NumberStyles.Float, CultureInfo.InvariantCulture,
-                                        out amount))
-                    {
-                        continue;
-                    }
-
-                    values[slot] = amount;
-                    any = true;
-                }
-
-                if (!any) continue;
-
-                _built.Add(new Rule { Model = model, Values = values, Where = where, Within = within });
-
-                Log.Info("Stance: " + (where == Vector3.Zero
-                                           ? "every " + model
-                                           : "the " + model + " parked at " + where) +
-                         " is built that way -- " + entry.Substring(cut + 1).Trim() + ".");
-            }
-
-            return _built;
-        }
-
-        private List<Rule> _built;
-        private string _builtFrom;
-
-        /// <summary>How near its own parking spot a car has to be to be THAT car.</summary>
-        private const float SameCar = 6f;
-
-        /// <summary>Which of the ten a name means, or below nought for a name that is not one.</summary>
-        private static int Slot(string name)
-        {
-            for (var i = 0; i < Named.Length; i++)
-            {
-                if (string.Equals(name, Named[i], StringComparison.OrdinalIgnoreCase)) return i;
-            }
-
-            return -1;
-        }
-
-        /// <summary>The ten, by the names the panel gives them. Order matters: it is the order.</summary>
-        private static readonly string[] Named =
-        {
-            "CamberFront", "CamberRear", "TrackFront", "TrackRear",
-            "HeightFront", "HeightRear", "WheelSize", "WheelWidth", "DrawnSize", "DrawnWidth",
-        };
-
-        /// <summary>
-        /// What THIS car is built like, if somebody has said. See StanceAlways.
-        ///
-        /// The car rather than the name, because a rule can name a place as well as a model and
-        /// a name cannot tell you where it is parked.
-        /// </summary>
-        private float[] Always(Vehicle car)
-        {
-            if (car == null || !car.Exists()) return null;
-
-            var model = Name(car);
-            if (string.IsNullOrEmpty(model)) return null;
-
-            foreach (var rule in Built())
-            {
-                if (!string.Equals(rule.Model, model, StringComparison.OrdinalIgnoreCase)) continue;
-
-                if (rule.Where != Vector3.Zero &&
-                    car.Position.DistanceTo(rule.Where) > rule.Within)
-                {
-                    continue;
-                }
-
-                return (float[])rule.Values.Clone();
-            }
-
-            return null;
-        }
-
         private static float[] FromCar(Vehicle car)
         {
             try

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Windows.Forms;
 
@@ -688,24 +688,6 @@ namespace VehicleTweaks.Core
         public bool StanceRemember = true;
 
         /// <summary>
-        /// Models that are built that way, and are therefore stanced whoever is driving them.
-        ///
-        /// THE ONE PLACE A MODEL IS ALLOWED TO BE A KEY. Stances are filed by handle on purpose
-        /// -- see Core.Stances, and the Sultan it was named after -- because a stance somebody
-        /// set on one car is about that car. This is the opposite case: a car that is SUPPOSED
-        /// to sit like that, every one of them, forever, because whoever put it in the world
-        /// built it that way. Vernon's Dorado is parked down the side of his shop by another
-        /// mod entirely, respawned from nothing every time the street streams in, and there is
-        /// no handle to hang anything off. A model is the only thing it has.
-        ///
-        /// OPT-IN AND WRITTEN DOWN BY HAND, which is the whole difference. Nothing gets in here
-        /// by being driven; somebody types it.
-        ///
-        /// "dorado = HeightRear:-0.25; sultan = CamberRear:-8, HeightFront:-0.1"
-        /// </summary>
-        public string StanceAlways = "";
-
-        /// <summary>
         /// Write the front wheels out byte by byte, once, and stop.
         ///
         /// OFF, AND IT IS NOT A FEATURE. The stance writes land and the wheels do not move on
@@ -1293,7 +1275,6 @@ namespace VehicleTweaks.Core
                 s.DrawnWheels = ini.GetBool("Driving", "DrawnWheels", s.DrawnWheels);
                 s.DrawnFitsRim = ini.GetBool("Driving", "DrawnFitsRim", s.DrawnFitsRim);
                 s.StanceRemember = ini.GetBool("Driving", "StanceRemember", s.StanceRemember);
-                s.StanceAlways = ini.GetString("Driving", "StanceAlways", s.StanceAlways);
                 s.StanceProbe = ini.GetBool("Driving", "StanceProbe", s.StanceProbe);
                 s.StanceProbeFrom = ini.GetFloat("Driving", "StanceProbeFrom", s.StanceProbeFrom, 0f, 560f);
                 s.StanceRace = ini.GetBool("Driving", "StanceRace", s.StanceRace);
