@@ -49,7 +49,6 @@ namespace VehicleTweaks
         private readonly Spawner _spawner;
         private readonly Speedo _speedo;
         private readonly DashLight _dash;
-        private readonly Lowrider _lowrider;
         private readonly Crashes _crashes;
         private readonly Repairs _repairs;
         private readonly BrakeLights _brakes;
@@ -83,7 +82,6 @@ namespace VehicleTweaks
             _menu.OpenSpawner = () => _spawner.Open();
             _speedo = new Speedo(_cfg);
             _dash = new DashLight(_cfg);
-            _lowrider = new Lowrider(_cfg);
             _crashes = new Crashes(_cfg);
             _repairs = new Repairs(_cfg);
             _brakes = new BrakeLights(_cfg);
@@ -175,7 +173,6 @@ namespace VehicleTweaks
                 // tuning surface, and the car it is about does not exist yet.
                 if (!_spawner.IsOpen)
                 {
-                    _lowrider.Update(me);
                     _crashes.Update(me);
                     _repairs.Update(me);
                     _brakes.Update(me);
@@ -375,7 +372,6 @@ namespace VehicleTweaks
             try { _crashes.Restore(); } catch (Exception ex) { Log.Error("Time scale", ex); }
             try { _ignition.Release(); } catch (Exception ex) { Log.Error("Ignition", ex); }
             try { _dash.Release(); } catch (Exception ex) { Log.Error("Dash light", ex); }
-            try { _lowrider.Release(Game.Player.Character); } catch (Exception ex) { Log.Error("Lowrider pose", ex); }
             try { _drift.ReleaseAll(); } catch (Exception ex) { Log.Error("Drift tyres", ex); }
             try { _frontWheels.Release(); } catch (Exception ex) { Log.Error("Front wheels", ex); }
             try { _chauffeur.Stop(Game.Player.Character); } catch (Exception ex) { Log.Error("Self driving", ex); }

@@ -856,78 +856,6 @@ namespace VehicleTweaks.Core
         public bool DashLight = true;
 
         /// <summary>
-        /// He drives everything the way he drives a lowrider: sat back, arm through the window.
-        ///
-        /// THE GAME ALREADY HAS THIS POSE and only ever gives it to you in the cars Benny built.
-        /// It is a seat context, chosen per vehicle in the game's own layout data, and a script
-        /// can ask for a different one -- so this is not a new animation bolted on, it is the one
-        /// that already exists applied to the car you are actually in.
-        ///
-        /// EVERY VEHICLE. No lowrider check, no convertible check, no cars-only filter -- one
-        /// whose seat layout has no such clipset simply ignores the context and sits him
-        /// normally, so a filter would not be preventing a broken pose, it would be preventing
-        /// an attempt.
-        ///
-        /// OFF, because it changes how the character looks in every car rather than how any car
-        /// behaves. That is a taste, and tastes get asked for.
-        /// </summary>
-        public bool LowriderPose = false;
-
-        /// <summary>
-        /// The seat context to ask for, by name.
-        ///
-        /// A SETTING RATHER THAN A CONSTANT, AND DELIBERATELY SO. Everything else in this mod was
-        /// checked against SHVDN by reflection before it was relied on. A context cannot be: it is
-        /// a NAME that gets hashed at runtime, and there is no list to check it against from
-        /// outside the running game. Baking a guess into the build would mean a rebuild to try the
-        /// next candidate; here it is one line and a reload.
-        ///
-        /// MINI_LOWRIDER is the first candidate. If the pose does not change, the others worth
-        /// trying are LOWRIDER, MINI_LOWRIDER_ARM and MINI. The log prints the name AND the hash
-        /// it generated, because a context the game does not have looks exactly like one that was
-        /// never applied.
-        /// </summary>
-        /// <summary>
-        /// The animation played over his top half, by dictionary and clip.
-        ///
-        /// PLAYED, NOT SELECTED, and that is the second attempt at this. The first asked the game
-        /// to change his SEAT CONTEXT, which is how the game itself picks a sitting animation --
-        /// and the log proved it does nothing: the seat clipset came back unchanged on every car,
-        /// every time. The documented contexts are mission-specific things like
-        /// MISSFBI5_TREVOR_DRIVING, and there is no lowrider among them.
-        ///
-        /// NAMES THAT CAN BE CHECKED, which is why this route is better than the last one.
-        /// DOES_ANIM_DICT_EXIST answers for a dictionary and GET_ANIM_DURATION answers for a clip,
-        /// so a wrong name here is a line in the log rather than a feature that quietly does
-        /// nothing. Turn LowriderProbe on and the log lists what this build actually has.
-        /// </summary>
-        public string LowriderAnimDict = "veh@low@front_ds@base";
-        public string LowriderAnimClip = "sit";
-
-        /// <summary>
-        /// Ask the game which animation dictionaries and clips it has, and write them to the log.
-        ///
-        /// OFF, BECAUSE IT HAS ALREADY ANSWERED. It was on while the names above were a guess, and
-        /// one drive turned them into a fact: 32 dictionaries exist on this build and
-        /// veh@low@front_ds@base has a "sit" clip of 6.33 seconds. There is nothing left to ask.
-        ///
-        /// It stays because the question comes back. A game update, a different build, or a name
-        /// that stops working is answered by turning this on and driving once -- and the seat line
-        /// it prints names the clipset of whatever car you are in, which is how a real lowrider
-        /// would tell us what a real lowrider uses.
-        /// </summary>
-        public bool LowriderProbe = false;
-
-        /// <summary>
-        /// The driver's window goes down with the pose.
-        ///
-        /// AN ARM HANGING THROUGH GLASS IS WORSE THAN NO ARM. It is most of why the pose looks
-        /// right in a lowrider and wrong everywhere else -- those cars are driven with the window
-        /// down. Only our own window is wound back up when the pose comes off.
-        /// </summary>
-        public bool LowriderWindow = true;
-
-        /// <summary>
         /// The switch, on a keyboard and on a pad.
         ///
         /// I FOR INTERIOR, AFTER K TURNED OUT TO BE THE SEATBELT'S. This shipped on K without
@@ -1356,11 +1284,6 @@ namespace VehicleTweaks.Core
                 s.CounterSteerFull = ini.GetFloat("Driving", "CounterSteerFull", s.CounterSteerFull, 5f, 90f);
                 s.DashLight = ini.GetBool("Driving", "DashLight", s.DashLight);
 
-                s.LowriderPose = ini.GetBool("Driving", "LowriderPose", s.LowriderPose);
-                s.LowriderAnimDict = ini.GetString("Driving", "LowriderAnimDict", s.LowriderAnimDict);
-                s.LowriderAnimClip = ini.GetString("Driving", "LowriderAnimClip", s.LowriderAnimClip);
-                s.LowriderProbe = ini.GetBool("Driving", "LowriderProbe", s.LowriderProbe);
-                s.LowriderWindow = ini.GetBool("Driving", "LowriderWindow", s.LowriderWindow);
                 s.DashLightKey = ini.GetKey("Driving", "DashLightKey", s.DashLightKey);
                 s.PadDashLight = ini.GetString("Driving", "PadDashLight", s.PadDashLight);
 

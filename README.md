@@ -933,60 +933,6 @@ They were originally bolted onto the end of the speed readout, which was wrong. 
 object you glance at continuously; a warning lamp is meant to catch your eye precisely by *not*
 being part of what you were already looking at.
 
-## The lowrider pose
-
-**He drives everything the way he drives a lowrider** — sat back, one arm through the window. Off
-by default, because it changes how the character *looks* in every car rather than how any car
-behaves.
-
-**The first attempt was wrong, and the log is why we know.** It asked the game to change his seat
-*context* — the mechanism the game itself uses to pick which animation a ped sits in — and read the
-resulting clipset back before and after to see whether anything changed. It never did: clipsets
-`2462687501` and `3332998045` across two cars, unchanged every single time, `MINI_LOWRIDER` asked
-for and ignored. The documented context list turns out to be mission-specific entries like
-`MISSFBI5_TREVOR_DRIVING`, with no lowrider among them.
-
-That readout is the only reason this is a settled question rather than an argument. It was wrong in
-the way that is hardest to see: **a call that succeeds and does nothing.**
-
-**So the pose is played, not selected.** `TASK_PLAY_ANIM` with `UpperBodyOnly | Secondary` lays an
-animation over his top half while the game keeps driving the rest of him — which is how every
-custom driving pose in this game is actually done. The steering still works, because the steering
-is not his arms, it is the car.
-
-**And the names are worked out rather than guessed.** The clipset hashes from the failed first
-attempt turned out to be the key. `GET_IN_VEHICLE_CLIPSET_HASH_FOR_SEAT` returns a joaat hash *of a
-name*, and joaat is reversible by search rather than by mathematics — hash a few thousand candidate
-names and see which lands on the number the game gave you. `3332998045`, logged from an ordinary
-car, is **`clipset@veh@std@ds@base`**. So the naming is `clipset@veh@LAYOUT@SEAT@STATE`, and the
-seat token is `ds` — not the `front_ds` the first probe had been built around.
-
-So the probe **names things** now. It takes the seat clipset of whatever car you are in and finds
-the name that hashes to it, which means sitting in a real lowrider makes the game tell you what a
-real lowrider's seat animation is *called*. That is the entire question, answered by one drive
-rather than by another list of guesses.
-
-The dictionary probe runs alongside it: `DOES_ANIM_DICT_EXIST` answers for a dictionary and
-`GET_ANIM_DURATION` for a clip inside one, so a wrong name is a log line rather than the silence
-that let the first attempt go unnoticed.
-
-**And the probe settled it.** 32 dictionaries exist on this build, among them
-`veh@low@front_ds@base` with a `sit` clip running 6.33 seconds — so the original guess was right
-all along, and my "correction" to `veh@low@ds@base` from the clipset hash was wrong. The two are
-named differently on purpose: the seat *clipset* is `clipset@veh@low@ds@base`, and the animation
-*dictionary* behind it is `veh@low@front_ds@base`. Reasoning across from one to the other was a
-guess wearing the clothes of a deduction, and the probe is what caught it.
-
-**Cars only.** The filter was removed back when the pose was a seat context, on the argument that a
-vehicle without that clipset would simply ignore the request — true of a context, completely false
-of a played animation, which plays on whatever you give it. A car-seat animation on a bicycle is a
-man folded over the handlebars with one arm reaching into the road. Bikes have no window, no door
-and nothing to lean on; on them it is not a pose, it is a fault.
-
-**The window goes down with it** and he winds it up on his way out — the signal being
-`IsSittingInVehicle` going false while `CurrentVehicle` still names the car, which is the climb-out.
-Climbing in and climbing out look identical from outside; what separates them is which came first.
-
 ## Crashes, and the dash
 
 Hit something above 100 km/h and the world drops into slow motion for a moment. **This is the
