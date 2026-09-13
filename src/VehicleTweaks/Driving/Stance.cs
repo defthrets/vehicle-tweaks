@@ -1273,6 +1273,12 @@ namespace VehicleTweaks.Driving
                         continue;
                     }
 
+                    if (!ReferenceEquals(shots, _tidied))
+                    {
+                        Tidy(shots);
+                        _tidied = shots;
+                    }
+
                     for (var i = 0; i < shots.Length; i++)
                     {
                         var s = shots[i];
@@ -1288,8 +1294,6 @@ namespace VehicleTweaks.Driving
                         if (s.Width > 0f) Write(s.At, Width, s.Width);
                         if (s.Up != 0f) Lower(s.At, s.Up);
                     }
-
-                    if (_lowered.Count > 64) _lowered.Clear();
 
                     var rest = (int)_cfg.StanceRaceRest;
 
@@ -1307,34 +1311,109 @@ namespace VehicleTweaks.Driving
             }
         }
 
-        /// <summary>What this thread last wrote for a wheel's height, so a fresh number can be told from its own.</summary>
-        private readonly Dictionary<IntPtr, float> _lowered = new Dictionary<IntPtr, float>();
+        /// <summary>What this thread last wrote for a wheel's height, and the offset that made it.</summary>
+        private sealed class Lowered
+        {
+            public float Wrote;
+            public float Up;
+        }
+
+        private readonly Dictionary<IntPtr, Lowered> _lowered = new Dictionary<IntPtr, Lowered>();
+
+        /// <summary>The shot list the height memory was last tidied against.</summary>
+        private Shot[] _tidied;
 
         /// <summary>
-        /// Moves a wheel up or down by an offset from wherever the suspension has put it THIS pass.
+        /// Moves a wheel up or down by an offset from wherever the suspension has put it.
         ///
         /// A PLACE CANNOT BE PINNED, AND THAT IS WHAT THE FLOATING CARS WERE. The bottom of the
-        /// suspension line is where the wheel is this frame, and the game moves it every frame
-        /// as the suspension works. Pinned to the number it had at rest, the wheel was held at
-        /// full droop and the body floated on it. So height is not a place, it is an offset:
-        /// read what the game just put there, take the offset off it, write that back.
+        /// suspension line is where the wheel is this frame, and the game moves it every frame as
+        /// the suspension works. Pinned to the number it had at rest, the wheel was held at full
+        /// droop and the body floated on it. So height is not a place, it is an offset: read what
+        /// the game just put there, take the offset off it, write that back.
         ///
         /// THE GAME'S NUMBER OR OURS? If the field holds what this thread last put there, the
         /// game has not been round since, and taking the offset off again would walk the wheel
-        /// down the screen a few centimetres a pass. Anything else is fresh from the suspension.
-        /// The comparison is exact because the read gives back the very bits that were written.
+        /// down the screen a few centimetres a pass. The comparison is exact because the read
+        /// gives back the very bits that were written.
+        ///
+        /// AND A STANDING CAR IS NEVER GOING ROUND AGAIN, WHICH IS THE OTHER HALF. A suspension
+        /// at rest is a suspension the game has stopped writing, so on a parked car every pass
+        /// reads our own number and stops there -- and a slider moved while parked did nothing at
+        /// all until the car was driven far enough to make the suspension move. That was ten
+        /// metres of "is this thing working". So when the field is ours, the offset that made it
+        /// is remembered beside it: the same offset is genuinely nothing to do, and a DIFFERENT
+        /// one is applied to the car's own number, recovered by adding back the old offset.
         /// </summary>
         private void Lower(IntPtr at, float up)
         {
             var now = Read(at, BottomZ);
-            float mine;
 
-            if (_lowered.TryGetValue(at, out mine) && now == mine) return;
+            Lowered mine;
+            var known = _lowered.TryGetValue(at, out mine);
 
-            mine = now - up;
+            float own;
 
-            Write(at, BottomZ, mine);
-            _lowered[at] = mine;
+            if (known && now == mine.Wrote)
+            {
+                // Ours, untouched since. Nothing to do unless the slider has moved, in which case
+                // the car's own number is what we wrote plus what we took off it.
+                if (Math.Abs(up - mine.Up) < 0.0000001f) return;
+
+                own = now + mine.Up;
+            }
+            else
+            {
+                own = now;
+            }
+
+            var wrote = own - up;
+
+            Write(at, BottomZ, wrote);
+
+            if (!known)
+            {
+                mine = new Lowered();
+                _lowered[at] = mine;
+            }
+
+            mine.Wrote = wrote;
+            mine.Up = up;
+        }
+
+        /// <summary>
+        /// Forgets wheels that are no longer being written, when the list of them changes.
+        ///
+        /// NOT A CLEAR WHEN IT GETS BIG, WHICH IS WHAT THIS WAS. Emptying the memory wholesale
+        /// loses which numbers are ours, and a wheel whose own number is then read as the game's
+        /// gets the offset taken off it a second time -- a car that drops another few centimetres
+        /// every time the count happens to cross the line. Tidied against the shots instead, and
+        /// only when the tick hands over a different list.
+        /// </summary>
+        private void Tidy(Shot[] shots)
+        {
+            if (_lowered.Count == 0) return;
+
+            List<IntPtr> gone = null;
+
+            foreach (var at in _lowered.Keys)
+            {
+                var here = false;
+
+                for (var i = 0; i < shots.Length; i++)
+                {
+                    if (shots[i].At != at) continue;
+
+                    here = true;
+                    break;
+                }
+
+                if (!here) (gone ?? (gone = new List<IntPtr>())).Add(at);
+            }
+
+            if (gone == null) return;
+
+            foreach (var at in gone) _lowered.Remove(at);
         }
 
         // ==================================================================
