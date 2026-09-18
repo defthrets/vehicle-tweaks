@@ -750,12 +750,24 @@ namespace VehicleTweaks.Driving
 
                     came.Angle = (float)Math.Asin(sin);
 
-                    if (!Sound(came.Tyre) || !Sound(came.Width) || came.Tyre <= 0f || came.Width <= 0f)
+                    // EACH SIZE ANSWERS FOR ITSELF. They were one test, so a width that would not
+                    // read took the radius down with it -- and the radius is the one that does
+                    // something. The same mistake as the geometry guard, made again one field
+                    // along; it has never fired here, which is exactly how it would have survived.
+                    if (!Sound(came.Tyre) || came.Tyre <= 0f)
                     {
-                        Log.Once("stance-size", "Wheel sizes do not read on this build (" + came.Tyre +
-                                                ", " + came.Width + "), so they are left alone. " +
-                                                "Camber and track are unaffected.");
-                        came.Tyre = came.Width = 0f;
+                        Log.Once("stance-tyre", "The tyre radius does not read on this car (" +
+                                                came.Tyre + "), so the wheel size is left alone. " +
+                                                "Nothing else is affected.");
+                        came.Tyre = 0f;
+                    }
+
+                    if (!Sound(came.Width) || came.Width <= 0f)
+                    {
+                        Log.Once("stance-width", "The tyre width does not read on this car (" +
+                                                 came.Width + "), so the wheel width is left alone. " +
+                                                 "Nothing else is affected.");
+                        came.Width = 0f;
                     }
 
                     // The fourth size is the sweep's find rather than FiveM's, so it answers to a
@@ -930,8 +942,12 @@ namespace VehicleTweaks.Driving
                      angle.ToString("0.0000") + " rad, x " + came.BottomX.ToString("0.0000") + " to " +
                      (came.BottomX - held.Values[2]).ToString("0.0000") + " m, z " +
                      came.BottomZ.ToString("0.00") + " to " +
-                     (came.BottomZ - held.Values[4]).ToString("0.00") + ", tyre x" +
-                     held.Values[6].ToString("0.00") + ". Holding " + _held.Count + " car(s).");
+                     (came.BottomZ - held.Values[4]).ToString("0.00") + ", tyre " +
+                     (came.Tyre > 0f
+                          ? came.Tyre.ToString("0.000") + " to " +
+                            (came.Tyre * held.Values[6]).ToString("0.000") + "m"
+                          : "not readable here") +
+                     ". Holding " + _held.Count + " car(s).");
         }
 
         /// <summary>
