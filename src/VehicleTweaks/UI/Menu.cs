@@ -965,11 +965,11 @@ namespace VehicleTweaks.UI
 
             stance.Items.Add(Number("Wheel size", () => _cfg.WheelSize, v => _cfg.WheelSize = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelSize",
-                                    "The tyre. Bigger lifts the car and fills the arch."));
+                                    "The whole wheel, bigger. Lifts the car and fills the arch."));
 
             stance.Items.Add(Number("Wheel width", () => _cfg.WheelWidth, v => _cfg.WheelWidth = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
-                                    "The collider. The skid marks widen with it; the look is below."));
+                                    "The whole wheel, wider."));
 
             stance.Items.Add(Number("Drawn size", () => _cfg.DrawnSize, v => _cfg.DrawnSize = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnSize",

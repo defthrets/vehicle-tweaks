@@ -134,16 +134,21 @@ namespace VehicleTweaks.Driving
         private const int Tread = 0x11C;
 
         /// <summary>
-        /// A SECOND RADIUS, LARGER THAN THE COLLIDER, which is the one the wheel may be DRAWN to.
+        /// THE RENDER CLUSTER, which is the one the wheel is DRAWN from. It works.
         ///
-        /// The dump on this build reads two radii in a wheel: 0x110 at about 0.39m and this at
-        /// about 0.62m. The first is FiveM's tyre collider and writing it moves nothing you can
-        /// see -- the sweep proved that, doubling it changed the ride and not the wheel. The
-        /// bigger one is the outer tyre, the distance the model is drawn to, and it has never
-        /// been written before. It is a float in the same struct this reads every frame, so a
-        /// bounded write here cannot corrupt anything the way the render-data path did.
+        /// A wheel carries its sizes twice on this build. The COLLIDER set at 0x110 is what the
+        /// physics rolls on -- writing it changed the ride and never the wheel, which is what
+        /// the sweep found and the log confirmed. Parallel to it, at 0x130, is the RENDER set:
+        /// the radius the model is drawn to at 0x130, and the width it is drawn to at 0x138,
+        /// laid out the same way. Writing 0x130 grew the wheel where nothing else had, so this
+        /// is the pair -- radius and width -- and the size and width sliders drive it.
+        ///
+        /// Both are floats in the same CWheel this reads every frame, so a bounded, guarded
+        /// write carries none of the render-data crash: nothing here walks off the end of an
+        /// object of unknown length.
         /// </summary>
         private const int Render = 0x130;
+        private const int RenderWidth = 0x138;
 
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
@@ -717,7 +722,7 @@ namespace VehicleTweaks.Driving
             public float TopX, TopZ, BottomX, BottomZ;
 
             /// <summary>Nought where the field did not read as a size.</summary>
-            public float Tyre, Width, Tread, Render;
+            public float Tyre, Width, Tread, Render, RenderWidth;
         }
 
         /// <summary>Reads what a car came with, refusing any wheel that does not read sanely.</summary>
@@ -786,10 +791,16 @@ namespace VehicleTweaks.Driving
                     // tighter test than the others: a tyre width, or nothing.
                     if (!Sound(came.Tread) || came.Tread < 0.05f || came.Tread > 1.2f) came.Tread = 0f;
 
-                    // The second radius, judged as a radius: bigger than a hubcap, smaller than a
+                    // The render radius, judged as a radius: bigger than a hubcap, smaller than a
                     // tractor. Nought if this wheel does not carry one where the dump found it.
                     came.Render = Read(at, Render);
                     if (!Sound(came.Render) || came.Render < 0.1f || came.Render > 1.5f) came.Render = 0f;
+
+                    // The render width, judged as a width: narrower than the radius, wider than a
+                    // blade. Its own guard, so a wheel with one radius and no width still grows.
+                    came.RenderWidth = Read(at, RenderWidth);
+                    if (!Sound(came.RenderWidth) || came.RenderWidth < 0.02f || came.RenderWidth > 1f)
+                        came.RenderWidth = 0f;
 
                     stock[(int)wheel.BoneId] = came;
                 }
@@ -907,10 +918,13 @@ namespace VehicleTweaks.Driving
                     if (tracking) Write(at, BottomX, bottomX);
                     var render = came.Render > 0f && Math.Abs(held.Values[6] - 1f) >= Nothing
                                      ? came.Render * held.Values[6] : 0f;
+                    var renderWidth = came.RenderWidth > 0f && Math.Abs(held.Values[7] - 1f) >= Nothing
+                                          ? came.RenderWidth * held.Values[7] : 0f;
 
                     if (tyre > 0f) Write(at, Tyre, tyre);
                     if (width > 0f) Write(at, Width, width);
                     if (render > 0f) Write(at, Render, render);
+                    if (renderWidth > 0f) Write(at, RenderWidth, renderWidth);
 
 
                     shots.Add(new Shot
@@ -923,6 +937,7 @@ namespace VehicleTweaks.Driving
                         Tyre = tyre,
                         Width = width,
                         Render = render,
+                        RenderWidth = renderWidth,
                     });
 
                     Say(held, wheel, came, angle);
@@ -1250,6 +1265,7 @@ namespace VehicleTweaks.Driving
             public float Tyre;
             public float Width;
             public float Render;
+            public float RenderWidth;
         }
 
         private volatile Shot[] _shots;
@@ -1339,6 +1355,7 @@ namespace VehicleTweaks.Driving
                         if (s.Tyre > 0f) Write(s.At, Tyre, s.Tyre);
                         if (s.Width > 0f) Write(s.At, Width, s.Width);
                         if (s.Render > 0f) Write(s.At, Render, s.Render);
+                        if (s.RenderWidth > 0f) Write(s.At, RenderWidth, s.RenderWidth);
                         if (s.Up != 0f) Lower(s.At, s.Up);
                     }
 
