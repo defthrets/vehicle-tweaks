@@ -54,13 +54,17 @@ namespace VehicleTweaks.Core
         private static bool _loaded;
         private static int _width;
 
+        /// <summary>What each value is as the car came, for padding a shorter old line.</summary>
+        private static float[] _stock;
+
         /// <summary>Reads the file once. The width is how many numbers a stance has.</summary>
-        public static void Load(int width)
+        public static void Load(int width, float[] stock)
         {
             if (_loaded) return;
 
             _loaded = true;
             _width = width;
+            _stock = stock;
 
             try
             {
@@ -76,18 +80,28 @@ namespace VehicleTweaks.Core
 
                     var bits = text.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (bits.Length < 2 + _width) continue;
+                    // AT LEAST ONE VALUE, not exactly _width of them: a line from before a value
+                    // was added is short by that value, and is worth keeping with the newcomer
+                    // padded from stock rather than thrown away whole.
+                    if (bits.Length < 3) continue;
 
                     int handle;
 
                     if (!int.TryParse(bits[0], NumberStyles.Integer, CultureInfo.InvariantCulture,
                                       out handle)) continue;
 
+                    var have = bits.Length - 2;
                     var values = new float[_width];
                     var sound = true;
 
                     for (var i = 0; i < _width; i++)
                     {
+                        if (i >= have)
+                        {
+                            values[i] = _stock != null && i < _stock.Length ? _stock[i] : 0f;
+                            continue;
+                        }
+
                         if (float.TryParse(bits[2 + i], NumberStyles.Float, CultureInfo.InvariantCulture,
                                            out values[i])) continue;
 

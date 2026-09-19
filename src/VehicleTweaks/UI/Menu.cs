@@ -971,6 +971,10 @@ namespace VehicleTweaks.UI
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "WheelWidth",
                                     "The whole wheel, wider."));
 
+            stance.Items.Add(Number("Rim size", () => _cfg.RimSize, v => _cfg.RimSize = v,
+                                    0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "RimSize",
+                                    "The rim inside the tyre. Bigger is a lower profile."));
+
             stance.Items.Add(Number("Drawn size", () => _cfg.DrawnSize, v => _cfg.DrawnSize = v,
                                     0.05f, 0.4f, 2.5f, "0.00", "x", "Driving", "DrawnSize",
                                     "Needs DrawnWheels on in the ini. It is off: read why there.",

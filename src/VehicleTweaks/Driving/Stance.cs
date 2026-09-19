@@ -150,11 +150,20 @@ namespace VehicleTweaks.Driving
         private const int Render = 0x130;
         private const int RenderWidth = 0x138;
 
+        /// <summary>
+        /// The rim -- the metal inside the tyre -- in each cluster: collider at 0x114, render
+        /// at 0x134. The render one is what the model is drawn to, so a bigger rim under the
+        /// same tyre reads as a lower-profile wheel. It sits between the radius and the width in
+        /// both sets, which is the whole reason the two-cluster reading holds together.
+        /// </summary>
+        private const int Rim = 0x114;
+        private const int RenderRim = 0x134;
+
         /// <summary>Near enough to nothing that writing it would be writing nothing.</summary>
         private const float Nothing = 0.0005f;
 
-        /// <summary>The ten, in the order they are written onto a car.</summary>
-        private const int Values = 10;
+        /// <summary>The eleven, in the order they are written onto a car.</summary>
+        private const int Values = 11;
 
         /// <summary>
         /// What each of the nine means "as the car came".
@@ -164,7 +173,7 @@ namespace VehicleTweaks.Driving
         /// stanced before the sizes existed carries six decorators, and reading the seventh as
         /// the nought the game hands back for a missing one would shrink its wheels to nothing.
         /// </summary>
-        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f, 1f };
+        private static readonly float[] Stock = { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 1f, 1f, 1f, 1f };
 
         /// <summary>
         /// A wheel does not lean by five radians and does not sit five metres out.
@@ -234,7 +243,7 @@ namespace VehicleTweaks.Driving
             _cfg = cfg;
 
             Register();
-            Stances.Load(Values);
+            Stances.Load(Values, Stock);
         }
 
         public void Update(Ped me)
@@ -301,6 +310,7 @@ namespace VehicleTweaks.Driving
                 _cfg.CamberFront, _cfg.CamberRear, _cfg.TrackFront,
                 _cfg.TrackRear, _cfg.HeightFront, _cfg.HeightRear,
                 _cfg.WheelSize, _cfg.WheelWidth, _cfg.DrawnSize, _cfg.DrawnWidth,
+                _cfg.RimSize,
             };
         }
 
@@ -533,6 +543,7 @@ namespace VehicleTweaks.Driving
             _cfg.WheelWidth = kept[7];
             _cfg.DrawnSize = kept[8];
             _cfg.DrawnWidth = kept[9];
+            _cfg.RimSize = kept[10];
 
             if (Flat(kept)) return;
 
@@ -722,7 +733,7 @@ namespace VehicleTweaks.Driving
             public float TopX, TopZ, BottomX, BottomZ;
 
             /// <summary>Nought where the field did not read as a size.</summary>
-            public float Tyre, Width, Tread, Render, RenderWidth;
+            public float Tyre, Width, Tread, Render, RenderWidth, Rim, RenderRim;
         }
 
         /// <summary>Reads what a car came with, refusing any wheel that does not read sanely.</summary>
@@ -801,6 +812,14 @@ namespace VehicleTweaks.Driving
                     came.RenderWidth = Read(at, RenderWidth);
                     if (!Sound(came.RenderWidth) || came.RenderWidth < 0.02f || came.RenderWidth > 1f)
                         came.RenderWidth = 0f;
+
+                    // The rim in each cluster, judged as a radius that is smaller than the tyre.
+                    came.Rim = Read(at, Rim);
+                    if (!Sound(came.Rim) || came.Rim < 0.05f || came.Rim > 1.2f) came.Rim = 0f;
+
+                    came.RenderRim = Read(at, RenderRim);
+                    if (!Sound(came.RenderRim) || came.RenderRim < 0.05f || came.RenderRim > 1.2f)
+                        came.RenderRim = 0f;
 
                     stock[(int)wheel.BoneId] = came;
                 }
@@ -920,11 +939,16 @@ namespace VehicleTweaks.Driving
                                      ? came.Render * held.Values[6] : 0f;
                     var renderWidth = came.RenderWidth > 0f && Math.Abs(held.Values[7] - 1f) >= Nothing
                                           ? came.RenderWidth * held.Values[7] : 0f;
+                    var rimming = Math.Abs(held.Values[10] - 1f) >= Nothing;
+                    var rim = came.Rim > 0f && rimming ? came.Rim * held.Values[10] : 0f;
+                    var renderRim = came.RenderRim > 0f && rimming ? came.RenderRim * held.Values[10] : 0f;
 
                     if (tyre > 0f) Write(at, Tyre, tyre);
                     if (width > 0f) Write(at, Width, width);
                     if (render > 0f) Write(at, Render, render);
                     if (renderWidth > 0f) Write(at, RenderWidth, renderWidth);
+                    if (rim > 0f) Write(at, Rim, rim);
+                    if (renderRim > 0f) Write(at, RenderRim, renderRim);
 
 
                     shots.Add(new Shot
@@ -938,6 +962,8 @@ namespace VehicleTweaks.Driving
                         Width = width,
                         Render = render,
                         RenderWidth = renderWidth,
+                        Rim = rim,
+                        RenderRim = renderRim,
                     });
 
                     Say(held, wheel, came, angle);
@@ -1266,6 +1292,8 @@ namespace VehicleTweaks.Driving
             public float Width;
             public float Render;
             public float RenderWidth;
+            public float Rim;
+            public float RenderRim;
         }
 
         private volatile Shot[] _shots;
@@ -1356,6 +1384,8 @@ namespace VehicleTweaks.Driving
                         if (s.Width > 0f) Write(s.At, Width, s.Width);
                         if (s.Render > 0f) Write(s.At, Render, s.Render);
                         if (s.RenderWidth > 0f) Write(s.At, RenderWidth, s.RenderWidth);
+                        if (s.Rim > 0f) Write(s.At, Rim, s.Rim);
+                        if (s.RenderRim > 0f) Write(s.At, RenderRim, s.RenderRim);
                         if (s.Up != 0f) Lower(s.At, s.Up);
                     }
 
@@ -1594,7 +1624,7 @@ namespace VehicleTweaks.Driving
         private static readonly string[] Decors =
         {
             "vt_camber_f", "vt_camber_r", "vt_track_f", "vt_track_r", "vt_height_f", "vt_height_r",
-            "vt_size", "vt_width", "vt_drawn_size", "vt_drawn_width",
+            "vt_size", "vt_width", "vt_drawn_size", "vt_drawn_width", "vt_rim",
         };
 
         private static bool _registered;

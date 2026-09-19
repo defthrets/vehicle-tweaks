@@ -587,6 +587,16 @@ namespace VehicleTweaks.Core
         public float WheelWidth = 1f;
 
         /// <summary>
+        /// The rim inside the tyre, as a proportion of the one the car came with.
+        ///
+        /// THE RENDER RIM AT 0x134, which is what the wheel is drawn to, so a bigger rim under
+        /// the same tyre is a lower-profile look and a smaller one is more sidewall. The collider
+        /// rim at 0x114 goes with it, so the physics agrees with the picture. Both are guarded as
+        /// radii and raced like the tyre sizes beside them.
+        /// </summary>
+        public float RimSize = 1f;
+
+        /// <summary>
         /// How big and how wide a FITTED wheel is drawn, as a proportion of the model.
         ///
         /// TWO FACTORS THE GAME KEEPS FOR THE ARENA WHEEL SIZES, on the car's render data, which
@@ -1270,6 +1280,7 @@ namespace VehicleTweaks.Core
                 s.HeightRear = ini.GetFloat("Driving", "HeightRear", s.HeightRear, -0.5f, 0.5f);
                 s.WheelSize = ini.GetFloat("Driving", "WheelSize", s.WheelSize, 0.4f, 2.5f);
                 s.WheelWidth = ini.GetFloat("Driving", "WheelWidth", s.WheelWidth, 0.4f, 2.5f);
+                s.RimSize = ini.GetFloat("Driving", "RimSize", s.RimSize, 0.4f, 2.5f);
                 s.DrawnSize = ini.GetFloat("Driving", "DrawnSize", s.DrawnSize, 0.4f, 2.5f);
                 s.DrawnWidth = ini.GetFloat("Driving", "DrawnWidth", s.DrawnWidth, 0.4f, 2.5f);
                 s.DrawnWheels = ini.GetBool("Driving", "DrawnWheels", s.DrawnWheels);
